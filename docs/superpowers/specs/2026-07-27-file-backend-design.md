@@ -397,7 +397,8 @@ means the failure mode is a loud startup error, not silent data loss.
 - the pinned runtime dependencies from `setup.py` — `grpcio`, `grpcio-status`,
   `grpcio-tools`, `googleapis-common-protos`, `protobuf`, `flask`,
   `requests-toolbelt`, `scalpl`, `crc32c`, `gunicorn`, `waitress`, `Werkzeug`;
-- `pytest`;
+- `pytest`, `coverage` (for the Mechanism 3 gate), and `hypothesis` (for Mechanism 4) —
+  development dependencies only, never in `setup.py`;
 - `docker-client` and `docker-compose`. The daemon comes from Docker Desktop or
   Colima; nixpkgs' full `docker` package builds a daemon that is not useful on Darwin.
 
@@ -406,27 +407,228 @@ The file backend itself adds **no new Python runtime dependencies** — stdlib `
 `mmap`, `hashlib`, `json`, plus the already-present `crc32c` and `protobuf` — which
 preserves the upstreaming option.
 
-## Testing strategy
+## Verification plan
 
-- **The existing suite must pass unmodified.** It is the regression net proving that
-  `NullStore` and `BytesMedia` are behavior-identical, and it is the main guardrail for
-  the invasive `Media` seam.
-- **Backend-parametrized conformance suite** run against both stores, holding the file
-  backend to the in-memory backend's behavior: round-trip, generations, versioning,
-  soft-delete, compose, rewrite, move, resumable upload resume, range reads.
-- **Layout tests:** escaping round-trip including every overflow trigger, case
-  collision detection, crash recovery (media without sidecar is invisible), restart
-  durability, orphan and `.gcs` handling.
-- **Large-object tests:** a sparse multi-GB upload and download asserting bounded RSS.
-  This is the only thing that keeps the O(n²) checksum class of bug fixed.
-- **Concurrency test:** parallel streaming transfers against one emulator, which would
-  have caught the two-thread gRPC pool.
+The central risk of this design is that it touches read and write paths shared by every
+API in the emulator. "The existing suite passes" is necessary but not sufficient: the
+suite was written to test GCS semantics, not to pin down every byte of external
+behavior, and it may not reach the fault-injection and checksum edges that the `Media`
+seam disturbs. This section defines what must be *demonstrated*, and by what mechanism.
+
+### The invariant to prove
+
+External, over-the-wire behavior is identical across three configurations:
+
+```
+  A: pre-change,  memory backend      (pristine main)
+  B: post-change, memory backend      (NullStore + BytesMedia)
+  C: post-change, file backend        (FileStore + FileMedia)
+
+  required:  A ≡ B ≡ C
+```
+
+- **A ≡ B** proves the refactor is behavior-preserving. This is the gate for phases 2
+  and 3, the invasive ones.
+- **B ≡ C** proves the new backend is equivalent to the old. This is the gate for
+  phases 4 and 5.
+
+Equivalence means: identical status codes, identical response bodies, identical
+response headers, identical gRPC messages, identical stream chunk boundaries where the
+API pins them, and identical error taxonomies — after canonicalization of the
+inherently non-deterministic fields listed below.
+
+Deliberate, intended differences are permitted but must be enumerated in an explicit
+allow-list with a justification per entry, reviewed as part of the change. An
+unexplained diff is a defect.
+
+### Mechanism 1: run the existing suite against both backends
+
+Highest leverage, lowest cost. Both existing test styles funnel through
+`Database.init()` — REST tests use the module-level singleton
+(`testbench/rest_server.py:31`) and call `db.clear()` in `setUp`, while gRPC tests
+construct their own (`tests/test_grpc_server.py:45`). So a single chokepoint controls
+the backend for the whole suite.
+
+Add a `conftest.py` (the repo currently has none) exposing a backend parameter driven by
+`TESTBENCH_TEST_STORE=memory|file`. When `file`, `Database.init()` returns a
+file-backed database rooted at a per-test temporary directory, and `Database.clear()`
+also empties that directory. CI runs the full suite twice, once per value.
+
+This gets all 30 existing test files executing against the file backend with **no test
+rewrites**, and it is the primary evidence for B ≡ C on ordinary semantics. Its
+weakness is that it cannot speak to A ≡ B, since pristine `main` has no file backend and
+no `conftest.py`; that is what Mechanism 2 is for.
+
+### Mechanism 2: black-box golden-master differential harness
+
+This is the core of the pre/post proof.
+
+A standalone harness, `tests/conformance/`, drives a **running emulator purely
+over the wire** — HTTP/JSON, XML, and gRPC — and records every response to disk. It
+**must not import `testbench` or `gcs` internals**, so that it is immune to the refactor
+it is measuring and can run unchanged against pristine `main`.
+
+The trace is a fixed, ordered script covering: bucket CRUD and IAM, object insert via
+simple/multipart/resumable/XML upload, `WriteObject` and `BidiWriteObject`, ranged and
+full reads over REST and `ReadObject`/`BidiReadObject`, decompressive transcoding,
+compose, rewrite (including multi-call rewrite with continuation tokens), move,
+generations and versioning, soft-delete and restore, folders, ACLs, CSEK, precondition
+failures, and every fault-injection instruction in the README (`return-broken-stream`,
+`return-corrupted-data`, `stall-*`, `return-503-after-256K`, `redirect-*`).
+
+Workflow:
+
+1. **Before phase 2**, run the harness against pristine `main` and commit the output as
+   `tests/conformance/golden/`. This is configuration A, captured once, and it is the
+   only artifact that cannot be regenerated later.
+2. Every subsequent phase re-runs the harness and diffs against the goldens, in both
+   memory and file configurations.
+3. A `--regenerate` flag exists, but any commit that changes a golden file must justify
+   the change in its message and in the allow-list. This is the review hook.
+
+#### Canonicalization
+
+The harness is worthless without careful handling of non-determinism, so this is
+specified rather than left to implementation. Values are replaced through a **symbol
+table**: the first occurrence of a non-deterministic value binds a stable placeholder
+(`<GEN:1>`, `<UPLOAD:2>`), and every later occurrence of the *same* value reuses that
+binding. This erases the value while preserving identity relationships, so aliasing
+regressions — two objects wrongly sharing a generation, a rewrite token leaking across
+requests — still show up as diffs.
+
+| Field | Handling |
+|---|---|
+| `generation` (`gcs/object.py:38`, time-seeded) | symbol; assert positive int and monotonically increasing across the trace |
+| `create_time`, `update_time`, `finalize_time`, `soft_delete_time`, `hard_delete_time` | symbol; assert RFC 3339 and correct relative ordering |
+| `upload_id`, rewrite tokens, retry-test ids (`testbench/database.py:742`) | symbol |
+| `self_link`, `media_link`, bucket `id` | symbol after substituting embedded generations |
+| `x-goog-generation`, `x-goog-metageneration` headers | symbol, consistent with the body |
+| `Date`, `Server`, `Content-Length` on chunked responses | dropped |
+| `metageneration`, `etag` | **kept verbatim** — both are deterministic (etag is an md5 of metageneration, `gcs/object.py:91`), so they are real signal |
+
+Streaming responses record chunk boundaries as well as concatenated bytes, because
+chunking is externally visible to a client and the `Media` seam is precisely what could
+change it.
+
+### Mechanism 3: coverage-gated call-site audit
+
+The `Media` seam audit spans roughly 40 call sites, and "we audited them" is not
+verifiable. So the audit output becomes a committed, machine-readable checklist,
+`tests/media_call_sites.txt`, listing every site as `path:line`.
+
+A test then runs the conformance trace under `coverage.py` (already configured in this
+repo, see `.codecov.yml`) and asserts that **every listed line was executed**. A new
+`.media` use added without corresponding coverage fails the gate. This converts the
+audit from a claim into a check, and it is what makes the highest-risk phase auditable.
+
+### Mechanism 4: property-based name and layout round-trip
+
+Escaping, the overflow store, and collision detection need adversarial input rather than
+hand-picked examples. Using `hypothesis` (a **development** dependency only — it goes in
+the flake, never in `setup.py`, preserving the zero-runtime-dependency property):
+
+- Generate legal GCS object names — 1–1024 UTF-8 bytes, embedded `/`, Unicode,
+  spaces, `%`, `#`, `?`, emoji, near-`NAME_MAX` segments, trailing `/`, `.`/`..`
+  segments, `.gcs/` prefixes, `.gcsmeta` suffixes.
+- Assert: write via the API, read back via the API, bytes and metadata identical; and
+  `unescape(escape(name)) == name` for every name, including overflow entries.
+- Assert the same names behave identically on the memory backend (B ≡ C at the name
+  level).
+
+Plus explicit, non-generated adversarial cases for the rules in "Security: path
+handling" — `../../etc/passwd`, `a/../../../x`, `/etc/passwd`, embedded NUL, a symlink
+planted in the root before startup — each asserting that nothing is written or read
+outside the root, and that the failure is loud.
+
+### Mechanism 5: large-object bounds
+
+Two properties, neither of which needs a checked-in large fixture: the payload is a
+deterministic PRNG stream, and reads are verified by re-deriving the same stream.
+
+- **Bounded memory.** Upload and then download a 4 GB object, sampling process RSS
+  throughout, and assert peak growth stays under a fixed cap (256 MiB above baseline).
+  This is what prevents a regression back to memory-resident media.
+- **Linear-time detector for the O(n²) checksum bug.** Time an upload at size N and at
+  2N, and assert `t(2N)/t(N) < 3`. Linear behavior gives ~2, the current
+  whole-buffer recompute at `gcs/upload.py:590` gives ~4. This is a cheap, robust
+  detector that does not depend on absolute machine speed. CI uses N = 256 MiB; a
+  nightly job uses multi-GB sizes.
+
+### Mechanism 6: durability and crash behavior
+
+File backend only, so these are B-less assertions — they have no memory-backend
+counterpart and are therefore new behavior, not preserved behavior:
+
+- Write objects, stop the emulator gracefully, restart, and assert every read-only
+  assertion from the conformance trace still holds.
+- `SIGKILL` mid-upload, restart, and assert the partial object is invisible (no sidecar)
+  and the bucket is otherwise intact.
+- Truncate or corrupt a sidecar, restart, and assert a loud failure rather than silent
+  data loss.
+- Plant two object names that collide case-insensitively and assert startup fails
+  loudly.
+
+### Mechanism 7: concurrency
+
+Run N parallel streaming transfers plus interleaved metadata operations against one
+emulator, asserting no request is starved and all responses are correct. This is the
+test that would have caught `_GRPC_SERVER_THREAD_COUNT = 2`
+(`testbench/grpc_server.py:45`), and it also exercises the claim that bulk media I/O
+happens outside `_resources_lock`.
+
+### Mechanism 8: cross-validation against real GCS (opt-in)
+
+The premise of this work is dev/test/prod parity, and no amount of emulator self-testing
+can confirm the emulator matches GCS. So the conformance trace is runnable against a
+**real GCS bucket** with the same canonicalization, producing a divergence report.
+
+This requires a project, credentials, and money, so it is a manually triggered job
+rather than per-commit. Divergences are recorded as known gaps — the ACL/IAM
+non-enforcement noted under "Feasibility" will appear here, as will signed-URL
+verification. The value is that the parity gap becomes a reviewed document instead of an
+assumption.
+
+### Mechanism 9: the downstream client (outer loop)
+
+None of the above exercises the application's Rust client, which is the actual
+consumer. The final acceptance check is the application's own smoke suite run against
+the emulator in both memory and file configurations. That lives in the application
+repository, not here, but it is the last gate before adopting the file backend for
+local development.
+
+### Per-phase gates
+
+| Phase | Must be green | New evidence produced |
+|---|---|---|
+| 1 — flake, harness | existing suite; harness runs on pristine `main` | `tests/conformance/golden/` (configuration A) |
+| 2 — `Store` seam, `NullStore` | existing suite; harness diff clean | A ≡ B for metadata paths |
+| 3 — `Media` seam, `BytesMedia` | existing suite; harness diff clean; coverage gate | A ≡ B for byte paths; `media_call_sites.txt` |
+| 4 — `FileStore` | suite on both backends; harness diff clean on both | B ≡ C for metadata; property-based names; traversal cases |
+| 5 — `FileMedia` | as above | B ≡ C for bytes; bounded memory; linear-time detector |
+| 6 — bootstrap, compose | as above | single-worker assertion; boot-time gRPC and bucket seeding |
+| 7 — full verification | everything above | durability and crash suite; concurrency suite; optional real-GCS divergence report |
+
+Phases 2 and 3 are pure refactors: the harness diff must be **empty**, with no
+allow-list entries. Any diff at those phases is a bug, which is what makes the risky
+work safe to land incrementally.
+
+### What this plan does not prove
+
+Stated so the gaps are chosen rather than discovered:
+
+- That the emulator matches real GCS, except to the extent Mechanism 8 is run.
+- That signed URLs are correctly signed — the emulator performs no signature
+  verification, so canonicalization bugs remain invisible.
+- Anything about ACL or IAM enforcement, which the testbench does not implement.
+- Behavior under multi-process operation, which is an explicit non-goal.
+- Performance parity with real GCS; only internal scaling behavior is bounded.
 
 ## Risks
 
 | Area | Risk | Mitigation |
 |---|---|---|
-| `Media` seam audit (~40 call sites) | Silent behavior change in a fault-injection or checksum path | Existing suite unmodified; grep-driven audit; `BytesMedia` keeps the default path identical |
+| `Media` seam audit (~40 call sites) | Silent behavior change in a fault-injection or checksum path | Golden-master diff must be empty at phase 3 (Mechanism 2); coverage-gated call-site checklist (Mechanism 3); `BytesMedia` keeps the default path identical |
+| Goldens captured from a moving target | Rebasing on upstream `main` invalidates the configuration-A baseline | Goldens are committed and versioned; re-derive and review the diff as part of any upstream rebase |
 | `crc32c` incremental API | Assumption unverified; package not installed locally | Verify in phase 1; manual chaining fallback |
 | macOS case-insensitivity | Silent data loss | Fail loudly on collision; recommend named volumes |
 | Lock held across GB-scale copies | Emulator stalls under parallel tests | Immutable staging files; bulk copy outside the lock |
@@ -440,7 +642,10 @@ Phases 2 and 3 are pure refactors that leave the tree green, so work can stop af
 phase without a half-migrated codebase.
 
 1. `flake.nix`; confirm the existing suite is green; verify the `crc32c` incremental
-   API assumption.
+   API assumption; **build the black-box conformance harness and capture the
+   configuration-A goldens against pristine `main`**. The goldens must be captured
+   before any production code changes, so this phase is a hard prerequisite rather than
+   setup.
 2. `Store` seam plus `NullStore`. No behavior change; suite still green.
 3. `Media` seam plus `BytesMedia`. The call-site audit; suite still green. Highest-risk
    phase, deliberately isolated.
@@ -451,7 +656,8 @@ phase without a half-migrated codebase.
    rewrite, and gzip.
 6. Bootstrap: `TESTBENCH_BUCKETS`, `TESTBENCH_GRPC_PORT`, `TESTBENCH_GRPC_THREADS`,
    single-worker assertion, compose files.
-7. Conformance, layout, large-object, and concurrency tests.
+7. Durability, crash, concurrency, and large-object suites; optional real-GCS
+   divergence report. See "Per-phase gates" for what must be green at each step.
 
 ## Decisions recorded
 
