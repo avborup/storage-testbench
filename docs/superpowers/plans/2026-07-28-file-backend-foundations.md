@@ -1444,8 +1444,19 @@ def run(emulator):
 
     # --- CSEK --------------------------------------------------------------
     # Fixed key material so the trace is deterministic. Not a secret.
-    key_b64 = "aVhrOWVYVmJEd0hVeDJEZzZKNWJUOEE3T3lVenBudUdxWk9CVFVvS0NnTT0="
-    sha_b64 = "Nzc0MDU5RTUxNDIzQzQ0NEUzOEEwRDZBRDlBQzQzMTA5NTdCNkE2ODU3RkY4RUZE"
+    # Corrected after review. The values this plan originally carried were
+    # malformed in two ways: the key was base64-OF-base64 (it decoded to the
+    # 44-byte ASCII string "iXk9eXVbDwHUx2Dg6J5bT8A7OyUzpnuGqZOBTUoKCgM=",
+    # not to a 32-byte AES-256 key), and the "sha256" decoded to the ASCII hex
+    # text "774059E51423C444E38A0D6AD9AC4310957B6A68" rather than to a digest.
+    # The emulator therefore rejected the upload with
+    # customerEncryptionKeySha256IsInvalid, and the two download steps
+    # returned 404 because the object had never been created -- three stable,
+    # meaningless recordings that read as CSEK coverage. The pair below is
+    # verified: the key decodes to exactly 32 bytes and the sha is the base64
+    # SHA-256 of those bytes.
+    key_b64 = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
+    sha_b64 = "Yw3NKWbEM2aRElRIu7JbT/QSpJxzLbLIq8G4WBvXEN0="
     csek = {
         "x-goog-encryption-algorithm": "AES256",
         "x-goog-encryption-key": key_b64,
@@ -1788,6 +1799,32 @@ Covers every instruction documented in README.md. Outcomes include connection
 resets and timeouts, which are recorded as errors: a change from "the client
 saw a reset" to "the client got data" is exactly the regression this trace
 exists to catch.
+
+The emulator has TWO independent injection mechanisms with different
+grammars, and an instruction only fires through the one that owns it. An
+earlier revision of this plan pushed all twelve instructions through the
+Retry Test API, and nine of them recorded either a creation-time 400 or an
+unmodified 200 -- stable, meaningless interactions that read as coverage. A
+reviewer disproved that by probing a live emulator directly, so the split
+below is empirical, not inferred:
+
+1. The `x-goog-emulator-instructions` REQUEST HEADER (README lines 146-199).
+   `x-goog-testbench-instructions` is the deprecated spelling of the same
+   header; use the current one. Verified to produce real faults this way:
+   `return-corrupted-data` (200 with corrupted bytes), `stall-always`
+   (ReadTimeout), `stall-at-256KiB` (ConnectionError),
+   `return-503-after-256K` and `.../retry-1` (ChunkedEncodingError).
+2. The Retry Test API, whose instruction grammar is a separate set of
+   anchored regexes in `testbench/common.py:41-55` --
+   `return-<code>-after-<N>K`, `stall-for-<T>s-after-<N>K`,
+   `redirect-send-token-<lowercase>`, and friends. Note the anchoring: a
+   `/retry-1` suffix does not match, which is why those spellings belong to
+   the header mechanism. Verified: `stall-for-1s-after-256K` produced a real
+   stall through this API.
+
+The `redirect-*` trio is gRPC-only -- README marks it `[HTTP] Unsupported`,
+and a probe confirms a clean 200 over HTTP even with the header set. Those
+belong in `trace_grpc.py`, driven through gRPC initial metadata, not here.
 """
 
 import requests
