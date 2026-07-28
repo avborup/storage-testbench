@@ -76,20 +76,25 @@ class Database:
 
     def clear(self):
         """Clear all data except for the supported method list."""
-        with self._resources_lock:
+        # `_resources_lock` and `_folders_lock` are held together, continuously,
+        # from the wipe through to `cleared()`: those are the only two locks
+        # any Store notification is tied to (bucket_*/object_* vs folder_*), so
+        # releasing either between the wipe and the notification would let a
+        # concurrent insert/delete complete and notify in between, leaving the
+        # store's view out of order with what `Database` actually holds.
+        with self._resources_lock, self._folders_lock:
             self._buckets = {}
             self._objects = {}
             self._live_generations = {}
             self._soft_deleted_objects = {}
+            self._folders = {}
+            self._store.cleared()
         with self._uploads_lock:
             self._uploads = {}
         with self._rewrites_lock:
             self._rewrites = {}
         with self._retry_tests_lock:
             self._retry_tests = {}
-        with self._folders_lock:
-            self._folders = {}
-            self._store.cleared()
         # The list of supported methods for `retry_test` is defined via flask
         # decorators, it should remain unchanged after the test or application
         # is initialized. Arguably this means it should be in a global variable.
@@ -232,9 +237,12 @@ class Database:
                     args={}, data=json.dumps({"name": bucket_name})
                 )
                 bucket_test, _ = gcs.bucket.Bucket.init(request, None)
-                self.insert_bucket(bucket_test, None)
+                # Set before `insert_bucket()` so a store observing
+                # `bucket_inserted` sees the final metadata, not the
+                # defaults `Bucket.init()` produced.
                 bucket_test.metadata.metageneration = 4
                 bucket_test.metadata.versioning.enabled = True
+                self.insert_bucket(bucket_test, None)
 
     # === OBJECT === #
 
@@ -303,6 +311,9 @@ class Database:
         blob.metadata.soft_delete_time.FromDatetime(soft_delete_time)
         blob.metadata.hard_delete_time.FromDatetime(hard_delete_time)
         self._soft_deleted_objects[bucket_key][object_name].append(blob)
+        self._store.object_soft_deleted(
+            bucket_key, blob, blob.metadata.hard_delete_time
+        )
 
     def __remove_expired_objects_from_soft_delete(
         self, bucket_name, object_name, context
@@ -311,12 +322,17 @@ class Database:
         now = datetime.datetime.now()
 
         if self._soft_deleted_objects[bucket_key].get(object_name) is not None:
-            self._soft_deleted_objects[bucket_key][object_name] = list(
-                filter(
-                    lambda blob: now < blob.metadata.hard_delete_time.ToDatetime(),
-                    self._soft_deleted_objects[bucket_key][object_name],
+            live, expired = [], []
+            for blob in self._soft_deleted_objects[bucket_key][object_name]:
+                if now < blob.metadata.hard_delete_time.ToDatetime():
+                    live.append(blob)
+                else:
+                    expired.append(blob)
+            self._soft_deleted_objects[bucket_key][object_name] = live
+            for blob in expired:
+                self._store.object_purged(
+                    bucket_key, object_name, blob.metadata.generation
                 )
-            )
 
     def __remove_restored_soft_deleted_object(
         self, bucket_name, object_name, generation, context
@@ -526,11 +542,17 @@ class Database:
                     context,
                 )
             bucket.pop("%s#%d" % (blob.metadata.name, blob.metadata.generation), None)
-            self._store.object_deleted(
-                self.__bucket_key(bucket_name, context),
-                blob.metadata.name,
-                blob.metadata.generation,
-            )
+            # A soft delete already notified `object_soft_deleted` from inside
+            # `__soft_delete_object`, above; a hard delete (no soft delete
+            # policy on the bucket) notifies `object_deleted` here instead.
+            # The two must stay distinct: a store that reacted identically to
+            # both would discard a copy the client can still restore.
+            if not bucket_with_metadata.metadata.HasField("soft_delete_policy"):
+                self._store.object_deleted(
+                    self.__bucket_key(bucket_name, context),
+                    blob.metadata.name,
+                    blob.metadata.generation,
+                )
 
     def do_update_object(
         self,
@@ -593,12 +615,13 @@ class Database:
                 blob.metadata.generation = blob.metadata.generation + 1
                 if bucket_with_metadata.metadata.autoclass.enabled is True:
                     blob.metadata.storage_class = "STANDARD"
+                # `insert_object()` above already notifies `object_inserted`:
+                # a restore is an insert of the same blob at a new generation
+                # from a persistence standpoint, so no separate notification
+                # is fired here (see `Store.object_inserted`'s docstring).
                 self.insert_object(bucket_name, blob, context, preconditions)
                 self.__remove_restored_soft_deleted_object(
                     bucket_name, object_name, generation, context
-                )
-                self._store.object_restored(
-                    self.__bucket_key(bucket_name, context), blob
                 )
 
             return blob

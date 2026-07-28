@@ -22,12 +22,15 @@ whose disk silently diverges from its behavior, so each mutating path is
 asserted explicitly.
 """
 
+import datetime
 import json
 import unittest
 
 import gcs
 import testbench
 from testbench.store import NullStore, Store
+
+_RETENTION_SECONDS = 7 * 24 * 60 * 60  # minimum allowed by validate_soft_delete_policy
 
 
 class RecordingStore(Store):
@@ -51,7 +54,10 @@ class RecordingStore(Store):
             # inside the notification itself. `bucket_name` here is already
             # in proto form (see `Database.__bucket_key`), so pass a non-None
             # sentinel `context` to `get_object` to tell it not to convert
-            # the name again.
+            # the name again. (A lookup miss would raise `AttributeError` from
+            # `context.abort` rather than the usual not-found error -- see
+            # `store.py`'s docstring -- but a hit, which is what we expect
+            # here, never reaches that path.)
             current = self.db.get_object(
                 bucket_name, blob.metadata.name, context=object()
             )
@@ -77,8 +83,13 @@ class RecordingStore(Store):
     def object_updated(self, bucket_name, blob):
         self.calls.append(("object_updated", bucket_name, blob.metadata.name))
 
-    def object_restored(self, bucket_name, blob):
-        self.calls.append(("object_restored", bucket_name, blob.metadata.name))
+    def object_soft_deleted(self, bucket_name, blob, hard_delete_time):
+        self.calls.append(
+            ("object_soft_deleted", bucket_name, blob.metadata.name, hard_delete_time)
+        )
+
+    def object_purged(self, bucket_name, object_name, generation):
+        self.calls.append(("object_purged", bucket_name, object_name, generation))
 
     def folder_inserted(self, folder_name, folder):
         self.calls.append(("folder_inserted", folder_name))
@@ -99,6 +110,12 @@ def _make_bucket(name, **fields):
     request = testbench.common.FakeRequest(args={}, data=json.dumps(payload))
     bucket, _ = gcs.bucket.Bucket.init(request, None)
     return bucket
+
+
+def _make_soft_delete_bucket(name, retention_seconds=_RETENTION_SECONDS):
+    return _make_bucket(
+        name, softDeletePolicy={"retentionDurationSeconds": retention_seconds}
+    )
 
 
 def _make_object(bucket, name, media=b"hello"):
@@ -140,7 +157,12 @@ class TestStoreContract(unittest.TestCase):
         self.assertIsNone(store.bucket_inserted(bucket))
         self.assertIsNone(store.object_inserted("projects/_/buckets/bkt", blob))
         self.assertIsNone(store.object_updated("projects/_/buckets/bkt", blob))
-        self.assertIsNone(store.object_restored("projects/_/buckets/bkt", blob))
+        self.assertIsNone(
+            store.object_soft_deleted(
+                "projects/_/buckets/bkt", blob, blob.metadata.hard_delete_time
+            )
+        )
+        self.assertIsNone(store.object_purged("projects/_/buckets/bkt", "o", 1))
         self.assertIsNone(store.object_deleted("projects/_/buckets/bkt", "o", 1))
         self.assertIsNone(store.folder_inserted("f", object()))
         self.assertIsNone(store.folder_renamed("f", "g", object()))
@@ -157,7 +179,10 @@ class TestStoreContract(unittest.TestCase):
         store.bucket_inserted(bucket)
         store.object_inserted("projects/_/buckets/bkt", blob)
         store.object_updated("projects/_/buckets/bkt", blob)
-        store.object_restored("projects/_/buckets/bkt", blob)
+        store.object_soft_deleted(
+            "projects/_/buckets/bkt", blob, blob.metadata.hard_delete_time
+        )
+        store.object_purged("projects/_/buckets/bkt", "o", 1)
         store.object_deleted("projects/_/buckets/bkt", "o", 1)
         store.folder_inserted("f", object())
         store.folder_renamed("f", "g", object())
@@ -234,20 +259,107 @@ class TestStoreContract(unittest.TestCase):
         self.assertEqual([], self.store.calls)
 
     def test_delete_object_notifies(self):
+        # No soft delete policy on this bucket, so this is a hard delete: it
+        # must notify `object_deleted`, not `object_soft_deleted`.
         bucket = _make_bucket("bucket-name")
         self.db.insert_bucket(bucket, None)
         blob = _make_object(bucket, "o.txt")
         self.db.insert_object("bucket-name", blob, None)
         self.store.calls.clear()
         self.db.delete_object("bucket-name", "o.txt", None)
-        self.assertIn(
-            (
-                "object_deleted",
-                "projects/_/buckets/bucket-name",
-                "o.txt",
-                blob.metadata.generation,
-            ),
+        self.assertEqual(
+            [
+                (
+                    "object_deleted",
+                    "projects/_/buckets/bucket-name",
+                    "o.txt",
+                    blob.metadata.generation,
+                )
+            ],
             self.store.calls,
+        )
+
+    def test_soft_delete_notifies_object_soft_deleted_not_object_deleted(self):
+        bucket = _make_soft_delete_bucket("soft-bkt")
+        self.db.insert_bucket(bucket, None)
+        blob = _make_object(bucket, "o.txt")
+        self.db.insert_object("soft-bkt", blob, None)
+        self.store.calls.clear()
+        self.db.delete_object("soft-bkt", "o.txt", None)
+        self.assertEqual(
+            [
+                call
+                for call in self.store.calls
+                if call[0] in ("object_deleted", "object_soft_deleted")
+            ],
+            [
+                (
+                    "object_soft_deleted",
+                    "projects/_/buckets/soft-bkt",
+                    "o.txt",
+                    blob.metadata.hard_delete_time,
+                )
+            ],
+        )
+
+    def test_restore_object_notifies_via_object_inserted_only(self):
+        # Finding 1: a restore is an insert of the same blob at a new
+        # generation from a persistence standpoint, so it must notify
+        # `object_inserted` and nothing else -- specifically not a second,
+        # duplicate event for the same generation.
+        bucket = _make_soft_delete_bucket("soft-bkt")
+        self.db.insert_bucket(bucket, None)
+        blob = _make_object(bucket, "o.txt")
+        self.db.insert_object("soft-bkt", blob, None)
+        original_generation = blob.metadata.generation
+        self.db.delete_object("soft-bkt", "o.txt", None)
+        self.store.calls.clear()
+
+        restored = self.db.restore_object("soft-bkt", "o.txt", original_generation)
+
+        self.assertNotEqual(original_generation, restored.metadata.generation)
+        self.assertEqual(
+            [
+                (
+                    "object_inserted",
+                    "projects/_/buckets/soft-bkt",
+                    "o.txt",
+                    restored.metadata.generation,
+                )
+            ],
+            self.store.calls,
+        )
+
+    def test_object_purged_notifies_when_hard_delete_time_has_passed(self):
+        bucket = _make_soft_delete_bucket("soft-bkt")
+        self.db.insert_bucket(bucket, None)
+        blob = _make_object(bucket, "o.txt")
+        self.db.insert_object("soft-bkt", blob, None)
+        generation = blob.metadata.generation
+        self.db.delete_object("soft-bkt", "o.txt", None)
+
+        bucket_key = "projects/_/buckets/soft-bkt"
+        # There is no public way to fast-forward the retention window, so
+        # reach into the soft-deleted record directly (a plain attribute,
+        # not name-mangled) and back-date its hard_delete_time so the next
+        # expiry sweep treats it as expired. Two days of margin avoids any
+        # ambiguity from the sweep comparing a naive local `now()` against a
+        # naive UTC `ToDatetime()`.
+        soft_deleted = self.db._soft_deleted_objects[bucket_key]["o.txt"][0]
+        soft_deleted.metadata.hard_delete_time.FromDatetime(
+            datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=2)
+        )
+        self.store.calls.clear()
+
+        # restore_object() runs the expiry sweep before looking the requested
+        # generation up; since the sweep just purged it, the lookup itself
+        # then raises not-found. That exception is expected and orthogonal to
+        # what this test checks: the sweep must have notified regardless.
+        with self.assertRaises(Exception):
+            self.db.restore_object("soft-bkt", "o.txt", generation)
+
+        self.assertIn(
+            ("object_purged", bucket_key, "o.txt", generation), self.store.calls
         )
 
     def test_insert_folder_notifies(self):
