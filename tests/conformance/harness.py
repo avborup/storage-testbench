@@ -51,6 +51,7 @@ _INTERACTION_START = re.compile(r"^    \{$")
 _INTERACTION_END = re.compile(r"^    \},?$")
 _LABEL_LINE = re.compile(r'^\s*"label":\s*"(?P<label>[^"]*)"')
 _HUNK_HEADER = re.compile(r"^@@ -(?P<start>\d+)")
+_CONTEXT_LINE = re.compile(r"^ ")
 
 
 def golden_path(name):
@@ -101,19 +102,55 @@ def _annotate_hunks_with_labels(diff, expected_lines):
     neither first nor last among them -- so a hunk showing only the changed
     field and a line number is not enough to tell a CI-log reader which
     interaction moved.
+
+    The hunk header's own declared start line is *not* used to look up the
+    interaction: `difflib.unified_diff` prepends up to three lines of
+    unchanged context ahead of the first real change, so for a change near
+    the top of a short interaction block, the header's start line can sit
+    in the *previous* interaction's context instead. This walks the hunk
+    body from the header's start, tracking the golden-side line number, and
+    attributes to whichever golden line the first actually-changed
+    ("-" or "+") line sits at.
     """
     labels_by_line = _labels_by_line(expected_lines)
     out = []
+    hunk = None
     for line in diff:
-        match = _HUNK_HEADER.match(line)
-        if match:
-            # Unified diff hunk headers are 1-based; `labels_by_line` is
-            # keyed by 0-based index into `expected_lines`.
-            label = labels_by_line.get(int(match.group("start")) - 1)
-            if label is not None:
-                line = line.rstrip("\n") + " interaction: %r\n" % label
-        out.append(line)
+        if _HUNK_HEADER.match(line):
+            if hunk is not None:
+                out.extend(_annotate_one_hunk(hunk, labels_by_line))
+            hunk = [line]
+        elif hunk is not None:
+            hunk.append(line)
+        else:
+            out.append(line)
+    if hunk is not None:
+        out.extend(_annotate_one_hunk(hunk, labels_by_line))
     return out
+
+
+def _annotate_one_hunk(hunk_lines, labels_by_line):
+    """Annotate one hunk (header line, then its body lines) with a label."""
+    header = hunk_lines[0]
+    # 1-based golden-side line number the hunk's context starts at.
+    cursor = int(_HUNK_HEADER.match(header).group("start"))
+    label = None
+    for line in hunk_lines[1:]:
+        if _CONTEXT_LINE.match(line):
+            cursor += 1
+            continue
+        # The first "-" (removed/changed) or "+" (added) line: a removal
+        # sits exactly at golden line `cursor`; an insertion has no golden
+        # line of its own, but belongs to whichever interaction is open at
+        # `cursor`, the golden line it is inserted ahead of. Either way,
+        # `cursor` -- not the header's start -- is the right lookup key, and
+        # only the first such line matters: it already fixes the enclosing
+        # interaction for the whole hunk.
+        label = labels_by_line.get(cursor - 1)
+        break
+    if label is not None:
+        header = header.rstrip("\n") + " interaction: %r\n" % label
+    return [header] + hunk_lines[1:]
 
 
 def _labels_by_line(lines):

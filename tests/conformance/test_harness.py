@@ -84,37 +84,123 @@ class TestVerify(unittest.TestCase):
         self.assertIn("--regenerate", diff)
 
 
-class TestAnnotateHunksWithLabels(unittest.TestCase):
-    """The label-attribution logic in isolation, over hand-built lines.
-
-    Interaction dicts are serialized with keys in alphabetical order, so
-    "label" is neither the first nor the last field: a change to a field
-    that sorts *before* "label" (e.g. "body") and one that sorts *after* it
-    (e.g. "status") must both resolve to the same enclosing interaction, not
-    whichever interaction's "label" line happens to come next.
+class TestHunkNamesTheCorrectInteraction(unittest.TestCase):
+    """Each hunk's label annotation names the interaction that actually
+    changed -- exercised through the real diff path (`verify()`, which
+    drives `difflib.unified_diff` and then `_annotate_hunks_with_labels`),
+    not by calling `_labels_by_line` at the exact changed-line index
+    directly. That shortcut would bypass unified diff's own context window
+    entirely, and would not have caught the bug this class guards: unified
+    diff prepends up to three lines of unchanged context ahead of the first
+    real change, so the hunk header's *declared* start line can sit inside
+    the *previous* interaction's trailing context rather than the block
+    that actually changed. Naming the wrong interaction is worse than
+    naming none -- a reader trusts the annotation and looks in the wrong
+    place -- so each case below asserts the exact label, not just that some
+    label was printed.
     """
 
-    def _lines(self, *records):
-        combined = {"name": "fixture", "interactions": list(records)}
-        return harness.serialize(combined).splitlines(True)
-
-    def test_field_sorting_before_label_resolves_to_its_own_interaction(self):
-        lines = self._lines(
-            {"kind": "http", "label": "first", "body": {"x": 1}},
-            {"kind": "http", "label": "second", "body": {"x": 2}},
+    def setUp(self):
+        tmpdir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmpdir, ignore_errors=True)
+        self.golden_file = os.path.join(tmpdir, "fixture.json")
+        patcher = mock.patch.object(
+            harness, "golden_path", return_value=self.golden_file
         )
-        body_line = next(i for i, l in enumerate(lines) if '"x": 1' in l)
-        labels = harness._labels_by_line(lines)
-        self.assertEqual("first", labels[body_line])
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
-    def test_field_sorting_after_label_resolves_to_its_own_interaction(self):
-        lines = self._lines(
+    def _diff(self, golden_interactions, observed_interactions):
+        golden = {"name": "fixture", "interactions": golden_interactions}
+        observed = {"name": "fixture", "interactions": observed_interactions}
+        with open(self.golden_file, "w", encoding="utf-8") as handle:
+            handle.write(harness.serialize(golden))
+        with mock.patch.object(harness, "capture", return_value=observed):
+            return harness.verify("fixture")
+
+    def test_field_before_label_near_top_of_a_short_block(self):
+        # "body" sorts before "kind" and "label", so it is the very first
+        # field in "second"'s block -- only "second"'s own opening "{"
+        # precedes it, nowhere near 3 lines of same-block context. This is
+        # the case that a header-start-based lookup gets wrong: unified
+        # diff's leading context reaches back across that "{" into
+        # "first"'s trailing lines, and a lookup keyed on the header's
+        # start line finds "first" instead of "second".
+        golden = [
+            {"kind": "http", "label": "first", "status": 200},
+            {"kind": "http", "label": "second", "body": "orig"},
+        ]
+        observed = [
+            {"kind": "http", "label": "first", "status": 200},
+            {"kind": "http", "label": "second", "body": "changed"},
+        ]
+        diff = self._diff(golden, observed)
+        self.assertIn("interaction: 'second'", diff)
+        self.assertNotIn("interaction: 'first'", diff)
+
+    def test_field_before_label_in_the_middle_of_a_block(self):
+        # Padded with "aaa"/"bbb" ahead of the changed field "ccc" (all
+        # sorting before "kind"/"label") so the full 3-line leading context
+        # stays inside "second"'s own block rather than reaching "first".
+        golden = [
+            {"kind": "http", "label": "first", "status": 200},
+            {
+                "aaa": "x",
+                "bbb": "y",
+                "ccc": "orig",
+                "ddd": "z",
+                "kind": "http",
+                "label": "second",
+            },
+        ]
+        observed = [
+            {"kind": "http", "label": "first", "status": 200},
+            {
+                "aaa": "x",
+                "bbb": "y",
+                "ccc": "changed",
+                "ddd": "z",
+                "kind": "http",
+                "label": "second",
+            },
+        ]
+        diff = self._diff(golden, observed)
+        self.assertIn("interaction: 'second'", diff)
+        self.assertNotIn("interaction: 'first'", diff)
+
+    def test_field_after_label(self):
+        # "status" sorts after "label"; this is the case the previous
+        # (line-range) approach already got right and must stay right.
+        golden = [
             {"kind": "http", "label": "first", "status": 200},
             {"kind": "http", "label": "second", "status": 200},
-        )
-        status_line = next(i for i, l in enumerate(lines) if '"status": 200' in l)
-        labels = harness._labels_by_line(lines)
-        self.assertEqual("first", labels[status_line])
+        ]
+        observed = [
+            {"kind": "http", "label": "first", "status": 200},
+            {"kind": "http", "label": "second", "status": 201},
+        ]
+        diff = self._diff(golden, observed)
+        self.assertIn("interaction: 'second'", diff)
+        self.assertNotIn("interaction: 'first'", diff)
+
+    def test_first_interaction_in_the_file_has_no_preceding_block_to_bleed_into(
+        self,
+    ):
+        # A change near the top of the *first* interaction has nothing
+        # before it but the top-level "{" and the "interactions": [ line --
+        # neither belongs to any interaction, so this also checks that the
+        # walk does not fall over when there is no previous block at all.
+        golden = [
+            {"kind": "http", "label": "first", "body": "orig"},
+            {"kind": "http", "label": "second", "status": 200},
+        ]
+        observed = [
+            {"kind": "http", "label": "first", "body": "changed"},
+            {"kind": "http", "label": "second", "status": 200},
+        ]
+        diff = self._diff(golden, observed)
+        self.assertIn("interaction: 'first'", diff)
+        self.assertNotIn("interaction: 'second'", diff)
 
 
 if __name__ == "__main__":
