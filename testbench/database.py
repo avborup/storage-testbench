@@ -24,6 +24,7 @@ from typing import Any, Callable, TypeVar
 
 import gcs
 import testbench
+import testbench.store
 
 T = TypeVar("T")
 
@@ -40,7 +41,9 @@ class Database:
         supported_methods,
         soft_deleted_objects,
         folders=None,
+        store=None,
     ):
+        self._store = store if store is not None else testbench.store.NullStore()
         self._resources_lock = threading.RLock()
         self._buckets = buckets
         self._objects = objects
@@ -64,8 +67,12 @@ class Database:
         self._folders = folders if folders is not None else {}
 
     @classmethod
-    def init(cls):
-        return cls({}, {}, {}, {}, {}, {}, [], {}, {})
+    def init(cls, store=None):
+        return cls({}, {}, {}, {}, {}, {}, [], {}, {}, store=store)
+
+    @property
+    def store(self):
+        return self._store
 
     def clear(self):
         """Clear all data except for the supported method list."""
@@ -82,6 +89,7 @@ class Database:
             self._retry_tests = {}
         with self._folders_lock:
             self._folders = {}
+            self._store.cleared()
         # The list of supported methods for `retry_test` is defined via flask
         # decorators, it should remain unchanged after the test or application
         # is initialized. Arguably this means it should be in a global variable.
@@ -112,6 +120,7 @@ class Database:
             self._objects[bucket.metadata.name] = {}
             self._live_generations[bucket.metadata.name] = {}
             self._soft_deleted_objects[bucket.metadata.name] = {}
+            self._store.bucket_inserted(bucket)
 
     def list_bucket(self, project_id, prefix, request, context):
         """Lists buckets, with optional support for partial success.
@@ -204,6 +213,7 @@ class Database:
             del self._objects[bucket.metadata.name]
             del self._live_generations[bucket.metadata.name]
             del self._soft_deleted_objects[bucket.metadata.name]
+            self._store.bucket_deleted(bucket.metadata.name)
 
     def insert_test_bucket(self):
         """Automatically create a bucket if needed.
@@ -487,6 +497,7 @@ class Database:
             generation = blob.metadata.generation
             bucket["%s#%d" % (object_name, generation)] = blob
             self.__set_live_generation(bucket_name, object_name, generation, context)
+            self._store.object_inserted(self.__bucket_key(bucket_name, context), blob)
 
     def delete_object(
         self,
@@ -515,6 +526,11 @@ class Database:
                     context,
                 )
             bucket.pop("%s#%d" % (blob.metadata.name, blob.metadata.generation), None)
+            self._store.object_deleted(
+                self.__bucket_key(bucket_name, context),
+                blob.metadata.name,
+                blob.metadata.generation,
+            )
 
     def do_update_object(
         self,
@@ -527,6 +543,11 @@ class Database:
         preconditions=[],
         require_live_current_generation=True,
     ) -> T:
+        # Deliberately does not notify `self._store.object_updated(...)` here:
+        # `update_fn` is an arbitrary callback and `Database` cannot tell
+        # whether it actually mutated `blob.metadata`, so firing
+        # unconditionally would also notify on read-only callers. Callers
+        # that intend a metadata mutation are expected to notify explicitly.
         with self._resources_lock:
             blob, live_generation = self.__get_object(
                 bucket_name,
@@ -575,6 +596,9 @@ class Database:
                 self.insert_object(bucket_name, blob, context, preconditions)
                 self.__remove_restored_soft_deleted_object(
                     bucket_name, object_name, generation, context
+                )
+                self._store.object_restored(
+                    self.__bucket_key(bucket_name, context), blob
                 )
 
             return blob
@@ -808,6 +832,7 @@ class Database:
                     "Folder %s already exists" % folder_name, context
                 )
             self._folders[folder_name] = folder
+            self._store.folder_inserted(folder_name, folder)
         return folder
 
     def get_folder(self, folder_name, context):
@@ -824,6 +849,7 @@ class Database:
             if folder_name not in self._folders:
                 testbench.error.notfound("Folder %s" % folder_name, context)
             del self._folders[folder_name]
+            self._store.folder_deleted(folder_name)
 
     def list_folders(self, bucket_name, prefix, context):
         """List folders in a bucket with optional prefix filter."""
@@ -851,4 +877,5 @@ class Database:
             folder = self._folders[src_folder_name]
             del self._folders[src_folder_name]
             self._folders[dst_folder_name] = folder
+            self._store.folder_renamed(src_folder_name, dst_folder_name, folder)
             return folder

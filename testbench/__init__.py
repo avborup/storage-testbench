@@ -12,6 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import acl, common, csek, database, error, grpc_server, proto2rest, rest_server
+from . import (
+    acl,
+    common,
+    csek,
+    database,
+    error,
+    grpc_server,
+    proto2rest,
+    rest_server,
+    store,
+)
 
 run = rest_server._run
