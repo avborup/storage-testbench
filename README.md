@@ -348,8 +348,8 @@ python -m tests.conformance.harness --regenerate # rewrite goldens
 ```
 
 A golden diff means external behavior changed. If the change is intended,
-regenerate, explain it in the commit message, and add an entry to
-`tests/conformance/allowlist.json`. An unexplained diff is a bug.
+regenerate and explain it in the commit message. An unexplained diff is a
+bug.
 
 ## Releasing the testbench
 

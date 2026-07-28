@@ -1,6 +1,0 @@
-{
-  "_comment": "Intended, justified differences from the configuration-A baseline, keyed by trace name then interaction label, with a justification string as the value. MUST be empty for the Store and Media seam phases: those are pure refactors and any diff is a bug.",
-  "rest": {},
-  "grpc": {},
-  "faults": {}
-}

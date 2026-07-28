@@ -103,6 +103,18 @@ def _child_env():
     env = {name: os.environ[name] for name in _INHERITED_ENV if name in os.environ}
     env.update(_PINNED_ENV)
     env["PYTHONPATH"] = _REPO_ROOT
+    # `testbench_run.py` launches gunicorn (on POSIX) by bare name via
+    # `subprocess.run(["gunicorn", ...])`, which is resolved against *this*
+    # child's PATH, not against `sys.executable`. Running this file's own
+    # interpreter directly (`./.venv/bin/python3 -m pytest ...`, without
+    # activating the venv first) leaves the venv's `bin/` off the inherited
+    # PATH, so the child would fail to find `gunicorn` with a misleading
+    # FileNotFoundError. Prepending the directory `sys.executable` lives in
+    # covers both that case and the already-activated case (where it is a
+    # harmless duplicate of what activation already put on PATH).
+    venv_bin = os.path.dirname(sys.executable)
+    inherited_path = env.get("PATH", "")
+    env["PATH"] = venv_bin + os.pathsep + inherited_path if inherited_path else venv_bin
     return env
 
 
@@ -233,7 +245,12 @@ class Emulator:
                 if response.status_code == 200:
                     return
             except requests.exceptions.RequestException:
-                time.sleep(0.1)
+                pass
+            # Applies whether the last attempt raised or came back with a
+            # non-200: a server that is up but unhealthy (e.g. answering
+            # 500) must not be polled in a tight loop, which the previous
+            # placement of this sleep -- only inside the `except` -- did.
+            time.sleep(0.1)
         raise RuntimeError(
             "emulator did not become ready within %ds" % _STARTUP_TIMEOUT_SECONDS
         )
