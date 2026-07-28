@@ -1057,7 +1057,9 @@ class Recorder:
     def record_grpc(self, label, message):
         self._claim(label)
         as_dict = json_format.MessageToDict(
-            message, preserving_proto_field_name=True, including_default_value_fields=True
+            message,
+            preserving_proto_field_name=True,
+            always_print_fields_with_no_presence=True,
         )
         self._interactions.append(
             {
@@ -1140,7 +1142,7 @@ class Recorder:
         }
 ```
 
-Note: `including_default_value_fields` is the correct keyword for the pinned `protobuf==5.29.3`. If a later protobuf renames it to `always_print_fields_with_no_presence`, the harness must be updated in lockstep with the pin, and the golden files regenerated — record that as an allow-list entry with the protobuf version as justification.
+Note on the keyword name, corrected after this plan's first revision asserted the opposite: the pinned `protobuf==5.29.3` accepts **`always_print_fields_with_no_presence`**, not `including_default_value_fields`. The older name was removed rather than deprecated, so passing it raises `TypeError` on *every* call — meaning `record_grpc` fails unconditionally rather than degrading. An earlier revision of this plan stated the wrong keyword as fact and shipped no test for `record_grpc`, so the breakage was invisible until a unit test was added; that is why every interface method the plan lists needs its own test, even the ones that look like thin wrappers. If a future protobuf renames it again, update the harness in lockstep with the pin and regenerate the goldens, recording an allow-list entry with the protobuf version as justification.
 
 - [ ] **Step 4: Run the recorder tests to verify they pass**
 
