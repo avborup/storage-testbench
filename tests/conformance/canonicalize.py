@@ -68,6 +68,7 @@ HEADER_FIELDS = {
 _RFC3339 = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$"
 )
+_ORIGIN = re.compile(r"^[a-z][a-z0-9+.-]*://[^/]+")
 
 
 class Canonicalizer:
@@ -126,18 +127,25 @@ class Canonicalizer:
         # that appears before the field that binds it (e.g. generation) in
         # the same object; binding first makes the result independent of
         # field order. LINK-kind fields are composite URLs, not opaque
-        # tokens, so they are never bound directly -- they fall through to
-        # substitution so an embedded generation still canonicalizes to the
-        # same placeholder as the sibling `generation` field.
+        # tokens, so they are never bound directly as a whole value --
+        # instead they are canonicalized structurally in the second pass
+        # (origin erased, remainder substituted) so an embedded generation
+        # still canonicalizes to the same placeholder as the sibling
+        # `generation` field.
         bound = {}
         for key, value in node.items():
             kind = NONDETERMINISTIC_FIELDS.get(key)
             if kind is not None and kind != "LINK" and isinstance(value, (str, int)):
                 bound[key] = self._bind(kind, value)
-        return {
-            key: bound[key] if key in bound else self._walk(value)
-            for key, value in node.items()
-        }
+        result = {}
+        for key, value in node.items():
+            if key in bound:
+                result[key] = bound[key]
+            elif NONDETERMINISTIC_FIELDS.get(key) == "LINK" and isinstance(value, str):
+                result[key] = self._canonical_link(value)
+            else:
+                result[key] = self._walk(value)
+        return result
 
     def _bind(self, kind, value):
         if kind == "GEN":
@@ -145,6 +153,19 @@ class Canonicalizer:
         if kind == "TIME" and isinstance(value, str):
             self._timestamps.append(value)
         return self._symbols.bind(kind, value)
+
+    def _canonical_link(self, text):
+        """Erase a URL's volatile origin, keep its meaningful remainder.
+
+        The origin carries the ephemeral port and nothing behavioral. The
+        path and query carry the emulator's URL scheme and the generation
+        the link points at, both of which must stay visible to a diff.
+        """
+        match = _ORIGIN.match(text)
+        if match is None:
+            return self._substitute_known_values(text)
+        origin = self._symbols.bind("ORIGIN", match.group(0))
+        return origin + self._substitute_known_values(text[match.end() :])
 
     def _substitute_known_values(self, text):
         """Replace already-bound values appearing inside free-form strings.

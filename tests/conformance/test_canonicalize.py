@@ -72,6 +72,32 @@ class TestCanonicalizer(unittest.TestCase):
         headers = self.canon.headers({"x-goog-generation": "10"})
         self.assertEqual(body["generation"], headers["x-goog-generation"])
 
+    def test_link_origin_is_erased_but_path_is_kept(self):
+        # The emulator binds an ephemeral port, so the origin must not reach
+        # the golden. The path and query must, or a change to the emulator's
+        # URL scheme would be invisible to the diff.
+        out = self.canon.body(
+            {
+                "generation": "10",
+                "mediaLink": "http://127.0.0.1:51423/download/storage/v1/b/bk/o/o?generation=10&alt=media",
+            }
+        )
+        self.assertEqual(
+            "<ORIGIN:1>/download/storage/v1/b/bk/o/o?generation=<GEN:1>&alt=media",
+            out["mediaLink"],
+        )
+        self.assertNotIn("51423", out["mediaLink"])
+
+    def test_same_origin_across_links_reuses_its_placeholder(self):
+        out = self.canon.body(
+            {
+                "selfLink": "http://127.0.0.1:51423/storage/v1/b/bk/o/o",
+                "mediaLink": "http://127.0.0.1:51423/download/storage/v1/b/bk/o/o",
+            }
+        )
+        self.assertTrue(out["selfLink"].startswith("<ORIGIN:1>"))
+        self.assertTrue(out["mediaLink"].startswith("<ORIGIN:1>"))
+
     def test_monotonic_generations_pass_invariants(self):
         self.canon.body({"generation": "10"})
         self.canon.body({"generation": "11"})
