@@ -46,13 +46,13 @@
             want=$(cksum setup.py | cut -d' ' -f1)
             if [ ! -f "$stamp" ] || [ "$(cat "$stamp")" != "$want" ]; then
               echo "provisioning $VENV from setup.py ..."
-              ${pkgs.python312}/bin/python3 -m venv "$VENV"
-              "$VENV/bin/pip" install --quiet --upgrade pip
-              "$VENV/bin/pip" install --quiet -e .
-              "$VENV/bin/pip" install --quiet \
-                pytest pytest-cov coverage requests \
-                black==22.3.0 isort==5.12.0
-              echo "$want" > "$stamp"
+              ${pkgs.python312}/bin/python3 -m venv "$VENV" \
+                && "$VENV/bin/pip" install --quiet --upgrade pip \
+                && "$VENV/bin/pip" install --quiet -e . \
+                && "$VENV/bin/pip" install --quiet \
+                     pytest pytest-cov coverage requests \
+                     black==22.3.0 isort==5.12.0 \
+                && echo "$want" > "$stamp"
             fi
             source "$VENV/bin/activate"
             export PYTHONPATH="$PWD"
