@@ -43,6 +43,9 @@ NONDETERMINISTIC_FIELDS = {
     "rewriteToken": "REWRITE",
     "rewrite_token": "REWRITE",
     "id": "ID",
+    # LINK fields are composite URLs, not opaque tokens: only their volatile
+    # origin (scheme + host + ephemeral port) is bound as a whole value; the
+    # path and query are kept and have already-bound values substituted in.
     "selfLink": "LINK",
     "mediaLink": "LINK",
 }
@@ -68,7 +71,7 @@ HEADER_FIELDS = {
 _RFC3339 = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$"
 )
-_ORIGIN = re.compile(r"^[a-z][a-z0-9+.-]*://[^/]+")
+_ORIGIN = re.compile(r"^[a-z][a-z0-9+.-]*://[^/]+", re.IGNORECASE)
 
 
 class Canonicalizer:
@@ -85,7 +88,11 @@ class Canonicalizer:
         self._timestamps = []
 
     def body(self, obj):
-        return self._walk(obj)
+        # Two whole-tree passes. Binding must complete before emitting,
+        # because a link can only have an embedded value substituted once
+        # that value is bound, and the two may sit at different depths.
+        self._bind_pass(obj)
+        return self._emit(obj)
 
     def headers(self, mapping):
         out = {}
@@ -111,41 +118,50 @@ class Canonicalizer:
         for value in self._timestamps:
             assert _RFC3339.match(value), "not an RFC 3339 timestamp: %r" % (value,)
 
-    def _walk(self, node):
-        if isinstance(node, dict):
-            return self._walk_dict(node)
-        if isinstance(node, list):
-            return [self._walk(v) for v in node]
-        if isinstance(node, str):
-            return self._substitute_known_values(node)
-        return node
+    def _bind_pass(self, node):
+        """Bind every directly-replaceable field, anywhere in the tree.
 
-    def _walk_dict(self, node):
-        # Two passes, not one: bind every directly-replaceable field first,
-        # then substitute into the rest. A single pass in iteration order
-        # would miss a value embedded in a string field (e.g. mediaLink)
-        # that appears before the field that binds it (e.g. generation) in
-        # the same object; binding first makes the result independent of
-        # field order. LINK-kind fields are composite URLs, not opaque
-        # tokens, so they are never bound directly as a whole value --
-        # instead they are canonicalized structurally in the second pass
-        # (origin erased, remainder substituted) so an embedded generation
-        # still canonicalizes to the same placeholder as the sibling
-        # `generation` field.
-        bound = {}
-        for key, value in node.items():
-            kind = NONDETERMINISTIC_FIELDS.get(key)
-            if kind is not None and kind != "LINK" and isinstance(value, (str, int)):
-                bound[key] = self._bind(kind, value)
-        result = {}
-        for key, value in node.items():
-            if key in bound:
-                result[key] = bound[key]
-            elif NONDETERMINISTIC_FIELDS.get(key) == "LINK" and isinstance(value, str):
-                result[key] = self._canonical_link(value)
-            else:
-                result[key] = self._walk(value)
-        return result
+        This must finish before `_emit` runs: a link at one depth can embed
+        a value (e.g. a generation) bound from a field at a different depth,
+        and a single combined walk cannot guarantee that field is bound
+        before the link that references it is emitted.
+        """
+        if isinstance(node, dict):
+            for key, value in node.items():
+                kind = NONDETERMINISTIC_FIELDS.get(key)
+                if (
+                    kind is not None
+                    and kind != "LINK"
+                    and isinstance(value, (str, int))
+                ):
+                    self._bind(kind, value)
+                    continue
+                self._bind_pass(value)
+        elif isinstance(node, list):
+            for value in node:
+                self._bind_pass(value)
+
+    def _emit(self, node):
+        if isinstance(node, dict):
+            out = {}
+            for key, value in node.items():
+                kind = NONDETERMINISTIC_FIELDS.get(key)
+                if kind == "LINK" and isinstance(value, str):
+                    out[key] = self._canonical_link(value)
+                elif kind is not None and isinstance(value, (str, int)):
+                    # Already bound in the first pass; bind() is idempotent,
+                    # and going through the symbol table directly avoids
+                    # recording the value twice for the invariant checks.
+                    out[key] = self._symbols.bind(kind, value)
+                else:
+                    out[key] = self._emit(value)
+            return out
+        if isinstance(node, list):
+            return [self._emit(value) for value in node]
+        # Strings are left alone. Only links and headers are composite;
+        # substituting into arbitrary body strings risks corrupting a
+        # string that merely contains a bound value as a substring.
+        return node
 
     def _bind(self, kind, value):
         if kind == "GEN":

@@ -98,6 +98,29 @@ class TestCanonicalizer(unittest.TestCase):
         self.assertTrue(out["selfLink"].startswith("<ORIGIN:1>"))
         self.assertTrue(out["mediaLink"].startswith("<ORIGIN:1>"))
 
+    def test_a_bound_value_does_not_corrupt_an_unrelated_string(self):
+        # The canonicalizer must not rewrite fields that merely contain a
+        # bound value as a substring; doing so would hide real regressions
+        # behind mangled data.
+        out = self.canon.body({"generation": "1", "name": "file-v1-final.txt"})
+        self.assertEqual("<GEN:1>", out["generation"])
+        self.assertEqual("file-v1-final.txt", out["name"])
+
+    def test_a_link_substitutes_a_generation_bound_at_another_depth(self):
+        out = self.canon.body(
+            {
+                "selfLink": "http://h/o?generation=10",
+                "inner": {"generation": "10"},
+            }
+        )
+        self.assertEqual("<ORIGIN:1>/o?generation=<GEN:1>", out["selfLink"])
+        self.assertEqual("<GEN:1>", out["inner"]["generation"])
+
+    def test_an_uppercase_scheme_origin_is_still_erased(self):
+        out = self.canon.body({"selfLink": "HTTP://127.0.0.1:51423/storage/v1/b/bk"})
+        self.assertEqual("<ORIGIN:1>/storage/v1/b/bk", out["selfLink"])
+        self.assertNotIn("51423", out["selfLink"])
+
     def test_monotonic_generations_pass_invariants(self):
         self.canon.body({"generation": "10"})
         self.canon.body({"generation": "11"})
