@@ -28,14 +28,66 @@ import requests
 
 _STARTUP_TIMEOUT_SECONDS = 30
 
-# `testbench_run.py` lives at the repository root, three directories above
-# this file (tests/conformance/emulator.py). Resolving it from `__file__`
-# rather than the caller's current working directory means the launcher
-# works regardless of where the test process was started from.
+# tests/conformance/emulator.py sits two directories below the repository
+# root (tests/, then tests/conformance/). Three `dirname()` calls over its
+# absolute path reach the root: the first strips the filename, the other
+# two climb out of tests/conformance/. Resolving it this way, rather than
+# from the caller's current working directory, means the launcher works
+# regardless of where the test process was started from.
 _REPO_ROOT = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 )
 _TESTBENCH_RUN = os.path.join(_REPO_ROOT, "testbench_run.py")
+
+# The emulator's own knobs, pinned to the defaults in testbench/acl.py.
+# These are read at import time and land in the owner/entity/project-number
+# fields of recorded bucket and object bodies; the canonicalizer has no rule
+# for those fields (they are not in NONDETERMINISTIC_FIELDS), so an inherited
+# value -- rather than this pinned default -- would silently change the
+# goldens for anyone whose shell happens to set these differently.
+_PINNED_ENV = {
+    "GOOGLE_CLOUD_CPP_STORAGE_EMULATOR_PROJECT_NUMBER": "123456789",
+    "GOOGLE_CLOUD_CPP_STORAGE_EMULATOR_OBJECT_OWNER_ENTITY": (
+        "user-object.owners@example.com"
+    ),
+    "GOOGLE_CLOUD_CPP_STORAGE_EMULATOR_OBJECT_READER_ENTITY": (
+        "user-object.viewers@example.com"
+    ),
+}
+
+# Only what the child needs to execute Python and bind a socket. Anything
+# not named here is deliberately not forwarded -- in particular
+# GOOGLE_CLOUD_CPP_STORAGE_TEST_BUCKET_NAME (testbench/database.py:216)
+# would auto-create a bucket and add it to every trace; its documented
+# default is to be unset, so there is nothing to pin, only to withhold.
+_INHERITED_ENV = (
+    "PATH",  # locate the interpreter and gunicorn
+    "SYSTEMROOT",  # Windows: required for socket calls
+    "TEMP",
+    "TMP",
+    "TMPDIR",  # gunicorn/waitress scratch files
+    "HOME",
+    "USERPROFILE",  # libraries that resolve a home dir on import
+    "LANG",
+    "LC_ALL",  # stable text encoding
+    "VIRTUAL_ENV",  # keep the venv's interpreter consistent
+)
+
+
+def _child_env():
+    """Build the emulator subprocess's environment explicitly.
+
+    Copying the parent's environment wholesale would let anything a
+    developer or a CI runner happens to have set reach the emulator; for
+    the three GOOGLE_CLOUD_CPP_STORAGE_EMULATOR_* variables that means
+    silently different goldens (see `_PINNED_ENV`). Only a fixed allowlist
+    is forwarded, plus the emulator's own knobs pinned to their documented
+    defaults, plus PYTHONPATH so `testbench` is importable.
+    """
+    env = {name: os.environ[name] for name in _INHERITED_ENV if name in os.environ}
+    env.update(_PINNED_ENV)
+    env["PYTHONPATH"] = _REPO_ROOT
+    return env
 
 
 def free_port():
@@ -66,10 +118,7 @@ class Emulator:
         return "127.0.0.1:%d" % self.grpc_port
 
     def __enter__(self):
-        env = dict(os.environ)
-        env["PYTHONPATH"] = _REPO_ROOT
-        # Keep the well-known auto-created bucket out of traces.
-        env.pop("GOOGLE_CLOUD_CPP_STORAGE_TEST_BUCKET_NAME", None)
+        env = _child_env()
         # `testbench_run.py` picks the server for us: gunicorn with
         # --reload on POSIX, waitress on Windows (see its own
         # platform.system() check). Launching `python -m testbench` directly
@@ -96,8 +145,18 @@ class Emulator:
             stderr=subprocess.STDOUT,
             start_new_session=True,
         )
-        self._await_rest()
-        self._start_grpc()
+        try:
+            self._await_rest()
+            self._start_grpc()
+        except BaseException:
+            # Python never calls __exit__ when __enter__ itself raises, so
+            # if readiness times out or /start_grpc fails, teardown has to
+            # happen right here or the gunicorn master and worker survive,
+            # orphaned, holding the port. Catching BaseException (not just
+            # Exception) means a KeyboardInterrupt during startup reaps the
+            # tree too.
+            self._terminate()
+            raise
         return self
 
     def __exit__(self, exc_type, exc, tb):

@@ -23,9 +23,11 @@ down without leaking a process that would hold a port and break later runs.
 """
 
 import contextlib
+import os
 import socket
 import time
 import unittest
+from unittest import mock
 
 import grpc
 import requests
@@ -110,6 +112,61 @@ class TestEmulator(unittest.TestCase):
         # leaked one before).
         _assert_port_released(self, rest_port)
         _assert_port_released(self, grpc_port)
+
+    def test_start_grpc_failure_does_not_leak_the_process(self):
+        # Python never calls __exit__ when __enter__ itself raises, so if
+        # _start_grpc (or _await_rest) fails after the subprocess is already
+        # up, __enter__ has to reap it itself or the gunicorn master and
+        # worker survive, orphaned, holding the port -- the exact failure
+        # mode a leaked emulator process causes for later tasks.
+        emulator = Emulator()
+        with mock.patch.object(
+            Emulator, "_start_grpc", side_effect=RuntimeError("boom")
+        ):
+            with self.assertRaises(RuntimeError):
+                with emulator:
+                    self.fail("__enter__ should have raised before yielding")
+
+        self.assertIsNotNone(
+            emulator._process, "no subprocess was even started before the failure"
+        )
+        self.assertIsNotNone(
+            emulator._process.poll(),
+            "child process is still running after __enter__ raised",
+        )
+        _assert_port_released(self, emulator.rest_port)
+
+    def test_a_poisoned_parent_environment_does_not_reach_the_child(self):
+        # A developer's or CI runner's shell must not be able to change a
+        # recorded golden. testbench/acl.py reads
+        # GOOGLE_CLOUD_CPP_STORAGE_EMULATOR_PROJECT_NUMBER at import time and
+        # it lands verbatim in a bucket's `projectNumber` field, which
+        # canonicalize.py's NONDETERMINISTIC_FIELDS has no rule for.
+        # testbench/database.py separately reads
+        # GOOGLE_CLOUD_CPP_STORAGE_TEST_BUCKET_NAME on (almost) every request
+        # to auto-create a bucket by that name. Both must be neutralized
+        # regardless of what the parent process has set.
+        poisoned = {
+            "GOOGLE_CLOUD_CPP_STORAGE_EMULATOR_PROJECT_NUMBER": "999999999",
+            "GOOGLE_CLOUD_CPP_STORAGE_TEST_BUCKET_NAME": "leaked-bucket",
+        }
+        with mock.patch.dict(os.environ, poisoned):
+            with Emulator() as emu:
+                requests.post(
+                    emu.rest_url + "/storage/v1/b",
+                    params={"project": "test-project"},
+                    json={"name": "probe-bucket"},
+                )
+                got = requests.get(emu.rest_url + "/storage/v1/b/probe-bucket")
+                self.assertEqual(200, got.status_code, got.text)
+                self.assertEqual("123456789", got.json()["projectNumber"])
+
+                listed = requests.get(
+                    emu.rest_url + "/storage/v1/b", params={"project": "test-project"}
+                )
+                self.assertEqual(200, listed.status_code, listed.text)
+                names = [b["name"] for b in listed.json().get("items", [])]
+                self.assertEqual(["probe-bucket"], names)
 
 
 if __name__ == "__main__":

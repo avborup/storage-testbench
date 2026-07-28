@@ -61,10 +61,18 @@ class Recorder:
 
     def record_grpc(self, label, message):
         self._claim(label)
+        # `always_print_fields_with_no_presence` is the real keyword in the
+        # pinned protobuf==5.29.3: `MessageToDict` does not accept
+        # `including_default_value_fields` in this version at all (it raises
+        # TypeError), despite that being the name an earlier protobuf used
+        # for the same option. If a future protobuf renames this again, the
+        # harness must be updated in lockstep with the pin, and the golden
+        # files regenerated -- record that as an allow-list entry with the
+        # protobuf version as justification.
         as_dict = json_format.MessageToDict(
             message,
             preserving_proto_field_name=True,
-            including_default_value_fields=True,
+            always_print_fields_with_no_presence=True,
         )
         self._interactions.append(
             {

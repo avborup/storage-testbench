@@ -20,6 +20,7 @@ import unittest
 
 import requests
 
+from google.storage.v2 import storage_pb2
 from tests.conformance.recorder import Recorder
 
 
@@ -70,6 +71,24 @@ class TestRecorder(unittest.TestCase):
         rec.record_http("x", FakeResponse(200, {}, b"{}"))
         with self.assertRaises(AssertionError):
             rec.record_http("x", FakeResponse(200, {}, b"{}"))
+
+    def test_records_grpc_message_type_and_canonicalized_body(self):
+        # A real protobuf message, not a stub: this is the interface Tasks
+        # 5-7 will call for every gRPC interaction, and it was previously
+        # untested -- record_grpc's MessageToDict call used a keyword
+        # argument (`including_default_value_fields`) that the pinned
+        # protobuf==5.29.3 does not accept at all, raising TypeError on any
+        # invocation, which only a real call like this one would catch.
+        message = storage_pb2.Object(
+            name="obj-1", bucket="projects/_/buckets/probe-bucket", generation=7
+        )
+        rec = Recorder("demo")
+        rec.record_grpc("get-object", message)
+        entry = rec.finish()["interactions"][0]
+        self.assertEqual("get-object", entry["label"])
+        self.assertEqual("google.storage.v2.Object", entry["type"])
+        self.assertEqual("obj-1", entry["body"]["name"])
+        self.assertEqual("<GEN:1>", entry["body"]["generation"])
 
     def test_records_stream_boundaries_and_digest(self):
         rec = Recorder("demo")
