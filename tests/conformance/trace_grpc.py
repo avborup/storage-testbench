@@ -23,6 +23,7 @@ silent gap in coverage.
 """
 
 import grpc
+import requests
 
 from google.iam.v1 import iam_policy_pb2
 from google.storage.control.v2 import storage_control_pb2, storage_control_pb2_grpc
@@ -41,13 +42,18 @@ SOFT_DELETE_RETENTION_SECONDS = 7 * 24 * 3600
 # Named so that alphabetical order -- the order `ListObjects` returns them in,
 # since `Database.list_object` (testbench/database.py) sorts on `item.name`
 # regardless of transport -- matches creation order. The recorder's
-# generation-monotonicity invariant tracks every generation value across the
-# whole trace by first sighting, so a single `ListObjects` response whose name
-# order differs from creation order trips it; see the trace-5 report.
+# generation-monotonicity invariant (`canonicalize.py`'s `_bind`) only
+# compares a value's *first* sighting anywhere in the trace to whatever was
+# first-sighted immediately before it; a listing that merely re-reports
+# already-bound generations appends nothing and stays silent. This naming
+# keeps the trace robust against a listing itself being the first place an
+# out-of-order generation is exposed. See the trace-5 report for the full
+# account.
 SINGLE = "01-single.txt"
 MULTI = "02-multi.txt"
 BIDI = "03-bidi.txt"
 RESUMABLE = "04-resumable.txt"
+NESTED = "05-dir/nested.txt"
 
 
 def _bucket_path(name):
@@ -56,6 +62,8 @@ def _bucket_path(name):
 
 def run(emulator):
     rec = Recorder("grpc")
+    base = emulator.rest_url
+    session = requests.Session()
     channel = grpc.insecure_channel(emulator.grpc_target)
     storage = storage_pb2_grpc.StorageStub(channel)
     control = storage_control_pb2_grpc.StorageControlStub(channel)
@@ -267,6 +275,26 @@ def run(emulator):
     )
 
     # --- listing and metadata ---------------------------------------------
+    # A name containing "/" so `list-objects-delimiter` actually groups
+    # something: with no such name, delimiter listing was unmonitored -- it
+    # returned the same objects as the plain listing and an empty
+    # `prefixes`, so a regression in prefix/delimiter handling would not
+    # move the golden at all. Written last (NESTED also sorts last
+    # alphabetically, keeping first-sighting order intact).
+    call(
+        "write-object-nested",
+        storage.WriteObject,
+        iter(
+            [
+                storage_pb2.WriteObjectRequest(
+                    write_object_spec=write_spec(NESTED),
+                    write_offset=0,
+                    checksummed_data=storage_pb2.ChecksummedData(content=PAYLOAD),
+                    finish_write=True,
+                ),
+            ]
+        ),
+    )
     call(
         "list-objects",
         storage.ListObjects,
@@ -277,10 +305,132 @@ def run(emulator):
         storage.ListObjects,
         storage_pb2.ListObjectsRequest(parent=_bucket_path(BUCKET), prefix=MULTI),
     )
-    call(
-        "list-objects-delimiter",
-        storage.ListObjects,
-        storage_pb2.ListObjectsRequest(parent=_bucket_path(BUCKET), delimiter="/"),
+    delimiter_response = storage.ListObjects(
+        storage_pb2.ListObjectsRequest(parent=_bucket_path(BUCKET), delimiter="/")
+    )
+    assert delimiter_response.prefixes, "list-objects-delimiter produced no prefixes"
+    rec.record_grpc("list-objects-delimiter", delimiter_response)
+
+    # --- redirect faults (gRPC-only; see README and trace_faults.py) -------
+    # The Retry Test API's instruction grammar requires a lowercase token
+    # (`redirect-send-token-([a-z\-]+)$` and friends, testbench/common.py);
+    # the brief's literal "-T" spelling 400s at retry-test creation time --
+    # confirmed empirically -- so "t" is used here instead. Verified against
+    # a live emulator:
+    # - `redirect-send-token-t` and `redirect-send-handle-and-token-t` both
+    #   abort `BidiWriteObject` (wired in `gcs/upload.py`'s bidi-write path
+    #   via `abort_with_redirect_error`). README documents
+    #   `redirect-send-handle-and-token-t` for either
+    #   `storage.objects.insert` or `storage.objects.get`; it is exercised
+    #   here on `BidiReadObject` instead (also wired, in
+    #   `grpc_server.py`'s `BidiReadObject`), spreading coverage across both
+    #   RPCs rather than duplicating the write case.
+    # - `redirect-expect-token-t` does not abort anything: `BidiWriteObject`
+    #   silently *consumes* (dequeues) the instruction once the client's own
+    #   `x-goog-request-params: routing_token=t` metadata matches, with no
+    #   visible signal in the RPC response either way. What proves the fault
+    #   fired is therefore the retry-test resource's own state afterwards
+    #   (its instruction list becomes empty), not the RPC result.
+    def create_grpc_retry_test(label, instruction, method):
+        response = session.post(
+            base + "/retry_test",
+            json={"instructions": {method: [instruction]}, "transport": "GRPC"},
+            timeout=30,
+        )
+        rec.record_http(label, response)
+        assert (
+            response.status_code == 200
+        ), "%s was rejected at retry-test creation: %s" % (instruction, response.text)
+        return response.json()["id"]
+
+    write_redirect_id = create_grpc_retry_test(
+        "create-retry-test-redirect-send-token",
+        "redirect-send-token-t",
+        "storage.objects.insert",
+    )
+    try:
+        list(
+            storage.BidiWriteObject(
+                iter(
+                    [
+                        storage_pb2.BidiWriteObjectRequest(
+                            write_object_spec=write_spec("redirect-write.txt"),
+                            write_offset=0,
+                            checksummed_data=storage_pb2.ChecksummedData(
+                                content=PAYLOAD
+                            ),
+                            finish_write=True,
+                        )
+                    ]
+                ),
+                metadata=[("x-retry-test-id", write_redirect_id)],
+            )
+        )
+        raise AssertionError("redirect-send-token-t did not abort BidiWriteObject")
+    except grpc.RpcError as error:
+        assert error.code() == grpc.StatusCode.ABORTED, (
+            "redirect-send-token-t: expected ABORTED, got %s" % error.code()
+        )
+        rec.record_error("redirect-send-token", error)
+
+    read_redirect_id = create_grpc_retry_test(
+        "create-retry-test-redirect-send-handle-and-token",
+        "redirect-send-handle-and-token-t",
+        "storage.objects.get",
+    )
+    try:
+        list(
+            storage.BidiReadObject(
+                iter(
+                    [
+                        storage_pb2.BidiReadObjectRequest(
+                            read_object_spec=storage_pb2.BidiReadObjectSpec(
+                                bucket=_bucket_path(BUCKET), object=SINGLE
+                            )
+                        )
+                    ]
+                ),
+                metadata=[("x-retry-test-id", read_redirect_id)],
+            )
+        )
+        raise AssertionError(
+            "redirect-send-handle-and-token-t did not abort BidiReadObject"
+        )
+    except grpc.RpcError as error:
+        assert error.code() == grpc.StatusCode.ABORTED, (
+            "redirect-send-handle-and-token-t: expected ABORTED, got %s" % error.code()
+        )
+        rec.record_error("redirect-send-handle-and-token", error)
+
+    expect_redirect_id = create_grpc_retry_test(
+        "create-retry-test-redirect-expect-token",
+        "redirect-expect-token-t",
+        "storage.objects.insert",
+    )
+    expect_responses = list(
+        storage.BidiWriteObject(
+            iter(
+                [
+                    storage_pb2.BidiWriteObjectRequest(
+                        write_object_spec=write_spec("redirect-expect.txt"),
+                        write_offset=0,
+                        checksummed_data=storage_pb2.ChecksummedData(content=PAYLOAD),
+                        finish_write=True,
+                    )
+                ]
+            ),
+            metadata=[
+                ("x-retry-test-id", expect_redirect_id),
+                ("x-goog-request-params", "routing_token=t"),
+            ],
+        )
+    )
+    rec.record_grpc("redirect-expect-token", expect_responses[-1])
+    status = session.get(base + "/retry_test/%s" % expect_redirect_id, timeout=30)
+    rec.record_http("retry-test-status-redirect-expect-token", status)
+    assert status.json()["instructions"]["storage.objects.insert"] == [], (
+        "redirect-expect-token-t was not consumed: the routing_token match "
+        "was not detected"
     )
 
     # --- compose, rewrite with continuation, move -------------------------

@@ -103,16 +103,29 @@ HEADER_FIELDS = {
 # deterministic and worth keeping visible to a diff) -- despite the two
 # sharing the same JSON/proto field name, "etag". A blanket rule on "etag"
 # would erase the useful, deterministic signal too, so this is scoped to
-# dicts shaped like an IAM policy: `bindings` alongside `etag`, and either
-# `version` (the gRPC `Policy` message always sets it) or `kind ==
-# "storage#policy"` (the REST rendering). Found by running trace_rest and
-# trace_grpc twice and diffing -- see the trace-5 report.
+# dicts shaped like an IAM policy: `etag` alongside either `bindings`,
+# `version` (the gRPC `Policy` message always sets it), or `kind ==
+# "storage#policy"` (the REST rendering). `bindings` alone is not a reliable
+# *requirement* -- `testbench/rest_server.py` renders a REST policy through
+# `json_format.MessageToDict` at default options, which omits an empty
+# repeated field entirely, so a policy with zero bindings has no "bindings"
+# key at all and would otherwise read as not-a-policy, leaving
+# `__iam_etag()`'s raw random value in the golden every run. Not reachable
+# by the traces today (no `setIamPolicy` call, and the default policy always
+# has three bindings), but confirmed with a direct `Policy(bindings=[])` ->
+# `MessageToDict` probe. The gRPC side cannot have this gap:
+# `always_print_fields_with_no_presence=True` always emits `"bindings": []`.
+# Found by running trace_rest and trace_grpc twice and diffing -- see the
+# trace-5 report.
 def _looks_like_iam_policy(node):
     return (
         isinstance(node, dict)
-        and "bindings" in node
         and "etag" in node
-        and (node.get("kind") == "storage#policy" or "version" in node)
+        and (
+            "bindings" in node
+            or node.get("kind") == "storage#policy"
+            or "version" in node
+        )
     )
 
 
@@ -181,7 +194,13 @@ class Canonicalizer:
         for earlier, later in zip(ordered, ordered[1:]):
             assert earlier <= later, (
                 "generations must be non-decreasing in the order first seen; "
-                "saw %d then %d" % (earlier, later)
+                "saw %d then %d. A real regression aside, this can also mean "
+                "a trace object's name sorts out of creation order: GCS lists "
+                "objects by name (Database.list_object), and a listing is "
+                "only silent about this if every object it contains was "
+                "already first-sighted earlier by some other interaction -- "
+                "see the naming-convention comments in trace_rest.py/"
+                "trace_grpc.py and the trace-5 report." % (earlier, later)
             )
         for value in self._timestamps:
             assert _RFC3339.match(value), "not an RFC 3339 timestamp: %r" % (value,)

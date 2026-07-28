@@ -37,14 +37,22 @@ PAYLOAD = b"The quick brown fox jumps over the lazy dog"
 # that their alphabetical order -- the order `list-objects` returns them in,
 # since GCS lists by name (testbench/database.py's `list_object` sorts on
 # `item.name`) -- matches the order they are created in. The recorder's
-# generation-monotonicity invariant tracks every generation value seen across
-# the whole trace, not per-object, so a single `list-objects` response whose
-# name order differs from creation order trips it; see the trace-5 report for
-# the full account.
+# generation-monotonicity invariant (`canonicalize.py`'s `_bind`) only
+# compares a value's *first* sighting anywhere in the trace to whatever was
+# first-sighted immediately before it; a listing that merely re-reports
+# already-bound generations appends nothing and stays silent. It only fires
+# if a listing (or any other interaction) is itself the *first* place an
+# out-of-order generation is exposed -- `download-xml`'s placement right
+# after `upload-xml` below is the concrete example of avoiding exactly that.
+# This naming keeps the trace robust against that same failure mode showing
+# up in a listing instead, without depending on exactly which interaction
+# happens to expose a generation first. See the trace-5 report for the full
+# account.
 SIMPLE = "01-simple.txt"
 MULTIPART = "02-multipart.txt"
 XML = "03-xml.txt"
 RESUMABLE = "04-resumable.txt"
+NESTED = "05-dir/nested.txt"
 
 
 def run(emulator):
@@ -221,13 +229,31 @@ def run(emulator):
         params={"alt": "media"},
         headers={"Range": "bytes=9999-10000"},
     )
-    api("list-objects", "GET", "/storage/v1/b/%s/o" % BUCKET)
+    # A name containing "/" so `list-objects-with-delimiter` actually groups
+    # something: with no such name, delimiter listing was unmonitored --
+    # both it and the plain listing returned the same items and an empty
+    # "prefixes", so a regression in prefix/delimiter handling would not
+    # move the golden at all. Uploaded last (after NESTED sorts last
+    # alphabetically too, keeping first-sighting order intact).
     api(
+        "upload-nested",
+        "POST",
+        "/upload/storage/v1/b/%s/o" % BUCKET,
+        params={"uploadType": "media", "name": NESTED},
+        data=PAYLOAD,
+        headers={"Content-Type": "text/plain"},
+    )
+    list_response = api("list-objects", "GET", "/storage/v1/b/%s/o" % BUCKET)
+    listed_names = {item["name"] for item in list_response.json().get("items", [])}
+    assert NESTED in listed_names, "list-objects did not include %r" % NESTED
+    delimiter_response = api(
         "list-objects-with-delimiter",
         "GET",
         "/storage/v1/b/%s/o" % BUCKET,
         params={"delimiter": "/"},
     )
+    prefixes = delimiter_response.json().get("prefixes", [])
+    assert prefixes, "list-objects-with-delimiter produced no prefixes"
 
     # --- decompressive transcoding ----------------------------------------
     api(
@@ -250,13 +276,31 @@ def run(emulator):
         params={"alt": "media"},
         headers={"Accept-Encoding": "identity"},
     )
-    api(
-        "download-not-transcoded",
+    # Not routed through `api()`: `requests` transparently gunzips
+    # `response.content` whenever the response carries a `Content-Encoding:
+    # gzip` header, which is exactly the header the *non*-transcoding path
+    # sends (the transcoding path above never sets it, since the server
+    # already decompressed). Left alone, `Recorder._body` would digest the
+    # decompressed bytes in both cases -- confirmed empirically:
+    # `download-transcoded` and `download-not-transcoded` recorded identical
+    # `length`/`sha256`, so a regression that returned malformed or
+    # wrongly-compressed bytes on the gzip path would never move the golden.
+    # `stream=True` plus reading `response.raw` with `decode_content=False`
+    # gets the wire bytes before urllib3's transparent decompression; setting
+    # `_content`/`_content_consumed` makes `response.content` (what
+    # `record_http` reads) return those raw bytes instead of triggering a
+    # fresh, decoding read.
+    not_transcoded = session.request(
         "GET",
-        "/storage/v1/b/%s/o/gz.txt" % BUCKET,
+        base + "/storage/v1/b/%s/o/gz.txt" % BUCKET,
         params={"alt": "media"},
         headers={"Accept-Encoding": "gzip"},
+        timeout=30,
+        stream=True,
     )
+    not_transcoded._content = not_transcoded.raw.read(decode_content=False)
+    not_transcoded._content_consumed = True
+    rec.record_http("download-not-transcoded", not_transcoded)
 
     # --- metadata mutation, ACLs, preconditions ---------------------------
     api(
@@ -289,8 +333,18 @@ def run(emulator):
 
     # --- CSEK --------------------------------------------------------------
     # Fixed key material so the trace is deterministic. Not a secret.
-    key_b64 = "aVhrOWVYVmJEd0hVeDJEZzZKNWJUOEE3T3lVenBudUdxWk9CVFVvS0NnTT0="
-    sha_b64 = "Nzc0MDU5RTUxNDIzQzQ0NEUzOEEwRDZBRDlBQzQzMTA5NTdCNkE2ODU3RkY4RUZE"
+    # Corrected after review: the original pair was malformed two ways -- the
+    # "key" decoded to the 44-byte ASCII string
+    # "iXk9eXVbDwHUx2Dg6J5bT8A7OyUzpnuGqZOBTUoKCgM=" (base64-*of*-base64, not
+    # a 32-byte AES-256 key), and the "sha256" decoded to the ASCII hex text
+    # "774059E51423C444E38A0D6AD9AC4310957B6A68" rather than to a digest. The
+    # emulator rejected the upload with customerEncryptionKeySha256IsInvalid,
+    # and the two download steps 404'd because the object was never created
+    # -- three stable, meaningless recordings that read as CSEK coverage. The
+    # pair below is verified: the key decodes to exactly 32 bytes, and the
+    # sha is the base64 SHA-256 digest of those bytes.
+    key_b64 = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
+    sha_b64 = "Yw3NKWbEM2aRElRIu7JbT/QSpJxzLbLIq8G4WBvXEN0="
     csek = {
         "x-goog-encryption-algorithm": "AES256",
         "x-goog-encryption-key": key_b64,

@@ -72,11 +72,30 @@ class TestCanonicalizer(unittest.TestCase):
         self.assertEqual("<ETAG:2>", out["grpc"]["etag"])
 
     def test_an_etag_outside_an_iam_policy_shape_is_preserved(self):
-        # A dict that merely happens to have an "etag" key, without also
-        # looking like an IAM policy (no "bindings"), must not be affected --
-        # this is what keeps an ordinary object/bucket etag visible to a diff.
-        payload = {"etag": "eccbc87e4b5ce2fe28308fd9f2a7baf3", "version": 1}
+        # A dict that merely happens to have an "etag" key, without any of
+        # the IAM-policy markers ("bindings", "kind": "storage#policy", or
+        # "version"), must not be affected -- this is what keeps an ordinary
+        # bucket/object etag visible to a diff.
+        payload = {
+            "etag": "eccbc87e4b5ce2fe28308fd9f2a7baf3",
+            "name": "some-bucket",
+            "location": "US",
+        }
         self.assertEqual(payload, self.canon.body(payload))
+
+    def test_a_bindings_less_rest_iam_policy_etag_is_still_replaced(self):
+        # `json_format.MessageToDict` (the REST rendering path, at default
+        # options) omits an empty repeated field entirely, so a policy with
+        # zero bindings never has a "bindings" key at all -- only "kind":
+        # "storage#policy" (or, on the gRPC side, "version") marks it as a
+        # policy. Requiring "bindings" would leave `__iam_etag()`'s raw
+        # random value in the golden every run for exactly this shape; this
+        # is also the regression guard for the "kind"/"version" clause,
+        # which becomes load-bearing once "bindings" is no longer required.
+        out = self.canon.body(
+            {"kind": "storage#policy", "etag": "MzgwNjNjMzMyY2Y2NDFhZjlkMDA4YWJj"}
+        )
+        self.assertEqual("<ETAG:1>", out["etag"])
 
     def test_generation_embedded_in_an_error_message_is_replaced(self):
         # testbench/error.py's JSON envelope embeds raw internal state as
