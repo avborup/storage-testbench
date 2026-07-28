@@ -213,15 +213,20 @@ Create `flake.nix`:
             export VENV=.venv
             stamp="$VENV/.provisioned"
             want=$(cksum setup.py | cut -d' ' -f1)
+            # The steps are &&-chained so that a failure aborts before the
+            # stamp is written. Without the chain, a failed `pip install -e .`
+            # would still stamp the venv as provisioned, and every later
+            # `nix develop` would silently reuse the broken venv until
+            # setup.py changed -- surfacing as inexplicable task failures.
             if [ ! -f "$stamp" ] || [ "$(cat "$stamp")" != "$want" ]; then
               echo "provisioning $VENV from setup.py ..."
-              ${pkgs.python312}/bin/python3 -m venv "$VENV"
-              "$VENV/bin/pip" install --quiet --upgrade pip
-              "$VENV/bin/pip" install --quiet -e .
-              "$VENV/bin/pip" install --quiet \
-                pytest pytest-cov coverage requests \
-                black==22.3.0 isort==5.12.0
-              echo "$want" > "$stamp"
+              ${pkgs.python312}/bin/python3 -m venv "$VENV" \
+                && "$VENV/bin/pip" install --quiet --upgrade pip \
+                && "$VENV/bin/pip" install --quiet -e . \
+                && "$VENV/bin/pip" install --quiet \
+                     pytest pytest-cov coverage requests \
+                     black==22.3.0 isort==5.12.0 \
+                && echo "$want" > "$stamp"
             fi
             source "$VENV/bin/activate"
             export PYTHONPATH="$PWD"
@@ -745,6 +750,8 @@ Create `tests/conformance/test_recorder.py`:
 
 import unittest
 
+import requests
+
 from tests.conformance.recorder import Recorder
 
 
@@ -807,6 +814,25 @@ class TestRecorder(unittest.TestCase):
         with self.assertRaises(AssertionError):
             rec.finish()
 
+    def test_transport_errors_normalize_to_one_token(self):
+        # A broken stream surfaces as ReadTimeout on macOS and ConnectionError
+        # on Linux for the same injected fault. Recording the subclass would
+        # make goldens machine-specific and break the CI conformance job, so
+        # every transport-level requests failure records identically.
+        rec = Recorder("demo")
+        rec.record_error("reset", requests.exceptions.ConnectionError("reset"))
+        rec.record_error("slow", requests.exceptions.ReadTimeout("timed out"))
+        entries = rec.finish()["interactions"]
+        self.assertEqual("<TRANSPORT_ERROR>", entries[0]["type"])
+        self.assertEqual("<TRANSPORT_ERROR>", entries[1]["type"])
+
+    def test_non_transport_errors_keep_their_type(self):
+        # gRPC status codes are chosen by the emulator, so they are
+        # deterministic and must stay visible to the diff.
+        rec = Recorder("demo")
+        rec.record_error("boom", ValueError("nope"))
+        self.assertEqual("ValueError", rec.finish()["interactions"][0]["type"])
+
 
 if __name__ == "__main__":
     unittest.main()
@@ -834,6 +860,7 @@ Create `tests/conformance/recorder.py`:
 import hashlib
 import json
 
+import requests
 from google.protobuf import json_format
 
 from tests.conformance.canonicalize import Canonicalizer
@@ -912,9 +939,26 @@ class Recorder:
         )
 
     def record_error(self, label, exception):
-        """Record a failure as data, so error taxonomies are diffed too."""
+        """Record a failure as data, so error taxonomies are diffed too.
+
+        Transport-level `requests` failures collapse to a single token. Which
+        urllib3 subclass surfaces for a broken stream is a property of the
+        client OS and socket timing, not of the emulator: macOS reports
+        `ReadTimeout` where Linux reports `ConnectionError` for the same
+        injected fault. Recording the subclass would make the goldens valid
+        only on the machine that captured them, so the CI conformance job
+        would fail on a clean checkout. The interaction's label still says
+        which instruction was injected, so "this fault broke the transfer"
+        stays distinguishable from "this fault returned an HTTP status".
+        gRPC errors are not normalized -- their status codes are chosen by
+        the emulator and are therefore deterministic.
+        """
         self._claim(label)
-        entry = {"label": label, "kind": "error", "type": type(exception).__name__}
+        if isinstance(exception, requests.exceptions.RequestException):
+            kind_name = "<TRANSPORT_ERROR>"
+        else:
+            kind_name = type(exception).__name__
+        entry = {"label": label, "kind": "error", "type": kind_name}
         code = getattr(exception, "code", None)
         if callable(code):
             entry["grpc_code"] = code().name
@@ -1659,7 +1703,7 @@ def run(emulator):
     return rec.finish()
 ```
 
-Two notes. The short `STALL_TIMEOUT_SECONDS` keeps the stall instructions from adding ten seconds each; the timeout is recorded as an error entry rather than swallowed. `requests.exceptions.RequestException` covers both the timeout and the connection reset that `return-broken-stream` produces, and `Recorder.record_error` records only the exception *type*, not its message, because urllib3 messages embed socket details that vary between runs.
+Two notes. The short `STALL_TIMEOUT_SECONDS` keeps the stall instructions from adding ten seconds each; the timeout is recorded as an error entry rather than swallowed. `requests.exceptions.RequestException` covers both the timeout and the connection reset that `return-broken-stream` produces, and `Recorder.record_error` collapses every such transport-level failure to the single token `<TRANSPORT_ERROR>` rather than recording its subclass name. The subclass is not a property of the emulator: the same injected fault surfaces as `ReadTimeout` on macOS and `ConnectionError` on Linux, so recording it would make these goldens valid only on the machine that captured them and would fail the ubuntu CI conformance job on a clean checkout. What the emulator controls — *that* the transfer failed rather than returning a status, and under which injected instruction — is preserved by the entry's label. Exception *messages* are never recorded either, because urllib3 embeds socket details that vary between runs.
 
 If `create-retry-test-*` returns 400 for an instruction, the emulator does not support it for that method — `Database.__validate_injected_failure_description` (`testbench/database.py:659`) is the authority. That 400 is recorded and becomes part of the baseline, so removing support later shows up as a diff. Do not delete the entry to make the trace pass.
 
