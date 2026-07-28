@@ -600,6 +600,14 @@ NONDETERMINISTIC_FIELDS = {
     "rewriteToken": "REWRITE",
     "rewrite_token": "REWRITE",
     "id": "ID",
+    # Link fields are NOT bound wholesale. They are composite: a volatile
+    # origin (the emulator binds an ephemeral port, so scheme://host:port
+    # differs every run) followed by a path and query that are meaningful
+    # behavior worth diffing. Binding the whole URL would erase the port but
+    # also hide a regression in the emulator's URL scheme, and would hide a
+    # link that points at the wrong generation. Instead `_canonical_link`
+    # binds only the origin and leaves the rest to substitution, so the
+    # generation embedded in a link aliases the sibling `generation` field.
     "selfLink": "LINK",
     "mediaLink": "LINK",
 }
@@ -709,7 +717,73 @@ Run: `nix develop --command bash -c 'pytest tests/conformance/test_canonicalize.
 
 Expected: 12 passed.
 
-If `test_generation_embedded_in_a_link_is_replaced` fails, the cause is ordering: `_substitute_known_values` must run after the `generation` field has been bound. Bind order within a dict follows insertion order, so a link appearing *before* its generation in the same object will not substitute. Fix by walking each dict twice — once binding the mapped fields, once substituting into strings — rather than by reordering the test.
+Two ordering hazards, both real, and the fix for each:
+
+**Field order within a dict.** `_substitute_known_values` can only replace a value that has already been bound, and bind order follows insertion order, so a link appearing *before* its `generation` in the same object would not substitute. Fix by walking each dict in two passes — first bind every directly-replaceable field, then walk the remainder — so the result is independent of field order. Do not fix this by reordering the test.
+
+**Link fields are composite, not opaque.** A `LINK`-kind field must not be bound wholesale, or the embedded generation disappears into a single placeholder and the test above cannot pass. But it must not be passed through untouched either: the emulator binds an ephemeral port (`emulator.py` uses `free_port()`), so `http://127.0.0.1:<random>/…` would differ on every run and the goldens would never match twice — the conformance job would be permanently red.
+
+Canonicalize a link **structurally**: bind only the volatile origin, keep the path and query, and let substitution handle values embedded in them.
+
+```python
+_ORIGIN = re.compile(r"^[a-z][a-z0-9+.-]*://[^/]+")
+
+
+    def _canonical_link(self, text):
+        """Erase a URL's volatile origin, keep its meaningful remainder.
+
+        The origin carries the ephemeral port and nothing behavioral. The
+        path and query carry the emulator's URL scheme and the generation
+        the link points at, both of which must stay visible to a diff.
+        """
+        match = _ORIGIN.match(text)
+        if match is None:
+            return self._substitute_known_values(text)
+        origin = self._symbols.bind("ORIGIN", match.group(0))
+        return origin + self._substitute_known_values(text[match.end() :])
+```
+
+so that
+
+```
+"mediaLink": "http://127.0.0.1:51423/download/storage/v1/b/bk/o/o?generation=10&alt=media"
+```
+
+canonicalizes to
+
+```
+"mediaLink": "<ORIGIN:1>/download/storage/v1/b/bk/o/o?generation=<GEN:1>&alt=media"
+```
+
+Add a test pinning that the port is erased, alongside the existing link test:
+
+```python
+    def test_link_origin_is_erased_but_path_is_kept(self):
+        # The emulator binds an ephemeral port, so the origin must not reach
+        # the golden. The path and query must, or a change to the emulator's
+        # URL scheme would be invisible to the diff.
+        out = self.canon.body(
+            {
+                "generation": "10",
+                "mediaLink": "http://127.0.0.1:51423/download/storage/v1/b/bk/o/o?generation=10&alt=media",
+            }
+        )
+        self.assertEqual(
+            "<ORIGIN:1>/download/storage/v1/b/bk/o/o?generation=<GEN:1>&alt=media",
+            out["mediaLink"],
+        )
+        self.assertNotIn("51423", out["mediaLink"])
+
+    def test_same_origin_across_links_reuses_its_placeholder(self):
+        out = self.canon.body(
+            {
+                "selfLink": "http://127.0.0.1:51423/storage/v1/b/bk/o/o",
+                "mediaLink": "http://127.0.0.1:51423/download/storage/v1/b/bk/o/o",
+            }
+        )
+        self.assertTrue(out["selfLink"].startswith("<ORIGIN:1>"))
+        self.assertTrue(out["mediaLink"].startswith("<ORIGIN:1>"))
+```
 
 - [ ] **Step 5: Commit**
 
