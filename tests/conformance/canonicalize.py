@@ -38,6 +38,12 @@ NONDETERMINISTIC_FIELDS = {
     "hard_delete_time": "TIME",
     "timeStorageClassUpdated": "TIME",
     "customTime": "TIME",
+    # `Bucket.SoftDeletePolicy.effective_time` and
+    # `Bucket.RetentionPolicy.effective_time` (gcs/bucket.py sets both from
+    # `datetime.now()` at creation/update time); found by running trace_grpc
+    # twice and diffing -- see the trace-5 report.
+    "effectiveTime": "TIME",
+    "effective_time": "TIME",
     "uploadId": "UPLOAD",
     "upload_id": "UPLOAD",
     "rewriteToken": "REWRITE",
@@ -49,6 +55,22 @@ NONDETERMINISTIC_FIELDS = {
     "selfLink": "LINK",
     "mediaLink": "LINK",
 }
+
+# Query parameter names, as they appear inside a LINK's query string, that
+# carry non-deterministic values needing their own direct binding. A link's
+# other placeholders (e.g. a `generation` embedded in `selfLink`) rely on the
+# *same* value already having been bound from an ordinary same-named JSON
+# field elsewhere in the same interaction -- see `_substitute_known_values`.
+# But a resumable upload session's `Location` header
+# (`.../o?uploadType=resumable&upload_id=<hex>`) is the *only* place its
+# upload_id ever appears; nothing else in the interaction binds it first.
+# Found by running trace_rest twice and diffing -- see the trace-5 report.
+LINK_QUERY_FIELDS = {
+    "upload_id": "UPLOAD",
+}
+_LINK_QUERY_PARAM = re.compile(
+    r"(?P<key>%s)=(?P<value>[^&]+)" % "|".join(LINK_QUERY_FIELDS)
+)
 
 # Headers whose values are inherently volatile or are recomputed by the
 # server framework rather than by the emulator.
@@ -66,7 +88,51 @@ DROPPED_HEADERS = frozenset(
 HEADER_FIELDS = {
     "x-goog-generation": "GEN",
     "x-goog-metageneration": None,  # deterministic, keep verbatim
+    # A resumable upload session's URI, returned only on `start-resumable`.
+    # Like `selfLink`/`mediaLink`, it is a composite URL, not an opaque
+    # token: its origin carries the ephemeral port (leaking between runs
+    # exactly as an un-erased `selfLink` would), and its query string
+    # carries the upload_id (see `LINK_QUERY_FIELDS` above). Found by running
+    # trace_rest twice and diffing -- see the trace-5 report.
+    "location": "LINK",
 }
+
+# A `google.iam.v1.Policy`'s `etag` (`Bucket.__iam_etag` in gcs/bucket.py
+# returns `uuid.uuid4().hex`) is genuinely random and unrelated to a bucket's
+# or object's own `etag` (an MD5 digest of content/metageneration, which is
+# deterministic and worth keeping visible to a diff) -- despite the two
+# sharing the same JSON/proto field name, "etag". A blanket rule on "etag"
+# would erase the useful, deterministic signal too, so this is scoped to
+# dicts shaped like an IAM policy: `bindings` alongside `etag`, and either
+# `version` (the gRPC `Policy` message always sets it) or `kind ==
+# "storage#policy"` (the REST rendering). Found by running trace_rest and
+# trace_grpc twice and diffing -- see the trace-5 report.
+def _looks_like_iam_policy(node):
+    return (
+        isinstance(node, dict)
+        and "bindings" in node
+        and "etag" in node
+        and (node.get("kind") == "storage#policy" or "version" in node)
+    )
+
+
+# testbench/error.py's JSON error envelope: `{"error": {"code": ..., "message":
+# ...}}`. Unlike an object's or bucket's structured fields, `message` is
+# free-form diagnostic text that interpolates raw internal state -- e.g.
+# `"ifGenerationMatch validation failed. Expected = 1 vs Actual
+# = 1785234485144."`, or a non-empty-bucket deletion error listing every
+# object's raw generation. That state is already bound elsewhere in the same
+# trace (from the very call that created it), so, like a link or a header,
+# `message` gets already-bound values substituted -- never a blanket rewrite,
+# and never anything not already known to be non-deterministic. Found by
+# running trace_rest twice and diffing -- see the trace-5 report.
+def _looks_like_error_envelope(node):
+    return (
+        isinstance(node, dict)
+        and "code" in node
+        and isinstance(node.get("message"), str)
+    )
+
 
 _RFC3339 = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$"
@@ -101,7 +167,9 @@ class Canonicalizer:
             if name in DROPPED_HEADERS:
                 continue
             kind = HEADER_FIELDS.get(name)
-            if kind is not None:
+            if kind == "LINK":
+                out[name] = self._canonical_link(str(value))
+            elif kind is not None:
                 out[name] = self._bind(kind, value)
             else:
                 out[name] = self._substitute_known_values(str(value))
@@ -127,7 +195,11 @@ class Canonicalizer:
         before the link that references it is emitted.
         """
         if isinstance(node, dict):
+            is_iam_policy = _looks_like_iam_policy(node)
             for key, value in node.items():
+                if key == "etag" and is_iam_policy and isinstance(value, str):
+                    self._bind("ETAG", value)
+                    continue
                 kind = NONDETERMINISTIC_FIELDS.get(key)
                 if (
                     kind is not None
@@ -144,7 +216,15 @@ class Canonicalizer:
     def _emit(self, node):
         if isinstance(node, dict):
             out = {}
+            is_iam_policy = _looks_like_iam_policy(node)
+            is_error_envelope = _looks_like_error_envelope(node)
             for key, value in node.items():
+                if key == "etag" and is_iam_policy and isinstance(value, str):
+                    out[key] = self._symbols.bind("ETAG", value)
+                    continue
+                if key == "message" and is_error_envelope:
+                    out[key] = self._substitute_known_values(value)
+                    continue
                 kind = NONDETERMINISTIC_FIELDS.get(key)
                 if kind == "LINK" and isinstance(value, str):
                     out[key] = self._canonical_link(value)
@@ -164,9 +244,18 @@ class Canonicalizer:
         return node
 
     def _bind(self, kind, value):
-        if kind == "GEN":
+        # Only a value's first sighting is evidence about the server's
+        # counter; every later reference to the *same* already-bound value
+        # (re-fetching an object created earlier, after something newer has
+        # since been created) is not a new data point; recording it again
+        # would compare it against whatever unrelated value happened to be
+        # bound most recently and fail the ordering check below for a
+        # decrease that never actually happened, which is exactly why the
+        # message below says "order first seen" rather than "order seen".
+        is_new = (kind, str(value)) not in self._symbols.bindings()
+        if is_new and kind == "GEN":
             self._generations.append(int(value))
-        if kind == "TIME" and isinstance(value, str):
+        if is_new and kind == "TIME" and isinstance(value, str):
             self._timestamps.append(value)
         return self._symbols.bind(kind, value)
 
@@ -179,9 +268,29 @@ class Canonicalizer:
         """
         match = _ORIGIN.match(text)
         if match is None:
-            return self._substitute_known_values(text)
+            return self._bind_link_query_params(self._substitute_known_values(text))
         origin = self._symbols.bind("ORIGIN", match.group(0))
-        return origin + self._substitute_known_values(text[match.end() :])
+        remainder = self._substitute_known_values(text[match.end() :])
+        return origin + self._bind_link_query_params(remainder)
+
+    def _bind_link_query_params(self, text):
+        """Bind query parameters that only ever appear inside a link.
+
+        `_substitute_known_values` only replaces a value that was already
+        bound from some *other*, same-named field elsewhere in the same
+        interaction (e.g. a `generation` embedded in `selfLink`, alongside an
+        ordinary `generation` field). `LINK_QUERY_FIELDS` covers the
+        parameters that have no such sibling field to bind from first.
+        """
+
+        def replace(match):
+            kind = LINK_QUERY_FIELDS[match.group("key")]
+            return "%s=%s" % (
+                match.group("key"),
+                self._bind(kind, match.group("value")),
+            )
+
+        return _LINK_QUERY_PARAM.sub(replace, text)
 
     def _substitute_known_values(self, text):
         """Replace already-bound values appearing inside free-form strings.
