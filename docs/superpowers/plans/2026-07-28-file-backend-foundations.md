@@ -2237,7 +2237,21 @@ git rev-parse HEAD  # note this hash: it is the configuration-A commit
 **Interfaces:**
 - Consumes: nothing from earlier tasks.
 - Produces:
-  - `testbench.store.Store` — the protocol, with no-op default methods: `bucket_inserted(bucket)`, `bucket_deleted(bucket_name)`, `object_inserted(bucket_name, blob)`, `object_deleted(bucket_name, object_name, generation)`, `object_updated(bucket_name, blob)`, `object_restored(bucket_name, blob)`, `folder_inserted(folder_name, folder)`, `folder_deleted(folder_name)`, `folder_renamed(src_folder_name, dst_folder_name, folder)`, `cleared()`.
+  - `testbench.store.Store` — the protocol, with no-op default methods: `bucket_inserted(bucket)`, `bucket_deleted(bucket_name)`, `object_inserted(bucket_name, blob)`, `object_deleted(bucket_name, object_name, generation)`, `object_updated(bucket_name, blob)`, `object_soft_deleted(bucket_name, blob, hard_delete_time)`, `object_purged(bucket_name, object_name, generation)`, `folder_inserted(folder_name, folder)`, `folder_deleted(folder_name)`, `folder_renamed(src_folder_name, dst_folder_name, folder)`, `cleared()`.
+
+**Three corrections to this protocol, made after review and approved by the human partner. Each was a defect in the protocol as originally specified, not in its wiring.**
+
+*`object_restored` is removed.* `restore_object` calls `insert_object` internally, which already notifies, so the original protocol produced **two** notifications for one logical restore — verified live, with identical bucket, name, and generation — and a `FileStore` would have written the blob twice. A restore genuinely *is* an insert from a persistence standpoint: the same blob reappears at the same generation. One notification, one write. It was also the single notification whose removal left the entire test suite green, so it was both redundant and unverified.
+
+*Soft deletion gets its own two notifications.* `_soft_deleted_objects` is persistent state that is readable (`softDeleted` reads) and restorable, but the original protocol emitted a plain `object_deleted` for a soft delete — byte-identical to a hard delete — and nothing at all for the expiry purge. A `FileStore` that removed its record on `object_deleted`, the only reasonable reading of that name, would have destroyed the restorable copy, breaking `softDeleted` reads and `restore_object` across a restart. Silent data loss. `object_soft_deleted` carries `hard_delete_time` because a persistent store needs it to expire the copy itself; `object_purged` covers `__remove_expired_objects_from_soft_delete`.
+
+*`cleared()` must fire inside `_resources_lock`.* An earlier revision placed it after that lock was released, under `_folders_lock` only. Another thread can then complete an `insert_bucket` in the window between the two, delivering `bucket_inserted` *before* `cleared()` — after which the store has dropped a bucket the database still holds. The locks are `threading.RLock`, so acquiring `_resources_lock` around the notification is safe.
+
+### Known incompleteness, deferred to Plan 3 by decision
+
+`bucket_update` and `bucket_patch` (`testbench/rest_server.py:251-273`) mutate the `Bucket` object returned by `db.get_bucket` **in place** and never call a `Database` mutator, so no bucket metadata change is observable by a `Store` at any point. This cannot be fixed from inside `Database`: it needs the REST handlers routed through a mutator, which changes request-handling control flow and carries real behavioral risk. Doing that inside a task whose defining property is being a provable no-op would forfeit exactly the guarantee this task exists to establish. **Plan 3's first task must route bucket mutations through `Database` and add a `bucket_updated` notification.** Until then the seam is complete for objects and folders and incomplete for bucket metadata; that is a recorded decision, not an oversight.
+
+Relatedly, `insert_test_bucket` (`testbench/database.py:235-237`) sets `metageneration` and `versioning.enabled` *after* calling `insert_bucket`, so a store serializing at notification time persists the pre-mutation values. Those two assignments must move before the `insert_bucket` call.
   - `testbench.store.NullStore` — `Store` with no state.
   - `Database.__init__(..., store=None)` and `Database.init(store=None)`; `Database.store` property.
   - Plan 3's `FileStore` subclasses `Store` and relies on exactly these names.
