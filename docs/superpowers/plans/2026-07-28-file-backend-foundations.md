@@ -60,7 +60,7 @@ The goldens must capture behavior *before* production code changes. "Pristine" h
 | `tests/conformance/trace_faults.py` | the fault-injection trace |
 | `tests/conformance/harness.py` | CLI: run traces, write or diff goldens |
 | `tests/conformance/golden/*.json` | committed baseline (configuration A) |
-| `tests/conformance/allowlist.json` | justified, intended diffs; empty in this plan |
+| ~~`tests/conformance/allowlist.json`~~ | **Removed after review — see "Allowlist: removed" below.** |
 | `tests/test_conformance.py` | pytest entry point that runs the harness and diffs |
 | `testbench/store.py` | `Store` protocol and `NullStore` |
 | `tests/test_store.py` | `RecordingStore` tests pinning the `Database` → `Store` contract |
@@ -1932,7 +1932,6 @@ This task produces the artifact that cannot be regenerated later. It must land b
 
 **Files:**
 - Create: `tests/conformance/harness.py`
-- Create: `tests/conformance/allowlist.json`
 - Create: `tests/conformance/golden/rest.json`, `grpc.json`, `faults.json`
 - Create: `tests/test_conformance.py`
 - Modify: `.github/workflows/build.yaml`
@@ -1959,8 +1958,33 @@ Create `tests/conformance/harness.py`:
     python -m tests.conformance.harness --regenerate # rewrite goldens
 
 Regenerating is a reviewable act: any resulting change to a golden file must
-be justified in the commit message and, if intended, recorded in
-allowlist.json. An unexplained golden diff is a defect, not a nuisance.
+be justified in the commit message. An unexplained golden diff is a defect,
+not a nuisance.
+
+## Allowlist: removed
+
+An earlier revision of this plan specified an `allowlist.json` for
+suppressing justified, intended diffs, and mandated it stay empty through
+both of this plan's phases. Review found the supplied implementation broken
+in three ways at once: an entry keyed by an interaction label (the documented
+key) suppressed nothing, because the hunk test searched *changed lines* for
+the label and a changed line never contains it; an entry keyed by a field
+name suppressed that field across the entire trace, which is precisely the
+broad-pattern silencing the design meant to avoid; and even when every hunk
+was dropped, the two `---`/`+++` file headers still made the returned diff
+truthy, so the build stayed red anyway.
+
+The net effect of adding an entry was therefore to hide the evidence while
+keeping the failure — which routes a developer straight to `--regenerate`,
+the one action that can make a real regression vanish.
+
+Because nothing in either phase needs it, the mechanism is deleted rather
+than repaired: a suppression path with no current user is pure risk surface,
+and a future maintainer who fixed only the still-red half would silently
+activate trace-wide field suppression, where one word like `etag` or
+`generation` could hide a genuine regression. If a first genuinely justified
+diff ever arrives, add it then, interaction-scoped, returning an empty diff
+when nothing survives, and requiring a non-empty justification per entry.
 """
 
 import argparse
@@ -1980,7 +2004,6 @@ TRACES = {
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 GOLDEN_DIR = os.path.join(_HERE, "golden")
-ALLOWLIST = os.path.join(_HERE, "allowlist.json")
 
 
 def golden_path(name):
@@ -1996,25 +2019,22 @@ def capture(name):
         return TRACES[name](emulator)
 
 
-def load_allowlist():
-    if not os.path.exists(ALLOWLIST):
-        return {}
-    with open(ALLOWLIST, "r", encoding="utf-8") as handle:
-        return json.load(handle)
-
-
 def verify(name):
-    """Return a unified diff of golden versus observed, or "" when identical."""
-    observed = serialize(capture(name))
+    """Return a unified diff of golden versus observed, or "" when identical.
+
+    The existence check precedes `capture()` so that a missing golden costs
+    nothing: running a full trace only to report "missing golden" wastes an
+    emulator launch.
+    """
     path = golden_path(name)
     if not os.path.exists(path):
         return "missing golden %s; run with --regenerate" % path
     with open(path, "r", encoding="utf-8") as handle:
         expected = handle.read()
-    allowed = set(load_allowlist().get(name, {}).keys())
+    observed = serialize(capture(name))
     if expected == observed:
         return ""
-    diff = list(
+    return "".join(
         difflib.unified_diff(
             expected.splitlines(True),
             observed.splitlines(True),
@@ -2022,31 +2042,6 @@ def verify(name):
             tofile="observed/%s.json" % name,
         )
     )
-    if allowed:
-        diff = _drop_allowed_labels(diff, allowed)
-    return "".join(diff)
-
-
-def _drop_allowed_labels(diff, allowed):
-    """Drop hunks that touch only allow-listed interaction labels."""
-    kept, hunk = [], []
-    for line in diff + ["@@ sentinel @@\n"]:
-        if line.startswith("@@"):
-            if hunk and not _hunk_is_allowed(hunk, allowed):
-                kept.extend(hunk)
-            hunk = [line]
-        elif hunk:
-            hunk.append(line)
-        else:
-            kept.append(line)
-    return kept
-
-
-def _hunk_is_allowed(hunk, allowed):
-    changed = [ln for ln in hunk if ln.startswith(("+", "-")) and not ln.startswith(("+++", "---"))]
-    if not changed:
-        return True
-    return all(any('"%s"' % label in ln for label in allowed) for ln in changed)
 
 
 def main(argv=None):
@@ -2077,19 +2072,6 @@ def main(argv=None):
 
 if __name__ == "__main__":
     sys.exit(main())
-```
-
-- [ ] **Step 2: Create an empty allow-list**
-
-Create `tests/conformance/allowlist.json`:
-
-```json
-{
-  "_comment": "Intended, justified differences from the configuration-A baseline, keyed by trace name then interaction label, with a justification string as the value. MUST be empty for the Store and Media seam phases: those are pure refactors and any diff is a bug.",
-  "rest": {},
-  "grpc": {},
-  "faults": {}
-}
 ```
 
 - [ ] **Step 3: Confirm the tree has no production changes yet**
@@ -2222,7 +2204,7 @@ python -m tests.conformance.harness --regenerate # rewrite goldens
 
 A golden diff means external behavior changed. If the change is intended,
 regenerate, explain it in the commit message, and add an entry to
-`tests/conformance/allowlist.json`. An unexplained diff is a bug.
+the commit message. An unexplained diff is a bug.
 ```
 
 - [ ] **Step 10: Commit the baseline on its own**
@@ -2617,7 +2599,6 @@ the default, so behavior is unchanged: the conformance baseline diffs clean."
 - [ ] `tests/test_crc32c_assumptions.py` passes, so incremental checksums are known-viable.
 - [ ] `tests/conformance/golden/{rest,grpc,faults}.json` are committed, captured with `gcs/` and `testbench/` unmodified.
 - [ ] `python -m tests.conformance.harness` passes twice in a row with no flakiness.
-- [ ] `tests/conformance/allowlist.json` is empty of real entries.
 - [ ] `testbench/store.py` exists with `Store` and `NullStore`; `Database` notifies it from every mutating path except the documented `do_update_object` exception.
 - [ ] The pre-existing test suite passes with no test file modified.
 - [ ] CI has a `conformance` job.
