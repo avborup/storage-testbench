@@ -26,7 +26,23 @@ import time
 
 import requests
 
-_STARTUP_TIMEOUT_SECONDS = 30
+# A loaded CI runner is slower than a developer's laptop to fork gunicorn's
+# worker and bind a socket; Task 5 observed a 30s timeout fail once in 90+
+# launches on this machine with plenty of headroom to spare, so the default
+# here is doubled and left overridable per-environment without a code change.
+_STARTUP_TIMEOUT_SECONDS = int(
+    os.environ.get("TESTBENCH_CONFORMANCE_STARTUP_TIMEOUT_SECONDS", "60")
+)
+
+# `/start_grpc` is idempotent (testbench/rest_server.py guards it with
+# `if grpc_port == 0` and returns the already-chosen port on a repeat call),
+# so a transient failure -- Task 5 also observed one bare `HTTPError` here in
+# 90+ launches, never reproduced in 45+ targeted retries -- is safe to retry.
+# The bound keeps a *genuine* failure (the emulator wedged, or a real
+# port mismatch) from retrying forever; a port mismatch is not a transient
+# failure and is never retried; see `_start_grpc` below.
+_START_GRPC_ATTEMPTS = 3
+_START_GRPC_RETRY_DELAY_SECONDS = 1
 
 # tests/conformance/emulator.py sits two directories below the repository
 # root (tests/, then tests/conformance/). Three `dirname()` calls over its
@@ -225,12 +241,32 @@ class Emulator:
     def _start_grpc(self):
         # The gRPC server must be started inside the serving process so that
         # it shares one Database; see the comment at rest_server.start_grpc.
-        response = requests.get(
-            self.rest_url + "/start_grpc", params={"port": self.grpc_port}, timeout=10
-        )
-        response.raise_for_status()
-        reported = int(response.text)
-        assert reported == self.grpc_port, "gRPC started on %d, wanted %d" % (
-            reported,
-            self.grpc_port,
+        #
+        # Bounded retry on transient request failures only: a genuine
+        # port mismatch is a real bug, not a flake, and must not be retried
+        # away, so the assertion below is outside the except clause and
+        # propagates immediately on the first attempt that gets a response.
+        last_error = None
+        for attempt in range(_START_GRPC_ATTEMPTS):
+            try:
+                response = requests.get(
+                    self.rest_url + "/start_grpc",
+                    params={"port": self.grpc_port},
+                    timeout=10,
+                )
+                response.raise_for_status()
+            except requests.exceptions.RequestException as error:
+                last_error = error
+                if attempt + 1 < _START_GRPC_ATTEMPTS:
+                    time.sleep(_START_GRPC_RETRY_DELAY_SECONDS)
+                continue
+            reported = int(response.text)
+            assert reported == self.grpc_port, "gRPC started on %d, wanted %d" % (
+                reported,
+                self.grpc_port,
+            )
+            return
+        raise RuntimeError(
+            "could not start gRPC after %d attempts: %s"
+            % (_START_GRPC_ATTEMPTS, last_error)
         )

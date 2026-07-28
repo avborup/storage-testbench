@@ -33,6 +33,7 @@ import grpc
 import requests
 
 from google.storage.v2 import storage_pb2, storage_pb2_grpc
+from tests.conformance import emulator as emulator_module
 from tests.conformance.emulator import Emulator
 
 _PORT_RELEASE_TIMEOUT_SECONDS = 5
@@ -167,6 +168,65 @@ class TestEmulator(unittest.TestCase):
                 self.assertEqual(200, listed.status_code, listed.text)
                 names = [b["name"] for b in listed.json().get("items", [])]
                 self.assertEqual(["probe-bucket"], names)
+
+
+class _FakeResponse:
+    def __init__(self, text, status_code=200):
+        self.text = text
+        self.status_code = status_code
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise requests.exceptions.HTTPError("status %d" % self.status_code)
+
+
+class TestStartGrpcRetry(unittest.TestCase):
+    """`_start_grpc` in isolation, with `requests.get` mocked out entirely.
+
+    No real subprocess is involved: Task 5 observed one bare `HTTPError` from
+    `/start_grpc` in 90+ launches, never reproduced on demand, so there is no
+    way to force the real flake. These tests instead pin down the retry
+    *policy* -- transient failures are retried up to a bound, a genuine port
+    mismatch is not -- against a fake `requests.get`.
+    """
+
+    def setUp(self):
+        self.emulator = Emulator(rest_port=12345, grpc_port=54321)
+        # Real delays would make this test slow for no benefit; the retry
+        # count, not the wait, is what is under test.
+        patcher = mock.patch.object(emulator_module.time, "sleep")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_retries_transient_failure_then_succeeds(self):
+        responses = [
+            requests.exceptions.ConnectionError("connection refused"),
+            _FakeResponse("54321"),
+        ]
+        with mock.patch.object(
+            emulator_module.requests, "get", side_effect=responses
+        ) as get:
+            self.emulator._start_grpc()  # must not raise
+        self.assertEqual(2, get.call_count)
+
+    def test_gives_up_after_bounded_retries(self):
+        error = requests.exceptions.ConnectionError("connection refused")
+        with mock.patch.object(
+            emulator_module.requests, "get", side_effect=error
+        ) as get:
+            with self.assertRaises(RuntimeError):
+                self.emulator._start_grpc()
+        self.assertEqual(emulator_module._START_GRPC_ATTEMPTS, get.call_count)
+
+    def test_port_mismatch_is_not_retried(self):
+        # A real mismatch is a bug, not a flake: it must surface on the very
+        # first attempt rather than being retried away.
+        with mock.patch.object(
+            emulator_module.requests, "get", return_value=_FakeResponse("1")
+        ) as get:
+            with self.assertRaises(AssertionError):
+                self.emulator._start_grpc()
+        self.assertEqual(1, get.call_count)
 
 
 if __name__ == "__main__":

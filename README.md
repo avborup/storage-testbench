@@ -38,6 +38,8 @@ is expected to be used by Storage library maintainers.
   - [Storage Control API Stall Support](#storage-control-api-stall-support)
   - [Developing for the testbench](#developing-for-the-testbench)
     - [Writing and running tests](#writing-and-running-tests)
+    - [Reproducible development environment](#reproducible-development-environment)
+    - [Conformance harness](#conformance-harness)
   - [Releasing the testbench](#releasing-the-testbench)
 
 ## Issue Policy
@@ -321,6 +323,33 @@ python -m unittest [test_module.py] # runs all the tests in test_module.py
 python -m unittest [test_module.TestClass.test_method] # runs a single test
 python -m unittest discover -s tests/ # runs all the tests
 ```
+
+### Reproducible development environment
+
+With [Nix](https://nixos.org/download) installed:
+
+```bash
+nix develop
+```
+
+This provisions `.venv` from `setup.py`'s pinned versions, activates it, sets
+`PYTHONPATH`, and adds the Docker client and Compose.
+
+### Conformance harness
+
+`tests/conformance/` records the emulator's external behavior over HTTP and
+gRPC and diffs it against committed goldens in
+`tests/conformance/golden/`. It is black-box by construction: it must not
+import `testbench` or `gcs` internals, so it stays valid across refactors.
+
+```bash
+python -m tests.conformance.harness              # verify against goldens
+python -m tests.conformance.harness --regenerate # rewrite goldens
+```
+
+A golden diff means external behavior changed. If the change is intended,
+regenerate, explain it in the commit message, and add an entry to
+`tests/conformance/allowlist.json`. An unexplained diff is a bug.
 
 ## Releasing the testbench
 

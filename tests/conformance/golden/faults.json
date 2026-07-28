@@ -1,0 +1,229 @@
+{
+  "interactions": [
+    {
+      "body": {
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "iamConfiguration": {
+          "publicAccessPrevention": "inherited",
+          "uniformBucketLevelAccess": {}
+        },
+        "id": "<ID:1>",
+        "kind": "storage#bucket",
+        "metageneration": "1",
+        "name": "faults-bucket",
+        "projectNumber": "123456789",
+        "rpo": "DEFAULT",
+        "storageClass": "STANDARD",
+        "timeCreated": "<TIME:1>",
+        "updated": "<TIME:1>"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "setup-create-bucket",
+      "status": 200
+    },
+    {
+      "body": {
+        "bucket": "faults-bucket",
+        "crc32c": "011TSA==",
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "generation": "<GEN:1>",
+        "id": "<ID:2>",
+        "kind": "storage#object",
+        "md5Hash": "PR+smg6QzdcfGecXEoyLxg==",
+        "metadata": {
+          "x_emulator_upload": "simple",
+          "x_testbench_upload": "simple"
+        },
+        "metageneration": "1",
+        "name": "faults.bin",
+        "size": "2097152",
+        "timeCreated": "<TIME:2>",
+        "timeFinalized": "<TIME:2>",
+        "updated": "<TIME:2>"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "setup-upload",
+      "status": 200
+    },
+    {
+      "body": {
+        "length": 2097152,
+        "sha256": "ec6f7095f5aa63bb4fc5bd87ae23b6de46da773b6e7b2b1d8d6472b730b586de"
+      },
+      "headers": {
+        "content-range": "bytes 0-2097151/2097152",
+        "content-type": "application/octet-stream",
+        "x-goog-generation": "<GEN:1>",
+        "x-goog-hash": "crc32c=011TSA==,md5=PR+smg6QzdcfGecXEoyLxg==",
+        "x-goog-metageneration": "1",
+        "x-goog-storage-class": "",
+        "x-goog-stored-content-length": "2097152"
+      },
+      "kind": "http",
+      "label": "effect-return-corrupted-data",
+      "status": 200
+    },
+    {
+      "kind": "error",
+      "label": "effect-stall-always",
+      "type": "<TRANSPORT_ERROR>"
+    },
+    {
+      "kind": "error",
+      "label": "effect-stall-at-256KiB",
+      "type": "<TRANSPORT_ERROR>"
+    },
+    {
+      "kind": "error",
+      "label": "effect-return-503-after-256K",
+      "type": "<TRANSPORT_ERROR>"
+    },
+    {
+      "kind": "error",
+      "label": "effect-return-503-after-256K-retry-1",
+      "type": "<TRANSPORT_ERROR>"
+    },
+    {
+      "kind": "error",
+      "label": "effect-return-503-after-256K-retry-2",
+      "type": "<TRANSPORT_ERROR>"
+    },
+    {
+      "body": {
+        "completed": false,
+        "id": "<ID:3>",
+        "instructions": {
+          "storage.objects.get": [
+            "return-broken-stream"
+          ]
+        },
+        "transport": "HTTP"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "create-retry-test-return-broken-stream",
+      "status": 200
+    },
+    {
+      "kind": "error",
+      "label": "effect-return-broken-stream",
+      "type": "<TRANSPORT_ERROR>"
+    },
+    {
+      "body": {
+        "completed": true,
+        "id": "<ID:3>",
+        "instructions": {
+          "storage.objects.get": []
+        },
+        "transport": "HTTP"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "retry-test-status-return-broken-stream",
+      "status": 200
+    },
+    {
+      "body": {
+        "completed": false,
+        "id": "<ID:4>",
+        "instructions": {
+          "storage.objects.insert": [
+            "return-503"
+          ]
+        },
+        "transport": "HTTP"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "create-retry-test-return-503",
+      "status": 200
+    },
+    {
+      "body": {
+        "error": {
+          "code": "503",
+          "message": {
+            "error": {
+              "message": "Retry Test: Caused a 503"
+            }
+          }
+        }
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "effect-return-503",
+      "status": 503
+    },
+    {
+      "body": {
+        "completed": true,
+        "id": "<ID:4>",
+        "instructions": {
+          "storage.objects.insert": []
+        },
+        "transport": "HTTP"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "retry-test-status-return-503",
+      "status": 200
+    },
+    {
+      "body": {
+        "completed": false,
+        "id": "<ID:5>",
+        "instructions": {
+          "storage.objects.get": [
+            "return-reset-connection"
+          ]
+        },
+        "transport": "HTTP"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "create-retry-test-return-reset-connection",
+      "status": 200
+    },
+    {
+      "kind": "error",
+      "label": "effect-return-reset-connection",
+      "type": "<TRANSPORT_ERROR>"
+    },
+    {
+      "body": {
+        "completed": true,
+        "id": "<ID:5>",
+        "instructions": {
+          "storage.objects.get": []
+        },
+        "transport": "HTTP"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "retry-test-status-return-reset-connection",
+      "status": 200
+    }
+  ],
+  "name": "faults"
+}
