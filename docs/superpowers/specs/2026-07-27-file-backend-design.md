@@ -374,20 +374,21 @@ volumes:
   gcs-data:
 ```
 
-### Named volume versus host bind mount, and its cost to browsability
+### Named volume, decided
 
-There is a genuine tension here. A named volume is case-sensitive and fast for
-large-file I/O, but the tree is only reachable through
-`docker compose exec gcs-dev ls /data` or `docker cp` — not directly in Finder. A host
-bind mount (`./.gcs-data:/data`) is directly browsable, which is what motivated the
-GCS-shaped layout in the first place, but on macOS it is case-insensitive, so the
-startup collision check will reject two object names differing only in case, and
-large-file I/O through the VirtioFS boundary is markedly slower.
+The dev service uses a Docker **named volume**, not a host bind mount.
 
-The design defaults to a named volume, because correctness beats convenience and the
-layout stays browsable through `exec`. Switching to a bind mount is a one-line compose
-change if direct Finder access proves more valuable in practice; the collision check
-means the failure mode is a loud startup error, not silent data loss.
+A named volume is case-sensitive and fast for large-file I/O. The cost is that the tree
+is reachable through `docker compose exec gcs-dev ls /data` or `docker cp` rather than
+directly in Finder. A host bind mount (`./.gcs-data:/data`) would be directly
+browsable — which is what motivated the GCS-shaped layout — but on macOS it is
+case-insensitive, so the startup collision check would reject two object names
+differing only in case, and large-file I/O across the VirtioFS boundary is markedly
+slower. Given that the dataset includes multi-GB files, both costs bite.
+
+Correctness wins, and the layout stays browsable through `exec`. Switching to a bind
+mount later is a one-line compose change, and because of the collision check the
+failure mode would be a loud startup error rather than silent data loss.
 
 ## Nix flake
 
@@ -665,6 +666,8 @@ phase without a half-migrated codebase.
   multi-GB files, so memory residency is not an option.
 - Test isolation: shared container, UUID bucket per test, file backend on tmpfs.
 - Disk layout: browsable and GCS-shaped, with sidecar metadata.
+- Dev storage: Docker named volume, browsable via `docker compose exec`, not a host
+  bind mount. Case-sensitivity and large-file throughput beat direct Finder access.
 - Overflow store for unrepresentable object names: **kept**.
 - Resumable-upload durability across restart: **dropped**.
 - Startup adoption of hand-dropped orphan files: **dropped**.
