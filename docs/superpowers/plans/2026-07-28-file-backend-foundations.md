@@ -717,7 +717,87 @@ Run: `nix develop --command bash -c 'pytest tests/conformance/test_canonicalize.
 
 Expected: 12 passed.
 
-Two ordering hazards, both real, and the fix for each:
+**Substitution is scoped, and binding is a separate whole-tree pass.** Two defects in an earlier revision of this task, both confirmed by executing the code, motivate the structure below.
+
+*Over-erasure.* Substituting every bound value into every string corrupts unrelated fields: with `{"generation": "1", "name": "file-v1-final.txt"}` the name became `"file-v<GEN:1>-final.txt"`. It fires on real GCS payloads too, since an `id` field's text is a substring of the `selfLink` path. A canonicalizer that mangles data erases the very regressions it exists to catch. Substitution therefore applies **only** where composite values genuinely live — link fields and header values — and never to arbitrary body strings.
+
+*Cross-depth ordering.* Substitution can only replace values already bound, so binding must complete before any emitting begins. Ordering the keys within a single dict is not enough: a link at one depth and its `generation` at another still race. Bind the whole tree first, then emit the whole tree.
+
+```python
+    def body(self, obj):
+        # Two whole-tree passes. Binding must complete before emitting,
+        # because a link can only have an embedded value substituted once
+        # that value is bound, and the two may sit at different depths.
+        self._bind_pass(obj)
+        return self._emit(obj)
+
+    def _bind_pass(self, node):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                kind = NONDETERMINISTIC_FIELDS.get(key)
+                if kind is not None and kind != "LINK" and isinstance(value, (str, int)):
+                    self._bind(kind, value)
+                    continue
+                self._bind_pass(value)
+        elif isinstance(node, list):
+            for value in node:
+                self._bind_pass(value)
+
+    def _emit(self, node):
+        if isinstance(node, dict):
+            out = {}
+            for key, value in node.items():
+                kind = NONDETERMINISTIC_FIELDS.get(key)
+                if kind == "LINK" and isinstance(value, str):
+                    out[key] = self._canonical_link(value)
+                elif kind is not None and isinstance(value, (str, int)):
+                    # Already bound in the first pass; bind() is idempotent,
+                    # and going through the symbol table directly avoids
+                    # recording the value twice for the invariant checks.
+                    out[key] = self._symbols.bind(kind, value)
+                else:
+                    out[key] = self._emit(value)
+            return out
+        if isinstance(node, list):
+            return [self._emit(value) for value in node]
+        # Strings are left alone. Only links and headers are composite.
+        return node
+```
+
+`headers()` keeps its substitution — `Content-Range`, `Location`, and the resumable session URI all embed bound values — and `_ORIGIN` must be case-insensitive, because URI schemes are case-insensitive per RFC 3986 §3.1 and a lowercase-only pattern would let `HTTP://127.0.0.1:51423/…` pass through with its ephemeral port intact:
+
+```python
+_ORIGIN = re.compile(r"^[a-z][a-z0-9+.-]*://[^/]+", re.IGNORECASE)
+```
+
+Tests pinning all three properties:
+
+```python
+    def test_a_bound_value_does_not_corrupt_an_unrelated_string(self):
+        # The canonicalizer must not rewrite fields that merely contain a
+        # bound value as a substring; doing so would hide real regressions
+        # behind mangled data.
+        out = self.canon.body({"generation": "1", "name": "file-v1-final.txt"})
+        self.assertEqual("<GEN:1>", out["generation"])
+        self.assertEqual("file-v1-final.txt", out["name"])
+
+    def test_a_link_substitutes_a_generation_bound_at_another_depth(self):
+        out = self.canon.body(
+            {
+                "selfLink": "http://h/o?generation=10",
+                "inner": {"generation": "10"},
+            }
+        )
+        self.assertEqual("<ORIGIN:1>/o?generation=<GEN:1>", out["selfLink"])
+        self.assertEqual("<GEN:1>", out["inner"]["generation"])
+
+    def test_an_uppercase_scheme_origin_is_still_erased(self):
+        out = self.canon.body({"selfLink": "HTTP://127.0.0.1:51423/storage/v1/b/bk"})
+        self.assertEqual("<ORIGIN:1>/storage/v1/b/bk", out["selfLink"])
+        self.assertNotIn("51423", out["selfLink"])
+```
+
+Two ordering hazards this structure resolves, recorded for the reader:
 
 **Field order within a dict.** `_substitute_known_values` can only replace a value that has already been bound, and bind order follows insertion order, so a link appearing *before* its `generation` in the same object would not substitute. Fix by walking each dict in two passes — first bind every directly-replaceable field, then walk the remainder — so the result is independent of field order. Do not fix this by reordering the test.
 
