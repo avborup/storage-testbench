@@ -73,7 +73,26 @@ OBJECT = "faults.bin"
 # *other* instructions' 256 KiB threshold and does not clear this one; see
 # the trace-5 report for how this was found. 2 MiB clears both thresholds.
 PAYLOAD = b"0123456789abcdef" * 128 * 1024  # 2 MiB
+
+# A short timeout only makes sense for an instruction that is genuinely
+# expected to stall forever: the client has to give up on *something* to
+# observe the fault at all, and 2s is far more than enough margin over a
+# stall that starts immediately. Every other instruction is expected to
+# *complete* -- a 2 MiB corrupted-data download, or a 2 MiB upload that gets
+# a 503 partway through -- and on a contended CI runner either can take
+# longer than 2s to finish for reasons that have nothing to do with whether
+# the fault fired correctly. Applying the short timeout there converts a
+# slow-but-correct run into a golden mismatch (the surrounding handler turns
+# any request exception, including a plain ReadTimeout, into
+# `<TRANSPORT_ERROR>`), so those get a generous timeout instead.
 STALL_TIMEOUT_SECONDS = 2
+COMPLETION_TIMEOUT_SECONDS = 30
+
+# Instructions genuinely expected to stall -- and so timed out deliberately,
+# short, from the client side -- versus ones expected to complete, which get
+# the generous timeout above. Keyed by the label (post "/" -> "-" rewrite)
+# since that is what both loops below already compute.
+_STALL_LABELS = frozenset(["stall-always", "stall-at-256KiB"])
 
 # Fired by setting `x-goog-emulator-instructions` directly on the triggering
 # request -- no Retry Test API resource involved at all for these.
@@ -88,7 +107,10 @@ HEADER_INSTRUCTIONS = [
 
 # Fired through the Retry Test API: create a resource scoped to `method`,
 # then send a request that is actually routed through that method's handler
-# carrying `x-retry-test-id`.
+# carrying `x-retry-test-id`. None of these three are stall instructions --
+# `return-broken-stream` and `return-reset-connection` break the connection
+# immediately rather than hanging it, and `return-503` is a clean HTTP
+# error -- so all three get the generous completion timeout.
 RETRY_TEST_INSTRUCTIONS = [
     ("return-broken-stream", "storage.objects.get"),
     ("return-503", "storage.objects.insert"),
@@ -120,12 +142,17 @@ def run(emulator):
     for instruction in HEADER_INSTRUCTIONS:
         label = instruction.replace("/", "-")
         headers = {"x-goog-emulator-instructions": instruction}
+        timeout = (
+            STALL_TIMEOUT_SECONDS
+            if label in _STALL_LABELS
+            else COMPLETION_TIMEOUT_SECONDS
+        )
         try:
             response = session.get(
                 base + "/storage/v1/b/%s/o/%s" % (BUCKET, OBJECT),
                 params={"alt": "media"},
                 headers=headers,
-                timeout=STALL_TIMEOUT_SECONDS,
+                timeout=timeout,
                 stream=False,
             )
             if instruction == "return-corrupted-data":
@@ -179,7 +206,7 @@ def run(emulator):
                     headers=dict(
                         headers, **{"Content-Type": "application/octet-stream"}
                     ),
-                    timeout=STALL_TIMEOUT_SECONDS,
+                    timeout=COMPLETION_TIMEOUT_SECONDS,
                 )
                 # return-503 manifests as a clean HTTP error, not a torn
                 # connection -- the only Retry Test API instruction that does.
@@ -192,7 +219,7 @@ def run(emulator):
                     base + "/storage/v1/b/%s/o/%s" % (BUCKET, OBJECT),
                     params={"alt": "media"},
                     headers=headers,
-                    timeout=STALL_TIMEOUT_SECONDS,
+                    timeout=COMPLETION_TIMEOUT_SECONDS,
                     stream=False,
                 )
                 raise AssertionError(
