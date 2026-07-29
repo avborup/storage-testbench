@@ -26,6 +26,7 @@ property these tests pin, not just "the trace completes without raising".
 
 import gzip
 import json
+import os
 import unittest
 
 from tests.conformance import trace_faults, trace_grpc, trace_rest
@@ -89,6 +90,21 @@ class TestTracesRunEndToEnd(unittest.TestCase):
         self.assertGreater(len(result["interactions"]), 0)
 
 
+@unittest.skipIf(
+    os.name == "nt",
+    # Windows's time.time() has ~15ms granularity, so two emulator operations
+    # in the same tick share a timestamp on some runs and not others. The
+    # SymbolTable binds timestamps injectively (equal value -> same <TIME:n>),
+    # so a run-to-run difference in which timestamps collide changes the count
+    # of distinct placeholders and shifts every later index -- a Windows clock
+    # artifact, not an emulator non-determinism. Linux/macOS use a
+    # high-resolution clock where distinct operations never collide, and the
+    # goldens are captured and the gate (test_conformance.py) runs there only.
+    # TestTracesRunEndToEnd still launches emulators on Windows, so the
+    # Windows _terminate path stays covered.
+    "cross-run timestamp aliasing is non-deterministic on Windows's coarse "
+    "clock; the golden gate runs on Linux/macOS only -- see the skip comment",
+)
 class TestTracesAreDeterministic(unittest.TestCase):
     """Two independent emulator instances must produce byte-identical output.
 
