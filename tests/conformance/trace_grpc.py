@@ -266,6 +266,13 @@ def run(emulator):
         except grpc.RpcError as error:
             rec.record_error(label, error)
 
+    # The golden's recorded `offsets` end `[0, 10, 20, 20]`, not `[0, 10, 20]`:
+    # a trailing zero-length chunk at offset 20 (where the second range
+    # both starts and, given its own length, ends) is genuine emulator
+    # behavior from `BidiReadObject`'s chunking, not a `record_stream`
+    # artifact -- `record_stream` only records the boundaries it is handed,
+    # it does not invent one. Confirmed against a live emulator before this
+    # trace was written.
     bidi_read(
         "bidi-read-two-ranges",
         [
