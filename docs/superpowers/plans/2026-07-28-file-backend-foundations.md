@@ -2251,6 +2251,21 @@ git rev-parse HEAD  # note this hash: it is the configuration-A commit
 
 `bucket_update` and `bucket_patch` (`testbench/rest_server.py:251-273`) mutate the `Bucket` object returned by `db.get_bucket` **in place** and never call a `Database` mutator, so no bucket metadata change is observable by a `Store` at any point. This cannot be fixed from inside `Database`: it needs the REST handlers routed through a mutator, which changes request-handling control flow and carries real behavioral risk. Doing that inside a task whose defining property is being a provable no-op would forfeit exactly the guarantee this task exists to establish. **Plan 3's first task must route bucket mutations through `Database` and add a `bucket_updated` notification.** Until then the seam is complete for objects and folders and incomplete for bucket metadata; that is a recorded decision, not an oversight.
 
+**Correction, made after the final whole-branch review.** An earlier revision of this section claimed the seam was "complete for objects and folders". That was false, and the bucket deferral above was decided on that false record. `object_updated` was declared on the protocol, mirrored in `RecordingStore`, smoke-tested against `NullStore` — and never fired by `Database`. The stated justification was that `do_update_object` takes an arbitrary `update_fn` so `Database` cannot know whether metadata actually changed, and that firing unconditionally would notify read-only callers. **There are no read-only callers.** All eleven are mutations:
+
+| call site | what it mutates |
+|---|---|
+| `testbench/rest_server.py:533` | object PUT — metadata via `blob.update` |
+| `testbench/rest_server.py:557` | object PATCH — metadata via `blob.patch` |
+| `testbench/rest_server.py:867,908,934,950` | object ACL insert/update/patch/delete — ACLs + metageneration |
+| `testbench/grpc_server.py:985` | `UpdateObject` — metadata, contexts, metageneration, update_time |
+| `gcs/upload.py:330` | calls `insert_object` internally, so this one already notifies |
+| `gcs/upload.py:430` | `bump_upload_gen` — takeover handle state |
+| `gcs/upload.py:606` | `update_appendable_blob` — **`blob.media`**, size, crc32c |
+| `gcs/upload.py:650` | `finalize_blob` — **`blob.media`**, finalize_time, size |
+
+Two of them write object **content**. A `FileStore` built against the uncorrected seam would have persisted an appendable object at creation and then never learned about a single appended byte or its finalization — the same silent-data-loss shape as the soft-delete defect, with the opposite conclusion drawn. The asymmetry also runs the other way from what the justification assumed: a redundant `object_updated` for an unchanged blob costs one idempotent rewrite, while a missing one costs data. `do_update_object` therefore notifies unconditionally on its success path, inside the existing lock, after the mutation.
+
 Relatedly, `insert_test_bucket` (`testbench/database.py:235-237`) sets `metageneration` and `versioning.enabled` *after* calling `insert_bucket`, so a store serializing at notification time persists the pre-mutation values. Those two assignments must move before the `insert_bucket` call.
   - `testbench.store.NullStore` — `Store` with no state.
   - `Database.__init__(..., store=None)` and `Database.init(store=None)`; `Database.store` property.
