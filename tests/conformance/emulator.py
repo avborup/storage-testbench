@@ -22,6 +22,7 @@ import signal
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 
 import requests
@@ -69,6 +70,19 @@ _PINNED_ENV = {
     "GOOGLE_CLOUD_CPP_STORAGE_EMULATOR_OBJECT_READER_ENTITY": (
         "user-object.viewers@example.com"
     ),
+    # Pinned, not inherited, despite `_INHERITED_ENV` below also listing
+    # LANG/LC_ALL: inheriting is what the old comment there claimed gave
+    # "stable text encoding", which is backwards -- a developer's or CI
+    # runner's locale is exactly what varies. Pinning here means whatever
+    # is in `_INHERITED_ENV` for these two names is always overridden.
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    # The one remaining ordering hazard the two-run determinism test can't
+    # tell apart from a real regression: dict iteration order is guaranteed
+    # by insertion in CPython, but a handful of places iterate a `set` (e.g.
+    # ACL entities, listing prefixes), whose order depends on hash values,
+    # which depend on PYTHONHASHSEED when it is randomized (the default).
+    "PYTHONHASHSEED": "0",
 }
 
 # Only what the child needs to execute Python and bind a socket. Anything
@@ -84,9 +98,10 @@ _INHERITED_ENV = (
     "TMPDIR",  # gunicorn/waitress scratch files
     "HOME",
     "USERPROFILE",  # libraries that resolve a home dir on import
-    "LANG",
-    "LC_ALL",  # stable text encoding
     "VIRTUAL_ENV",  # keep the venv's interpreter consistent
+    # LANG/LC_ALL are deliberately absent here: they are pinned in
+    # `_PINNED_ENV` instead of inherited, for stable text encoding that
+    # actually is stable regardless of the parent shell's locale.
 )
 
 
@@ -135,7 +150,26 @@ class Emulator:
     def __init__(self, rest_port=None, grpc_port=None):
         self.rest_port = rest_port or free_port()
         self.grpc_port = grpc_port or free_port()
+        if self.rest_port == self.grpc_port:
+            # `free_port()` draws two independent ephemeral ports; a
+            # collision is unlikely but not impossible, and binding both
+            # listeners to the same port would make one of them fail to
+            # start with a confusing bind error instead of this clear one.
+            # Only redraw a port this call itself picked -- if the caller
+            # pinned both explicitly to the same value, that is their bug to
+            # surface, not ours to silently paper over.
+            if grpc_port is None:
+                self.grpc_port = free_port()
+            elif rest_port is None:
+                self.rest_port = free_port()
+            else:
+                raise ValueError(
+                    "rest_port and grpc_port must differ, both were %d" % rest_port
+                )
+            assert self.rest_port != self.grpc_port
         self._process = None
+        self._stdout_file = None
+        self._logs_cache = ""
 
     @property
     def rest_url(self):
@@ -165,11 +199,19 @@ class Emulator:
         # stay in that same group and can be reached as a group on teardown
         # -- see `_terminate`. `start_new_session` is a no-op on Windows,
         # where there is only the one waitress process to begin with.
+        # A real file, not `subprocess.PIPE`: a pipe has a small, fixed OS
+        # buffer (16 KiB on macOS), and nothing reads it until `logs()` is
+        # called after the trace finishes. gunicorn's `--access-logfile=-`
+        # writes a line per request, so a long enough trace fills the pipe,
+        # and the worker then blocks on `write()` -- wedging the emulator
+        # mid-trace with its own diagnostics stuck unread in the pipe. A
+        # `TemporaryFile` has no such ceiling.
+        self._stdout_file = tempfile.TemporaryFile()
         self._process = subprocess.Popen(
             [sys.executable, _TESTBENCH_RUN, "127.0.0.1", str(self.rest_port), "10"],
             cwd=_REPO_ROOT,
             env=env,
-            stdout=subprocess.PIPE,
+            stdout=self._stdout_file,
             stderr=subprocess.STDOUT,
             start_new_session=True,
         )
@@ -227,13 +269,29 @@ class Emulator:
                     except ProcessLookupError:
                         pass
                 proc.wait(timeout=10)
-        if proc.stdout is not None:
-            proc.stdout.close()
+        if self._stdout_file is not None:
+            # Snapshot whatever the child wrote before closing the handle:
+            # `logs()` must keep working (returning this snapshot) even
+            # after teardown, rather than raising on a closed file.
+            try:
+                self._stdout_file.seek(0)
+                self._logs_cache = self._stdout_file.read().decode("utf-8", "replace")
+            except ValueError:
+                pass
+            self._stdout_file.close()
 
     def logs(self):
-        if self._process is None or self._process.stdout is None:
-            return ""
-        return self._process.stdout.read().decode("utf-8", "replace")
+        if self._stdout_file is None:
+            return self._logs_cache
+        try:
+            self._stdout_file.seek(0)
+            return self._stdout_file.read().decode("utf-8", "replace")
+        except ValueError:
+            # Already closed by `_terminate()`; the cache it left behind is
+            # the most recent content available, and returning it (rather
+            # than raising) is what makes `logs()` safe to call at any point
+            # in the emulator's lifecycle, including after teardown.
+            return self._logs_cache
 
     def _await_rest(self):
         deadline = time.time() + _STARTUP_TIMEOUT_SECONDS
@@ -251,8 +309,18 @@ class Emulator:
             # 500) must not be polled in a tight loop, which the previous
             # placement of this sleep -- only inside the `except` -- did.
             time.sleep(0.1)
+        # Terminate before formatting the message, not after: the caller
+        # (`__enter__`) also tears down on any exception from here, but by
+        # then this message would already be frozen without the child's
+        # diagnostics. Terminating here first, and letting `_terminate()`
+        # snapshot the logs before it closes the file, is what makes them
+        # available to be embedded below -- this used to be the one failure
+        # mode (a genuine readiness timeout) that reported nothing but a
+        # bare line, which is exactly the flake this harness has seen.
+        self._terminate()
         raise RuntimeError(
-            "emulator did not become ready within %ds" % _STARTUP_TIMEOUT_SECONDS
+            "emulator did not become ready within %ds:\n%s"
+            % (_STARTUP_TIMEOUT_SECONDS, self.logs())
         )
 
     def _start_grpc(self):

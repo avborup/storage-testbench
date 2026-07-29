@@ -170,6 +170,39 @@ class TestEmulator(unittest.TestCase):
                 self.assertEqual(["probe-bucket"], names)
 
 
+class TestPortCollisionGuard(unittest.TestCase):
+    """`rest_port` and `grpc_port` are drawn independently; a collision must
+    not silently bind both listeners to the same port."""
+
+    def test_collision_between_two_auto_drawn_ports_is_redrawn(self):
+        with mock.patch.object(
+            emulator_module, "free_port", side_effect=[4000, 4000, 5000]
+        ):
+            emu = Emulator()
+        self.assertEqual(4000, emu.rest_port)
+        self.assertEqual(5000, emu.grpc_port)
+
+    def test_caller_pinning_both_ports_to_the_same_value_raises(self):
+        with self.assertRaises(ValueError):
+            Emulator(rest_port=4000, grpc_port=4000)
+
+
+class TestLogsSurviveTeardown(unittest.TestCase):
+    """`logs()` must stay callable across the point where `_terminate()`
+    closes the underlying file -- it used to raise `ValueError: read of
+    closed file` instead of returning the last snapshot it captured."""
+
+    def test_logs_after_terminate_does_not_raise_and_is_idempotent(self):
+        with Emulator() as emu:
+            requests.get(emu.rest_url + "/")
+        # Must not raise, unlike before this fix; and repeated calls after
+        # teardown must keep returning the same cached snapshot rather than
+        # re-reading (and failing on) the now-closed file each time.
+        after = emu.logs()
+        self.assertIn("gunicorn", after)
+        self.assertEqual(after, emu.logs())
+
+
 class _FakeResponse:
     def __init__(self, text, status_code=200):
         self.text = text
