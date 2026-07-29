@@ -102,6 +102,13 @@ _INHERITED_ENV = (
     # LANG/LC_ALL are deliberately absent here: they are pinned in
     # `_PINNED_ENV` instead of inherited, for stable text encoding that
     # actually is stable regardless of the parent shell's locale.
+    #
+    # Coverage-only: forwarded so the gunicorn worker can start subprocess
+    # coverage under the media call-site gate (tests/test_media_call_sites.py
+    # sets it to the abs path of .coveragerc, which testbench/__init__.py
+    # reads to call coverage.process_startup()). A no-op when unset, so
+    # normal emulator operation and the goldens are unaffected.
+    "COVERAGE_PROCESS_START",
 )
 
 

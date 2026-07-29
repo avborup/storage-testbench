@@ -1,0 +1,95 @@
+# Media call-site audit -- coverage gate input for tests/test_media_call_sites.py.
+#
+# Every uncommented `path:line` below is a genuine `.media` access on an
+# Object/Upload/Rewrite domain object that the conformance trace
+# (trace_rest + trace_grpc + trace_faults) executes today. The gate fails if
+# any listed line is NOT executed by the trace, turning the ~71-site `.media`
+# audit from a claim into a check. Later tasks migrate these sites onto the
+# Media interface and add their new lines here.
+#
+# Lines were captured from real subprocess coverage of the gunicorn worker
+# (see .coveragerc / testbench/__init__.py) and reviewed by hand:
+# `media_link` matches and docstring/comment mentions of `.media` were dropped.
+#
+# `# UNCOVERED path:line -- reason` records a genuine media site the trace does
+# NOT exercise today, so the gap stays visible rather than silently dropped.
+# These are comments: the gate skips them, so they do not turn it red.
+
+# --- gcs/object.py ---
+gcs/object.py:70
+gcs/object.py:499
+
+# --- gcs/upload.py ---
+gcs/upload.py:237
+gcs/upload.py:242
+gcs/upload.py:260
+gcs/upload.py:272
+gcs/upload.py:550
+gcs/upload.py:555
+gcs/upload.py:573
+gcs/upload.py:588
+gcs/upload.py:590
+gcs/upload.py:626
+gcs/upload.py:661
+gcs/upload.py:679
+gcs/upload.py:680
+# UNCOVERED gcs/upload.py:238 -- partial-media resend branch (write_offset < persisted size); the gRPC write trace never re-sends already-persisted bytes
+# UNCOVERED gcs/upload.py:248 -- OUT_OF_RANGE abort (write_offset > persisted size); the trace never sends a gap-ahead offset
+# UNCOVERED gcs/upload.py:304 -- _insert_empty_appendable_object; the trace performs no appendable-object upload
+# UNCOVERED gcs/upload.py:551 -- partial-media resend branch, BidiWrite variant of :238
+# UNCOVERED gcs/upload.py:561 -- OUT_OF_RANGE abort, BidiWrite variant of :248
+# UNCOVERED gcs/upload.py:601 -- update_appendable_blob closure (checksummed_data flush); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:602 -- update_appendable_blob closure size assignment; no appendable upload in the trace
+# UNCOVERED gcs/upload.py:641 -- finalize_blob closure (appendable finalize); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:645 -- finalize_blob closure size assignment; no appendable upload in the trace
+
+# --- testbench/grpc_server.py ---
+testbench/grpc_server.py:530
+testbench/grpc_server.py:595
+testbench/grpc_server.py:596
+testbench/grpc_server.py:604
+testbench/grpc_server.py:638
+testbench/grpc_server.py:724
+testbench/grpc_server.py:742
+testbench/grpc_server.py:1022
+testbench/grpc_server.py:1053
+testbench/grpc_server.py:1110
+testbench/grpc_server.py:1113
+testbench/grpc_server.py:1115
+testbench/grpc_server.py:1116
+testbench/grpc_server.py:1119
+testbench/grpc_server.py:1138
+testbench/grpc_server.py:1168
+# UNCOVERED testbench/grpc_server.py:623 -- broken-stream fault chunk in ReadObject; the trace injects no broken-stream fault on a gRPC read
+# UNCOVERED testbench/grpc_server.py:723 -- negative read_offset in BidiReadObject; the trace uses no negative offset on a bidi read
+# UNCOVERED testbench/grpc_server.py:1051 -- resumable-but-unfinished WriteObject early return; the trace's WriteObject always sets finish_write
+
+# --- testbench/rest_server.py ---
+testbench/rest_server.py:87
+testbench/rest_server.py:655
+testbench/rest_server.py:703
+testbench/rest_server.py:772
+testbench/rest_server.py:774
+testbench/rest_server.py:776
+testbench/rest_server.py:777
+testbench/rest_server.py:780
+testbench/rest_server.py:781
+testbench/rest_server.py:790
+testbench/rest_server.py:1021
+testbench/rest_server.py:1038
+testbench/rest_server.py:1068
+testbench/rest_server.py:1090
+testbench/rest_server.py:1203
+testbench/rest_server.py:1204
+testbench/rest_server.py:1213
+# UNCOVERED testbench/rest_server.py:1096 -- finalize a chunked resumable upload via a `bytes */N` PUT matching persisted size; the trace does not finalize on this branch
+# UNCOVERED testbench/rest_server.py:1208 -- non-Content-Range simple-upload completion; the trace's resumable uploads always send a Content-Range
+
+# --- testbench/common.py (fault-injection append helpers) ---
+# UNCOVERED testbench/common.py:994 -- handle_stall_uploads_after_bytes; the trace injects no stall-after-bytes fault
+# UNCOVERED testbench/common.py:1027 -- handle_retry_uploads_error_after_bytes partial commit; the trace's REST fault paths miss this after-bytes window
+# UNCOVERED testbench/common.py:1029 -- handle_retry_uploads_error_after_bytes error trigger; same helper as :1027
+# UNCOVERED testbench/common.py:1053 -- handle_grpc_retry_uploads_error_after_bytes guard; the trace injects no gRPC error-after-bytes fault
+# UNCOVERED testbench/common.py:1055 -- handle_grpc_retry_uploads_error_after_bytes range_end; same helper as :1053
+# UNCOVERED testbench/common.py:1057 -- handle_grpc_retry_uploads_error_after_bytes partial commit; same helper as :1053
+# (testbench/common.py:1051 is a docstring mention of `upload.media`, not a call site -- dropped)

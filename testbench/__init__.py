@@ -12,6 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+
+# Coverage of the emulator worker: when the conformance coverage gate
+# (tests/test_media_call_sites.py) sets COVERAGE_PROCESS_START, start
+# coverage here so the gunicorn worker records gcs/ and testbench/ lines.
+# Imported lazily and only under the gate, so normal emulator operation
+# never imports coverage -- the zero-runtime-dependency property holds.
+if os.environ.get("COVERAGE_PROCESS_START"):
+    import coverage
+
+    coverage.process_startup()
+
 from . import (
     acl,
     common,
