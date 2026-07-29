@@ -38,6 +38,13 @@ from testbench.media import BytesMedia
 _GENERATION_LOCK = threading.Lock()
 _GENERATION = int(datetime.datetime.now(datetime.timezone.utc).timestamp() * 1000)
 
+# Chunk size for streaming normal REST downloads through the Media seam. Not
+# golden-pinned: the REST recorder captures the assembled body plus a framing
+# summary (mode + content_length_matches_body), never per-chunk boundaries, so
+# this value can change freely without moving a golden. gRPC has its own,
+# separately pinned read chunking.
+DOWNLOAD_CHUNK_SIZE = 128 * 1024
+
 
 def make_generation():
     global _GENERATION
@@ -45,6 +52,20 @@ def make_generation():
     with _GENERATION_LOCK:
         _GENERATION += 1
         return _GENERATION
+
+
+def _stream_media(media, begin, end, size=DOWNLOAD_CHUNK_SIZE):
+    """Yield ``media[begin:end]`` in bounded chunks via the Media seam.
+
+    Routing normal downloads through ``Media.chunks`` (rather than a single
+    ``yield`` of a fully materialized buffer) lets a future ``FileMedia``
+    (Plan 5) stream from mmap without loading the whole object into memory.
+    For ``BytesMedia`` this yields exactly the bytes the previous single-shot
+    ``yield response_payload`` produced; the number of yields is free because
+    an explicit ``Content-Length`` header keeps the response content-length
+    framed regardless of how the body is chunked.
+    """
+    yield from media.chunks(begin, end, size)
 
 
 class Object:
@@ -525,7 +546,14 @@ class Object:
         if instructions is None:
 
             def streamer():
-                yield response_payload
+                if is_decompressive_transcode:
+                    # Transcoded body is a materialized `bytes` from the
+                    # gzip.decompress above; Task 8 migrates it onto the seam.
+                    yield response_payload
+                else:
+                    # `max(0, begin)` guards an over-long suffix range
+                    # (bytes=-N, N>length), preserving the whole-buffer result.
+                    yield from _stream_media(self.media, max(0, begin), end)
 
         elif instructions == "return-broken-stream":
             request_socket = request.environ.get("gunicorn.socket", None)
@@ -622,7 +650,13 @@ class Object:
         else:
 
             def streamer():
-                yield response_payload
+                if is_decompressive_transcode:
+                    # See the `instructions is None` streamer above: transcoded
+                    # bytes stay single-shot (Task 8); the normal path streams
+                    # through the Media seam so FileMedia (Plan 5) can mmap.
+                    yield response_payload
+                else:
+                    yield from _stream_media(self.media, max(0, begin), end)
 
         headers["Content-Range"] = content_range
         if is_decompressive_transcode:

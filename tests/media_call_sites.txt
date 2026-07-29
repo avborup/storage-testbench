@@ -16,11 +16,18 @@
 # These are comments: the gate skips them, so they do not turn it red.
 
 # --- gcs/object.py ---
-gcs/object.py:71
-gcs/object.py:116
-gcs/object.py:117
-gcs/object.py:500
-gcs/object.py:515
+gcs/object.py:68
+gcs/object.py:92
+gcs/object.py:137
+gcs/object.py:138
+gcs/object.py:521
+gcs/object.py:536
+gcs/object.py:556
+# gcs/object.py:68 is `media.chunks(...)` in the module-level `_stream_media`
+# helper; gcs/object.py:556 is the `instructions is None` REST download streamer
+# passing `self.media` into it. Together they are the normal-download streaming
+# path added in Task 7 (single `yield response_payload` -> chunked generator).
+# UNCOVERED gcs/object.py:659 -- the default `else` REST download streamer's self.media access; the trace issues no download whose testbench instructions fall through to this branch
 
 # --- gcs/upload.py ---
 gcs/upload.py:238
