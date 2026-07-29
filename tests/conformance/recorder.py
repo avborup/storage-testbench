@@ -19,6 +19,7 @@
 import hashlib
 import json
 
+import grpc
 import requests
 from google.protobuf import json_format
 
@@ -119,12 +120,21 @@ class Recorder:
         would fail on a clean checkout. The interaction's label still says
         which instruction was injected, so "this fault broke the transfer"
         stays distinguishable from "this fault returned an HTTP status".
-        gRPC errors are not normalized -- their status codes are chosen by
-        the emulator and are therefore deterministic.
+        gRPC errors normalize their `type` too, to `"<GRPC_ERROR>"`: grpcio's
+        concrete error classes (`_InactiveRpcError`, `_MultiThreadedRendezvous`)
+        are underscore-prefixed internals, not part of its public API, so a
+        grpcio version bump -- `renovate.json` will propose one -- can rename
+        or restructure them for reasons unrelated to the emulator's own
+        behavior. `grpc_code` (below) already carries all the
+        emulator-owned, deterministic signal a gRPC failure has -- the
+        status code the emulator chose -- so nothing is lost by not also
+        pinning grpcio's internal class name.
         """
         self._claim(label)
         if isinstance(exception, requests.exceptions.RequestException):
             kind_name = "<TRANSPORT_ERROR>"
+        elif isinstance(exception, grpc.RpcError):
+            kind_name = "<GRPC_ERROR>"
         else:
             kind_name = type(exception).__name__
         entry = {"label": label, "kind": "error", "type": kind_name}

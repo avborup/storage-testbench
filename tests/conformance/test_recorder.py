@@ -18,6 +18,7 @@
 
 import unittest
 
+import grpc
 import requests
 
 from google.storage.v2 import storage_pb2
@@ -125,6 +126,27 @@ class TestRecorder(unittest.TestCase):
         entries = rec.finish()["interactions"]
         self.assertEqual("<TRANSPORT_ERROR>", entries[0]["type"])
         self.assertEqual("<TRANSPORT_ERROR>", entries[1]["type"])
+
+    def test_grpc_errors_normalize_type_but_keep_grpc_code(self):
+        # grpcio's concrete error classes (`_InactiveRpcError`,
+        # `_MultiThreadedRendezvous`) are underscore-prefixed internals that
+        # a grpcio version bump can rename for reasons having nothing to do
+        # with the emulator; `_FakeRpcError` below stands in for either. The
+        # emulator-owned signal -- the status code -- must still come
+        # through verbatim in `grpc_code`.
+        class _FakeRpcError(grpc.RpcError):
+            def code(self):
+                return grpc.StatusCode.ABORTED
+
+            def details(self):
+                return "redirected"
+
+        rec = Recorder("demo")
+        rec.record_error("redirect", _FakeRpcError())
+        entry = rec.finish()["interactions"][0]
+        self.assertEqual("<GRPC_ERROR>", entry["type"])
+        self.assertEqual("ABORTED", entry["grpc_code"])
+        self.assertTrue(entry["has_details"])
 
     def test_non_transport_errors_keep_their_type(self):
         # gRPC status codes are chosen by the emulator, so they are

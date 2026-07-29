@@ -133,7 +133,7 @@
       "has_details": true,
       "kind": "error",
       "label": "create-bucket-duplicate",
-      "type": "_InactiveRpcError"
+      "type": "<GRPC_ERROR>"
     },
     {
       "body": {
@@ -268,7 +268,7 @@
       "has_details": true,
       "kind": "error",
       "label": "get-missing-bucket",
-      "type": "_InactiveRpcError"
+      "type": "<GRPC_ERROR>"
     },
     {
       "body": {
@@ -851,14 +851,14 @@
       "has_details": true,
       "kind": "error",
       "label": "get-missing-object",
-      "type": "_InactiveRpcError"
+      "type": "<GRPC_ERROR>"
     },
     {
       "grpc_code": "FAILED_PRECONDITION",
       "has_details": true,
       "kind": "error",
       "label": "get-object-precondition-mismatch",
-      "type": "_InactiveRpcError"
+      "type": "<GRPC_ERROR>"
     },
     {
       "kind": "stream",
@@ -892,7 +892,7 @@
       "has_details": true,
       "kind": "error",
       "label": "read-object-offset-past-end",
-      "type": "_MultiThreadedRendezvous"
+      "type": "<GRPC_ERROR>"
     },
     {
       "kind": "stream",
@@ -1972,7 +1972,7 @@
       "has_details": true,
       "kind": "error",
       "label": "redirect-send-token",
-      "type": "_MultiThreadedRendezvous"
+      "type": "<GRPC_ERROR>"
     },
     {
       "body": {
@@ -1997,7 +1997,7 @@
       "has_details": true,
       "kind": "error",
       "label": "redirect-send-handle-and-token",
-      "type": "_MultiThreadedRendezvous"
+      "type": "<GRPC_ERROR>"
     },
     {
       "body": {
@@ -2432,7 +2432,7 @@
       "has_details": true,
       "kind": "error",
       "label": "delete-missing-object",
-      "type": "_InactiveRpcError"
+      "type": "<GRPC_ERROR>"
     },
     {
       "body": {
