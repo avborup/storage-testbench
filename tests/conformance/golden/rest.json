@@ -1485,12 +1485,12 @@
       "body": {
         "bucket": "conformance-bucket",
         "contentEncoding": "gzip",
-        "crc32c": "5WtUwg==",
+        "crc32c": "N0KQIQ==",
         "etag": "c4ca4238a0b923820dcc509a6f75849b",
         "generation": "<GEN:6>",
         "id": "<ID:33>",
         "kind": "storage#object",
-        "md5Hash": "DREjLNG5Ngja3jcGQcfWcA==",
+        "md5Hash": "oASG9uRmz2SJcGuRohRAUw==",
         "metadata": {
           "x_emulator_upload": "simple",
           "x_testbench_upload": "simple"
@@ -1518,7 +1518,7 @@
         "content-range": "bytes 0-42/43",
         "content-type": "application/octet-stream",
         "x-goog-generation": "<GEN:6>",
-        "x-goog-hash": "crc32c=5WtUwg==,md5=DREjLNG5Ngja3jcGQcfWcA==",
+        "x-goog-hash": "crc32c=N0KQIQ==,md5=oASG9uRmz2SJcGuRohRAUw==",
         "x-goog-metageneration": "1",
         "x-goog-storage-class": "",
         "x-goog-stored-content-encoding": "gzip",
@@ -1532,14 +1532,14 @@
     {
       "body": {
         "length": 62,
-        "sha256": "3cd396f0b51a485b04f43ab27b72b8e2627b879a19d757f351e7e6d288ab8b5b"
+        "sha256": "dc7e41af3fc864bd94334aa5d5c05b81189f5c36faf289883975c3e88a901655"
       },
       "headers": {
         "content-encoding": "gzip",
         "content-range": "bytes 0-61/62",
         "content-type": "application/octet-stream",
         "x-goog-generation": "<GEN:6>",
-        "x-goog-hash": "crc32c=5WtUwg==,md5=DREjLNG5Ngja3jcGQcfWcA==",
+        "x-goog-hash": "crc32c=N0KQIQ==,md5=oASG9uRmz2SJcGuRohRAUw==",
         "x-goog-metageneration": "1",
         "x-goog-storage-class": "",
         "x-goog-stored-content-encoding": "gzip",
@@ -2316,6 +2316,39 @@
       "kind": "http",
       "label": "delete-non-empty-bucket",
       "status": 400
+    },
+    {
+      "body": {
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "iamConfiguration": {
+          "publicAccessPrevention": "inherited",
+          "uniformBucketLevelAccess": {}
+        },
+        "id": "<ID:57>",
+        "kind": "storage#bucket",
+        "metageneration": "1",
+        "name": "conformance-bucket-to-delete",
+        "projectNumber": "123456789",
+        "rpo": "DEFAULT",
+        "storageClass": "STANDARD",
+        "timeCreated": "<TIME:18>",
+        "updated": "<TIME:18>"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "create-bucket-for-delete",
+      "status": 200
+    },
+    {
+      "body": null,
+      "headers": {
+        "content-type": "text/html; charset=utf-8"
+      },
+      "kind": "http",
+      "label": "delete-bucket-success",
+      "status": 200
     }
   ],
   "name": "rest"

@@ -31,7 +31,19 @@ from tests.conformance.recorder import Recorder
 
 BUCKET = "conformance-bucket"
 VERSIONED = "conformance-versioned"
+TO_DELETE = "conformance-bucket-to-delete"
 PAYLOAD = b"The quick brown fox jumps over the lazy dog"
+
+# Literal rather than gzip.compress(...): Python <=3.10 writes OS=0xff in the
+# gzip header while 3.11+ delegates to zlib, which writes its build-time
+# OS_CODE (0x13 on Darwin, 0x03 on Linux). That one byte changes the stored
+# object's crc32c/md5Hash and the wire sha256, so a runtime-compressed
+# payload makes the goldens valid only on the machine that captured them.
+GZIPPED_PAYLOAD = bytes.fromhex(
+    "1f8b08000000000002ff0bc94855282ccd4cce56482aca2fcf5348cbaf50c8"
+    "2acd2d2856c82f4b2d5228014ae72456552aa4e4a7030039a34f412b000000"
+)
+assert gzip.decompress(GZIPPED_PAYLOAD) == PAYLOAD
 
 # Named, rather than "simple.txt"/"multipart.txt"/"xml.txt"/"resumable.txt", so
 # that their alphabetical order -- the order `list-objects` returns them in,
@@ -148,6 +160,11 @@ def run(emulator):
         data=PAYLOAD,
         headers={"Content-Type": "text/plain"},
     )
+    # The golden's "upload-xml" response carries `x-goog-hash: "None"` -- a
+    # real emulator bug, not a recorder artifact: `xml_put_object` in
+    # testbench/rest_server.py stringifies a `None` when it builds this
+    # header for the XML PUT path. Pinned here (as the RenameFolder bugs are
+    # pinned in trace_grpc.py) rather than silently dropped or worked around.
     # Read back right away, not deferred into the "reads" section below: an
     # XML PUT's own response carries no generation (empty body, no
     # `x-goog-generation` header -- see `xml_put_object` in
@@ -261,12 +278,11 @@ def run(emulator):
         "POST",
         "/upload/storage/v1/b/%s/o" % BUCKET,
         params={"uploadType": "media", "name": "gz.txt", "contentEncoding": "gzip"},
-        # `mtime=0` pins the gzip header's embedded timestamp. Without it,
-        # `gzip.compress` defaults to the current wall-clock time, so the
-        # *compressed* bytes -- and therefore the stored object's crc32c and
-        # md5Hash -- differ on every run even though PAYLOAD never changes.
-        # Found by running trace_rest twice and diffing.
-        data=gzip.compress(PAYLOAD, mtime=0),
+        # GZIPPED_PAYLOAD is a fixed literal (see module top) rather than a
+        # freshly-computed `gzip.compress(...)`: a runtime call carries the
+        # capturing machine's zlib OS byte into the stored object's crc32c/
+        # md5Hash, making the goldens machine-dependent.
+        data=GZIPPED_PAYLOAD,
         headers={"Content-Type": "text/plain"},
     )
     api(
@@ -420,5 +436,24 @@ def run(emulator):
     api("delete-object", "DELETE", "/storage/v1/b/%s/o/moved.txt" % BUCKET)
     api("delete-missing-object", "DELETE", "/storage/v1/b/%s/o/moved.txt" % BUCKET)
     api("delete-non-empty-bucket", "DELETE", "/storage/v1/b/" + BUCKET)
+
+    # A dedicated, empty, never-referenced-again bucket so a successful
+    # delete can be recorded: `delete-non-empty-bucket` above only ever
+    # exercises the 400 rejection path, leaving a successful
+    # `bucket_deleted` notification with no baseline at all. Placed last,
+    # after everything else: the canonicalizer's `<GEN:n>`/`<ID:n>`/
+    # `<TIME:n>` placeholders number values in first-sighted order across
+    # the whole trace, so adding these two interactions anywhere earlier
+    # would renumber every symbol first sighted afterward -- turning a
+    # two-interaction addition into a diff touching most of the golden.
+    # Appending here means nothing else moves.
+    api(
+        "create-bucket-for-delete",
+        "POST",
+        "/storage/v1/b",
+        params={"project": "test-project"},
+        json={"name": TO_DELETE},
+    )
+    api("delete-bucket-success", "DELETE", "/storage/v1/b/" + TO_DELETE)
 
     return rec.finish()

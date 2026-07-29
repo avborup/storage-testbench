@@ -24,6 +24,7 @@ state can be doing the work -- must be byte-for-byte identical. This is the
 property these tests pin, not just "the trace completes without raising".
 """
 
+import gzip
 import json
 import unittest
 
@@ -40,6 +41,22 @@ def _canonical_text(result):
     # sort_keys so two structurally-identical results serialize identically
     # regardless of the dict insertion order the interpreter happened to use.
     return json.dumps(result, indent=2, sort_keys=True)
+
+
+class TestGzippedPayloadLiteral(unittest.TestCase):
+    """Guard against re-introducing runtime gzip compression.
+
+    trace_rest.py's GZIPPED_PAYLOAD is a fixed literal precisely because a
+    runtime `gzip.compress(...)` call bakes in the capturing machine's zlib
+    OS byte (see the comment at its definition), making the golden valid
+    only on that machine. This pins the one property that matters: the
+    literal must still decompress to the plaintext PAYLOAD.
+    """
+
+    def test_gzipped_payload_decompresses_to_payload(self):
+        self.assertEqual(
+            trace_rest.PAYLOAD, gzip.decompress(trace_rest.GZIPPED_PAYLOAD)
+        )
 
 
 class TestTracesRunEndToEnd(unittest.TestCase):
