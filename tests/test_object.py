@@ -472,7 +472,7 @@ class TestObject(unittest.TestCase):
         blob, _ = gcs.object.Object.init(
             upload.request,
             upload.metadata,
-            upload.media,
+            upload.media.to_bytes(),
             upload.bucket,
             False,
             "FakeContext",

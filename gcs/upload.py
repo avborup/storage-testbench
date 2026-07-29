@@ -56,7 +56,7 @@ class Upload(types.SimpleNamespace):
             bucket=bucket,
             location=location,
             upload_id=upload_id,
-            media=b"",
+            media=BytesMedia(b""),
             complete=False,
             transfer=set(),
         )
@@ -302,7 +302,7 @@ class Upload(types.SimpleNamespace):
         blob, _ = gcs.object.Object.init(
             upload.request,
             upload.metadata,
-            upload.media,
+            upload.media.to_bytes(),
             upload.bucket,
             False,
             context,
@@ -588,7 +588,7 @@ class Upload(types.SimpleNamespace):
                 # TODO(#592): Refactor testbench checkpointing to more closely follow GCS server behavior.
                 upload.media += content
 
-            persisted_crc32c = crc32c.crc32c(upload.media)
+            persisted_crc32c = upload.media.crc32c()
 
             if data == "checksummed_data":
                 # Update appendable blob size and media here, as part of #720.
@@ -667,7 +667,7 @@ class Upload(types.SimpleNamespace):
                 blob, _ = gcs.object.Object.init(
                     upload.request,
                     upload.metadata,
-                    upload.media,
+                    upload.media.to_bytes(),
                     upload.bucket,
                     False,
                     context,

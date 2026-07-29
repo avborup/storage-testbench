@@ -1050,7 +1050,12 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
                 return testbench.error.missing("finish_write in request", context)
             return storage_pb2.WriteObjectResponse(persisted_size=len(upload.media))
         blob, _ = gcs.object.Object.init(
-            upload.request, upload.metadata, upload.media, upload.bucket, False, context
+            upload.request,
+            upload.metadata,
+            upload.media.to_bytes(),
+            upload.bucket,
+            False,
+            context,
         )
         upload.blob = blob
         self.db.insert_object(

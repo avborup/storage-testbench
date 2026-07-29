@@ -53,14 +53,14 @@ testbench/grpc_server.py:638
 testbench/grpc_server.py:724
 testbench/grpc_server.py:742
 testbench/grpc_server.py:1022
-testbench/grpc_server.py:1053
-testbench/grpc_server.py:1110
-testbench/grpc_server.py:1113
+testbench/grpc_server.py:1055
 testbench/grpc_server.py:1115
-testbench/grpc_server.py:1116
-testbench/grpc_server.py:1119
-testbench/grpc_server.py:1138
-testbench/grpc_server.py:1168
+testbench/grpc_server.py:1118
+testbench/grpc_server.py:1120
+testbench/grpc_server.py:1121
+testbench/grpc_server.py:1124
+testbench/grpc_server.py:1143
+testbench/grpc_server.py:1173
 # UNCOVERED testbench/grpc_server.py:623 -- broken-stream fault chunk in ReadObject; the trace injects no broken-stream fault on a gRPC read
 # UNCOVERED testbench/grpc_server.py:723 -- negative read_offset in BidiReadObject; the trace uses no negative offset on a bidi read
 # UNCOVERED testbench/grpc_server.py:1051 -- resumable-but-unfinished WriteObject early return; the trace's WriteObject always sets finish_write
@@ -82,7 +82,7 @@ testbench/rest_server.py:1068
 testbench/rest_server.py:1090
 testbench/rest_server.py:1203
 testbench/rest_server.py:1204
-testbench/rest_server.py:1213
+testbench/rest_server.py:1215
 # UNCOVERED testbench/rest_server.py:1096 -- finalize a chunked resumable upload via a `bytes */N` PUT matching persisted size; the trace does not finalize on this branch
 # UNCOVERED testbench/rest_server.py:1208 -- non-Content-Range simple-upload completion; the trace's resumable uploads always send a Content-Range
 

@@ -1093,7 +1093,7 @@ def resumable_upload_chunk(bucket_name):
                 blob, _ = gcs_type.object.Object.init(
                     upload.request,
                     upload.metadata,
-                    upload.media,
+                    upload.media.to_bytes(),
                     upload.bucket,
                     False,
                     None,
@@ -1210,7 +1210,12 @@ def resumable_upload_chunk(bucket_name):
     if upload.complete:
         upload.apply_final_checksums(x_goog_hash)
         blob, _ = gcs_type.object.Object.init(
-            upload.request, upload.metadata, upload.media, upload.bucket, False, None
+            upload.request,
+            upload.metadata,
+            upload.media.to_bytes(),
+            upload.bucket,
+            False,
+            None,
         )
         blob.metadata.metadata["x_emulator_transfer_encoding"] = ":".join(
             upload.transfer
