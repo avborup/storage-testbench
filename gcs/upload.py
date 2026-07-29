@@ -32,6 +32,7 @@ from grpc_status import rpc_status
 import gcs
 import testbench
 from google.storage.v2 import storage_pb2
+from testbench.media import BytesMedia
 
 
 class Upload(types.SimpleNamespace):
@@ -598,7 +599,11 @@ class Upload(types.SimpleNamespace):
                     update_upload_checksums(upload.metadata, object_checksums)
 
                     def update_appendable_blob(blob, unused_generation):
-                        blob.media = upload.media
+                        blob.media = (
+                            upload.media
+                            if isinstance(upload.media, BytesMedia)
+                            else BytesMedia(upload.media)
+                        )
                         blob.metadata.size = len(upload.media)
                         blob.metadata.checksums.crc32c = persisted_crc32c
                         return blob
@@ -638,7 +643,11 @@ class Upload(types.SimpleNamespace):
             if is_appendable:
 
                 def finalize_blob(blob, unused_generation):
-                    blob.media = upload.media
+                    blob.media = (
+                        upload.media
+                        if isinstance(upload.media, BytesMedia)
+                        else BytesMedia(upload.media)
+                    )
                     blob.metadata.finalize_time.FromDatetime(
                         datetime.datetime.now(datetime.timezone.utc)
                     )

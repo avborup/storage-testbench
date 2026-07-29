@@ -19,11 +19,11 @@ before this seam: it is what `NullStore` uses and what keeps phase 3 a pure
 refactor. `FileMedia` (Plan 3) will back the same interface with a real file.
 
 The bytes-compatibility surface (`__len__`, `__getitem__`, `__add__`,
-`__radd__`, `__iadd__`) exists so the ~71 existing `.media` call sites that
-only slice, measure, or concatenate keep working unchanged; the streaming
-methods (`chunks`, `reader`, incremental `crc32c`/`md5`) are what the
-size-sensitive paths migrate onto so `FileMedia` can later avoid
-materialising multi-GB buffers.
+`__radd__`, `__iadd__`, `__eq__`) exists so the ~71 existing `.media` call
+sites that only slice, measure, concatenate, or compare keep working
+unchanged; the streaming methods (`chunks`, `reader`, incremental
+`crc32c`/`md5`) are what the size-sensitive paths migrate onto so `FileMedia`
+can later avoid materialising multi-GB buffers.
 """
 
 import hashlib
@@ -36,7 +36,7 @@ class BytesMedia:
     def __init__(self, initial=b""):
         self._buf = bytearray(initial)
         # Rolling checksums. Maintained incrementally so crc32c()/md5() are O(1)
-        # and the O(n^2) whole-buffer recompute at gcs/upload.py:590 becomes O(n)
+        # and the O(n^2) whole-buffer recompute at gcs/upload.py:591 becomes O(n)
         # total. crc32c(data, seed) chaining was pinned in Plan 1
         # (tests/test_crc32c_assumptions.py); hashlib is natively incremental.
         self._crc = crc32c.crc32c(bytes(self._buf))
@@ -65,6 +65,20 @@ class BytesMedia:
 
     def __radd__(self, data):
         return data + bytes(self._buf)
+
+    def __eq__(self, other):
+        # `blob.media == b"..."` is a normal assertion shape in the test
+        # suite (and was always true of the raw bytes this class replaces),
+        # so equality is part of the bytes-compatibility surface, not an
+        # afterthought. A `BytesMedia` is mutable, so leaving `__hash__`
+        # unset here (Python sets it to None once `__eq__` is defined) is
+        # deliberate: unlike `bytes`, this type must not be used as a dict
+        # key or set member whose identity could shift under `append`.
+        if isinstance(other, BytesMedia):
+            return bytes(self._buf) == bytes(other._buf)
+        if isinstance(other, (bytes, bytearray)):
+            return bytes(self._buf) == other
+        return NotImplemented
 
     def chunks(self, begin, end, size):
         pos = begin

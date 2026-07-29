@@ -16,32 +16,33 @@
 # These are comments: the gate skips them, so they do not turn it red.
 
 # --- gcs/object.py ---
-gcs/object.py:70
-gcs/object.py:499
+gcs/object.py:71
+gcs/object.py:500
+gcs/object.py:515
 
 # --- gcs/upload.py ---
-gcs/upload.py:237
-gcs/upload.py:242
-gcs/upload.py:260
-gcs/upload.py:272
-gcs/upload.py:550
-gcs/upload.py:555
-gcs/upload.py:573
-gcs/upload.py:588
-gcs/upload.py:590
-gcs/upload.py:626
-gcs/upload.py:661
-gcs/upload.py:679
-gcs/upload.py:680
-# UNCOVERED gcs/upload.py:238 -- partial-media resend branch (write_offset < persisted size); the gRPC write trace never re-sends already-persisted bytes
-# UNCOVERED gcs/upload.py:248 -- OUT_OF_RANGE abort (write_offset > persisted size); the trace never sends a gap-ahead offset
-# UNCOVERED gcs/upload.py:304 -- _insert_empty_appendable_object; the trace performs no appendable-object upload
-# UNCOVERED gcs/upload.py:551 -- partial-media resend branch, BidiWrite variant of :238
-# UNCOVERED gcs/upload.py:561 -- OUT_OF_RANGE abort, BidiWrite variant of :248
-# UNCOVERED gcs/upload.py:601 -- update_appendable_blob closure (checksummed_data flush); no appendable upload in the trace
-# UNCOVERED gcs/upload.py:602 -- update_appendable_blob closure size assignment; no appendable upload in the trace
-# UNCOVERED gcs/upload.py:641 -- finalize_blob closure (appendable finalize); no appendable upload in the trace
-# UNCOVERED gcs/upload.py:645 -- finalize_blob closure size assignment; no appendable upload in the trace
+gcs/upload.py:238
+gcs/upload.py:243
+gcs/upload.py:261
+gcs/upload.py:273
+gcs/upload.py:551
+gcs/upload.py:556
+gcs/upload.py:574
+gcs/upload.py:589
+gcs/upload.py:591
+gcs/upload.py:631
+gcs/upload.py:670
+gcs/upload.py:688
+gcs/upload.py:689
+# UNCOVERED gcs/upload.py:239 -- partial-media resend branch (write_offset < persisted size); the gRPC write trace never re-sends already-persisted bytes
+# UNCOVERED gcs/upload.py:249 -- OUT_OF_RANGE abort (write_offset > persisted size); the trace never sends a gap-ahead offset
+# UNCOVERED gcs/upload.py:305 -- _insert_empty_appendable_object; the trace performs no appendable-object upload
+# UNCOVERED gcs/upload.py:552 -- partial-media resend branch, BidiWrite variant of :239
+# UNCOVERED gcs/upload.py:562 -- OUT_OF_RANGE abort, BidiWrite variant of :249
+# UNCOVERED gcs/upload.py:602 -- update_appendable_blob closure (checksummed_data flush); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:607 -- update_appendable_blob closure size assignment; no appendable upload in the trace
+# UNCOVERED gcs/upload.py:646 -- finalize_blob closure (appendable finalize); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:654 -- finalize_blob closure size assignment; no appendable upload in the trace
 
 # --- testbench/grpc_server.py ---
 testbench/grpc_server.py:530

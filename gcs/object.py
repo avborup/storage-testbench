@@ -32,6 +32,7 @@ from google.protobuf import field_mask_pb2, json_format
 import testbench
 import testbench.common
 from google.storage.v2 import storage_pb2
+from testbench.media import BytesMedia
 
 # Lock to prevent race condition while generating metadata versions:
 _GENERATION_LOCK = threading.Lock()
@@ -67,7 +68,7 @@ class Object:
 
     def __init__(self, metadata, media, bucket, *, upload=None, upload_gen=0):
         self.metadata = metadata
-        self.media = media
+        self.media = media if isinstance(media, BytesMedia) else BytesMedia(media)
         self.bucket = bucket
         self.upload = upload
         self.upload_gen = upload_gen
@@ -496,12 +497,22 @@ class Object:
     def rest_media(self, request, delay=time.sleep):
         is_decompressive_transcode = self._decompress_on_download(request)
         response_payload = (
-            gzip.decompress(self.media) if is_decompressive_transcode else self.media
+            gzip.decompress(self.media.to_bytes())
+            if is_decompressive_transcode
+            else self.media
         )
         range_header = request.headers.get("range")
         begin, end, length, response_payload = self._download_range(
             request, response_payload
         )
+        # `_download_range` only slices into real `bytes` when a range header
+        # is present; an unranged, non-decompressed request reaches here with
+        # `response_payload` still the object's `BytesMedia`. Everything below
+        # hands the payload to Werkzeug/WSGI response streaming, which -- like
+        # `gzip.decompress` above -- needs a genuine buffer-protocol `bytes`,
+        # not a `BytesMedia` wrapper.
+        if isinstance(response_payload, BytesMedia):
+            response_payload = response_payload.to_bytes()
         # Return 416 if the requested range cannot be satisfied.
         if range_header is not None and begin >= length:
             testbench.error.range_not_satisfiable()
