@@ -106,14 +106,15 @@ class Object:
         instruction = testbench.common.extract_instruction(request, context)
         if instruction == "inject-upload-data-error":
             media = testbench.common.corrupt_media(media)
+        media = media if isinstance(media, BytesMedia) else BytesMedia(media)
         timestamp = datetime.datetime.now(datetime.timezone.utc)
         metadata.bucket = bucket.name
         metadata.generation = make_generation()
         metadata.metageneration = 1
         metadata.etag = cls._metadata_etag(metadata)
         metadata.size = len(media)
-        actual_md5Hash = hashlib.md5(media).digest()
-        actual_crc32c = crc32c.crc32c(media)
+        actual_md5Hash = media.md5()
+        actual_crc32c = media.crc32c()
         if metadata.HasField("checksums"):
             cs = metadata.checksums
             if len(cs.md5_hash) != 0 and actual_md5Hash != cs.md5_hash:

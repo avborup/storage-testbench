@@ -17,6 +17,8 @@
 
 # --- gcs/object.py ---
 gcs/object.py:71
+gcs/object.py:116
+gcs/object.py:117
 gcs/object.py:500
 gcs/object.py:515
 
