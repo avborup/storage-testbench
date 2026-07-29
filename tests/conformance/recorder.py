@@ -56,9 +56,54 @@ class Recorder:
                 "kind": "http",
                 "status": response.status_code,
                 "headers": self._canon.headers(response.headers),
+                "framing": self._framing(response),
                 "body": self._body(response.content, content_type),
             }
         )
+
+    @staticmethod
+    def _framing(response):
+        """Record the response's framing decision as a derived, stable field.
+
+        `DROPPED_HEADERS` discards `Content-Length` and `Transfer-Encoding`:
+        their literal values are volatile (a WSGI server recomputes them, and
+        a JSON body's length rides on non-semantic serialization whitespace),
+        so pinning them would turn cosmetic changes into golden noise. But the
+        *framing decision* is observable behavior the Media seam (Plan 2)
+        refactors directly -- a switch to chunked encoding, or a length that
+        lies about the body -- so it must move a golden. This captures that
+        decision without pinning a number:
+
+        - `mode`: "chunked" if a `Transfer-Encoding` says so, else
+          "content-length" if a `Content-Length` is present, else "none". A
+          switch away from length framing changes this value even if the
+          client library hides the raw `Transfer-Encoding` header (mode
+          becomes "none" rather than "chunked"), so the axis is observable
+          either way.
+        - `content_length_matches_body`: whether the advertised length equals
+          the wire body. Present only when a `Content-Length` is set (a
+          chunked response has none). This trusts `response.content` to hold
+          the *wire* bytes; the trace upholds that even for content-encoded
+          downloads (see trace_rest's `download-not-transcoded`, which reads
+          raw bytes so `Content-Length` and `len(content)` describe the same
+          encoded form). Header lookups are case-insensitive because a real
+          `requests` response uses a `CaseInsensitiveDict`.
+        """
+        headers = response.headers
+        transfer_encoding = str(headers.get("transfer-encoding", "")).lower()
+        content_length = headers.get("content-length")
+        if "chunked" in transfer_encoding:
+            mode = "chunked"
+        elif content_length is not None:
+            mode = "content-length"
+        else:
+            mode = "none"
+        framing = {"mode": mode}
+        if content_length is not None:
+            framing["content_length_matches_body"] = int(content_length) == len(
+                response.content
+            )
+        return framing
 
     def record_grpc(self, label, message):
         self._claim(label)

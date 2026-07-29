@@ -17,6 +17,10 @@
         "timeCreated": "<TIME:1>",
         "updated": "<TIME:1>"
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -44,6 +48,10 @@
         "timeFinalized": "<TIME:2>",
         "updated": "<TIME:2>"
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -55,6 +63,10 @@
       "body": {
         "length": 2097152,
         "sha256": "ec6f7095f5aa63bb4fc5bd87ae23b6de46da773b6e7b2b1d8d6472b730b586de"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-range": "bytes 0-2097151/2097152",
@@ -105,6 +117,10 @@
         },
         "transport": "HTTP"
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -126,6 +142,10 @@
         },
         "transport": "HTTP"
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -143,6 +163,10 @@
           ]
         },
         "transport": "HTTP"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-type": "application/json"
@@ -162,6 +186,10 @@
           }
         }
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -177,6 +205,10 @@
           "storage.objects.insert": []
         },
         "transport": "HTTP"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-type": "application/json"
@@ -195,6 +227,10 @@
           ]
         },
         "transport": "HTTP"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-type": "application/json"
@@ -216,6 +252,10 @@
           "storage.objects.get": []
         },
         "transport": "HTTP"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-type": "application/json"

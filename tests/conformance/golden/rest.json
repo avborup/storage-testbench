@@ -17,6 +17,10 @@
         "timeCreated": "<TIME:1>",
         "updated": "<TIME:1>"
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -30,6 +34,10 @@
           "code": 409,
           "message": "{\"error\": {\"errors\": [{\"domain\": \"global\", \"message\": \"resource already exists\"}]}}"
         }
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-type": "application/json"
@@ -54,6 +62,10 @@
         "storageClass": "STANDARD",
         "timeCreated": "<TIME:1>",
         "updated": "<TIME:1>"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-type": "application/json"
@@ -183,6 +195,10 @@
         ],
         "kind": "storage#buckets"
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -302,6 +318,10 @@
         "timeCreated": "<TIME:1>",
         "updated": "<TIME:2>"
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -335,6 +355,10 @@
         "kind": "storage#policy",
         "version": 1
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -348,6 +372,10 @@
         "permissions": [
           "storage.objects.get"
         ]
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-type": "application/json"
@@ -376,6 +404,10 @@
           "enabled": true
         }
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -402,6 +434,10 @@
         "timeCreated": "<TIME:4>",
         "timeFinalized": "<TIME:4>",
         "updated": "<TIME:4>"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-type": "application/json"
@@ -431,6 +467,10 @@
         "timeFinalized": "<TIME:5>",
         "updated": "<TIME:5>"
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -440,6 +480,10 @@
     },
     {
       "body": null,
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "text/html; charset=utf-8",
         "x-goog-hash": "None"
@@ -452,6 +496,10 @@
       "body": {
         "length": 43,
         "sha256": "d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-range": "bytes 0-42/43",
@@ -469,6 +517,10 @@
     },
     {
       "body": null,
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "text/html; charset=utf-8",
         "location": "<ORIGIN:1>/upload/storage/v1/b/<ID:1>/o?uploadType=resumable&upload_id=<UPLOAD:1>"
@@ -479,6 +531,10 @@
     },
     {
       "body": null,
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "text/html; charset=utf-8",
         "range": "bytes=0-19"
@@ -489,6 +545,10 @@
     },
     {
       "body": null,
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "text/html; charset=utf-8",
         "range": "bytes=0-19"
@@ -526,6 +586,10 @@
         "timeFinalized": "<TIME:6>",
         "updated": "<TIME:6>"
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -553,6 +617,10 @@
         "timeFinalized": "<TIME:4>",
         "updated": "<TIME:4>"
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -564,6 +632,10 @@
       "body": {
         "length": 43,
         "sha256": "d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-range": "bytes 0-42/43",
@@ -583,6 +655,10 @@
         "length": 10,
         "sha256": "3d2bc99cb41649a88d11891d09921321a6aad86d053081ea67253974ed38176a"
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-range": "bytes 10-19/43",
         "content-type": "application/octet-stream",
@@ -601,6 +677,10 @@
         "length": 33,
         "sha256": "3cccbcfa62ad92be1c2ff9da675f4ded60a0966390758e104c1e4d1d00f9be93"
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-range": "bytes 10-42/43",
         "content-type": "application/octet-stream",
@@ -618,6 +698,10 @@
       "body": {
         "length": 10,
         "sha256": "5fe3ec7b3d3ad186f291bdb02b0747259d7e672e5e03e5cb260d29895e59f9e5"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-range": "bytes 33-42/43",
@@ -638,6 +722,10 @@
           "code": 416,
           "message": "{\"error\": {\"errors\": [{\"domain\": \"global\", \"message\": \"request range not satisfiable\"}]}}"
         }
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-type": "application/json"
@@ -665,6 +753,10 @@
         "timeCreated": "<TIME:7>",
         "timeFinalized": "<TIME:7>",
         "updated": "<TIME:7>"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-type": "application/json"
@@ -1111,6 +1203,10 @@
         "kind": "storage#objects",
         "prefixes": []
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -1474,6 +1570,10 @@
           "05-dir/"
         ]
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -1502,6 +1602,10 @@
         "timeFinalized": "<TIME:9>",
         "updated": "<TIME:9>"
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -1513,6 +1617,10 @@
       "body": {
         "length": 43,
         "sha256": "d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-range": "bytes 0-42/43",
@@ -1533,6 +1641,10 @@
       "body": {
         "length": 62,
         "sha256": "dc7e41af3fc864bd94334aa5d5c05b81189f5c36faf289883975c3e88a901655"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-encoding": "gzip",
@@ -1632,6 +1744,10 @@
         "timeFinalized": "<TIME:4>",
         "updated": "<TIME:10>"
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -1663,6 +1779,10 @@
         "timeFinalized": "<TIME:4>",
         "updated": "<TIME:11>"
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -1674,6 +1794,10 @@
       "body": {
         "items": [],
         "kind": "storage#objectAccessControls"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-type": "application/json"
@@ -1697,6 +1821,10 @@
         },
         "role": "READER"
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -1710,6 +1838,10 @@
           "code": 412,
           "message": "{\"error\": {\"errors\": [{\"domain\": \"global\", \"message\": \"ifGenerationMatch validation failed. Expected = 1 vs Actual = <GEN:1>.\"}]}}"
         }
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-type": "application/json"
@@ -1725,6 +1857,10 @@
           "message": "{\"error\": {\"errors\": [{\"domain\": \"global\", \"message\": \"Live version of object <ID:1>/absent.txt does not exist.\"}]}}"
         }
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -1738,6 +1874,10 @@
           "code": 404,
           "message": "{\"error\": {\"errors\": [{\"domain\": \"global\", \"message\": \"Bucket absent-bucket does not exist.\"}]}}"
         }
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-type": "application/json"
@@ -1770,6 +1910,10 @@
         "timeFinalized": "<TIME:12>",
         "updated": "<TIME:12>"
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -1781,6 +1925,10 @@
       "body": {
         "length": 43,
         "sha256": "d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-range": "bytes 0-42/43",
@@ -1801,6 +1949,10 @@
           "code": 400,
           "message": "{\"error\": {\"errors\": [{\"domain\": \"global\", \"message\": \"Algorithm  for CSEK is invalid.\"}]}}"
         }
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-type": "application/json"
@@ -1891,6 +2043,10 @@
         "timeFinalized": "<TIME:13>",
         "updated": "<TIME:13>"
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -1943,6 +2099,10 @@
           "updated": "<TIME:14>"
         },
         "totalBytesRewritten": "43"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-type": "application/json"
@@ -2037,6 +2197,10 @@
         "timeFinalized": "<TIME:15>",
         "updated": "<TIME:15>"
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -2064,6 +2228,10 @@
         "timeFinalized": "<TIME:16>",
         "updated": "<TIME:16>"
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -2090,6 +2258,10 @@
         "timeCreated": "<TIME:17>",
         "timeFinalized": "<TIME:17>",
         "updated": "<TIME:17>"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-type": "application/json"
@@ -2273,6 +2445,10 @@
         "kind": "storage#objects",
         "prefixes": []
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -2282,6 +2458,10 @@
     },
     {
       "body": null,
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "text/html; charset=utf-8"
       },
@@ -2296,6 +2476,10 @@
           "message": "{\"error\": {\"errors\": [{\"domain\": \"global\", \"message\": \"Live version of object <ID:1>/moved.txt does not exist.\"}]}}"
         }
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -2309,6 +2493,10 @@
           "code": 400,
           "message": "{\"error\": {\"errors\": [{\"domain\": \"global\", \"message\": \"Deleting non-empty bucket projects/_/buckets/<ID:1> {'01-simple.txt': <GEN:1>, '02-multipart.txt': <GEN:2>, '03-xml.txt': <GEN:3>, '04-resumable.txt': <GEN:4>, '05-dir/nested.txt': <GEN:5>, 'gz.txt': <GEN:6>, 'csek.txt': <GEN:7>, 'composed.txt': <GEN:8>} is invalid.\"}]}}"
         }
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-type": "application/json"
@@ -2334,6 +2522,10 @@
         "timeCreated": "<TIME:18>",
         "updated": "<TIME:18>"
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -2343,6 +2535,10 @@
     },
     {
       "body": null,
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "text/html; charset=utf-8"
       },

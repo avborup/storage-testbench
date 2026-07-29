@@ -20,6 +20,7 @@ import unittest
 
 import grpc
 import requests
+from requests.structures import CaseInsensitiveDict
 
 from google.storage.v2 import storage_pb2
 from tests.conformance.recorder import Recorder
@@ -66,6 +67,85 @@ class TestRecorder(unittest.TestCase):
             "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
             entry["body"]["sha256"],
         )
+
+    def test_framing_records_content_length_mode_and_consistency(self):
+        # The framing axis (Content-Length vs chunked, and whether the
+        # advertised length matches the body) must be observable to the gate:
+        # Plan 2's Media seam refactors exactly this, and DROPPED_HEADERS hides
+        # the raw framing headers. `content_length_matches_body` is True when
+        # the advertised length equals the wire body the trace recorded.
+        rec = Recorder("demo")
+        body = b'{"generation":"7"}'
+        rec.record_http(
+            "get",
+            FakeResponse(
+                200,
+                CaseInsensitiveDict(
+                    {
+                        "Content-Type": "application/json",
+                        "Content-Length": str(len(body)),
+                    }
+                ),
+                body,
+            ),
+        )
+        framing = rec.finish()["interactions"][0]["framing"]
+        self.assertEqual("content-length", framing["mode"])
+        self.assertTrue(framing["content_length_matches_body"])
+
+    def test_framing_flags_a_content_length_that_lies_about_the_body(self):
+        # A Content-Length inconsistent with the bytes served is a real
+        # regression the Media seam could introduce; it must move a golden.
+        rec = Recorder("demo")
+        rec.record_http(
+            "get",
+            FakeResponse(
+                200,
+                CaseInsensitiveDict(
+                    {
+                        "Content-Type": "application/octet-stream",
+                        "Content-Length": "999",
+                    }
+                ),
+                b"abc",
+            ),
+        )
+        framing = rec.finish()["interactions"][0]["framing"]
+        self.assertEqual("content-length", framing["mode"])
+        self.assertFalse(framing["content_length_matches_body"])
+
+    def test_framing_detects_chunked_case_insensitively(self):
+        # A switch to chunked framing is the headline change the Media seam
+        # could make. Header casing must not matter -- real responses use a
+        # CaseInsensitiveDict, and chunked responses carry no Content-Length,
+        # so the consistency flag is absent rather than a misleading value.
+        rec = Recorder("demo")
+        rec.record_http(
+            "stream",
+            FakeResponse(
+                200,
+                CaseInsensitiveDict(
+                    {
+                        "Content-Type": "application/octet-stream",
+                        "TRANSFER-ENCODING": "chunked",
+                    }
+                ),
+                b"abc",
+            ),
+        )
+        framing = rec.finish()["interactions"][0]["framing"]
+        self.assertEqual("chunked", framing["mode"])
+        self.assertNotIn("content_length_matches_body", framing)
+
+    def test_framing_is_none_when_neither_length_nor_encoding_is_present(self):
+        rec = Recorder("demo")
+        rec.record_http(
+            "get",
+            FakeResponse(200, CaseInsensitiveDict({"Content-Type": "text/plain"}), b""),
+        )
+        framing = rec.finish()["interactions"][0]["framing"]
+        self.assertEqual("none", framing["mode"])
+        self.assertNotIn("content_length_matches_body", framing)
 
     def test_labels_must_be_unique(self):
         rec = Recorder("demo")

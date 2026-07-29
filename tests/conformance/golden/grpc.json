@@ -1960,6 +1960,10 @@
         },
         "transport": "GRPC"
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -1985,6 +1989,10 @@
         },
         "transport": "GRPC"
       },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
       "headers": {
         "content-type": "application/json"
       },
@@ -2009,6 +2017,10 @@
           ]
         },
         "transport": "GRPC"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-type": "application/json"
@@ -2123,6 +2135,10 @@
           "storage.objects.insert": []
         },
         "transport": "GRPC"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
       },
       "headers": {
         "content-type": "application/json"
