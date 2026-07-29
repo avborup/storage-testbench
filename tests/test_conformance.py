@@ -24,9 +24,22 @@ fault-injection outcomes can differ under Windows' waitress server, so a
 Windows run of this test would not be validating against a baseline that
 applies to it -- it would just be noise on an otherwise-green job. The
 dedicated `conformance` CI job runs this on ubuntu-22.04 only.
+
+Also skipped except on Python 3.12: the goldens are byte-exact captures, and
+C1 proved that is not just a Linux/Windows-server-flavor question but a
+Python/zlib one too (a runtime `gzip.compress` call picked up a different
+OS byte across Python versions on the *same* platform). Nothing about this
+comparison is meaningful run under an interpreter the goldens were not
+captured with -- it would fail (or coincidentally pass) for reasons that
+have nothing to do with the emulator. The dedicated `conformance` CI job
+(this module's own `python -m tests.conformance.harness` entry point) pins
+Python 3.12 and is the one place this comparison is actually exercised;
+this module is also collected by the 3.8-3.12 python-tests matrix job,
+which is why the skip is needed here at all.
 """
 
 import os
+import sys
 import unittest
 
 from tests.conformance import harness
@@ -35,6 +48,11 @@ from tests.conformance import harness
 @unittest.skipIf(
     os.name == "nt",
     "goldens are captured on Linux; see module docstring",
+)
+@unittest.skipUnless(
+    sys.version_info[:2] == (3, 12),
+    "goldens are captured with Python 3.12; the dedicated conformance job "
+    "owns this check -- see module docstring",
 )
 class TestConformance(unittest.TestCase):
     maxDiff = None
