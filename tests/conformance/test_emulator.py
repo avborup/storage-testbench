@@ -199,7 +199,13 @@ class TestLogsSurviveTeardown(unittest.TestCase):
         # teardown must keep returning the same cached snapshot rather than
         # re-reading (and failing on) the now-closed file each time.
         after = emu.logs()
-        self.assertIn("gunicorn", after)
+        # Assert on the server's bind banner rather than "gunicorn": the
+        # emulator runs gunicorn on POSIX but waitress on Windows, and both
+        # log the bind URL ("Listening at:" / "Serving on"). Pinning
+        # "gunicorn" reddened Windows CI while testing nothing the URL
+        # doesn't -- and the URL also proves the snapshot is *this*
+        # emulator's real output, not any incidental string.
+        self.assertIn(emu.rest_url, after)
         self.assertEqual(after, emu.logs())
 
 
