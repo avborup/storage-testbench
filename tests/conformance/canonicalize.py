@@ -44,6 +44,21 @@ NONDETERMINISTIC_FIELDS = {
     # twice and diffing -- see the trace-5 report.
     "effectiveTime": "TIME",
     "effective_time": "TIME",
+    # Latent -- not reachable from any current trace (no object is deleted
+    # from a soft-delete bucket via a path that surfaces these on their own,
+    # no bucket is locked or has a retention policy set, and no storage class
+    # update is recorded) -- but pinned now as insurance for when coverage
+    # reaches them, rather than being rediscovered as a fresh golden failure.
+    "timeDeleted": "TIME",
+    "deleteTime": "TIME",
+    "delete_time": "TIME",
+    "lockedTime": "TIME",
+    "lockTime": "TIME",
+    "retentionExpirationTime": "TIME",
+    "retention_expire_time": "TIME",
+    "update_storage_class_time": "TIME",
+    "createTime": "TIME",
+    "updateTime": "TIME",
     "uploadId": "UPLOAD",
     "upload_id": "UPLOAD",
     "rewriteToken": "REWRITE",
