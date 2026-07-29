@@ -30,9 +30,13 @@ PYTHON_VERSION ?= 3.12
 PYTHON_IMAGE   ?= python:$(PYTHON_VERSION)-slim
 
 # The image and the wheels must match the container's architecture, which is
-# the Docker VM's, not necessarily the host's.
-DOCKER_ARCH ?= $(shell docker version --format '{{.Server.Arch}}' 2>/dev/null || echo arm64)
-ifeq ($(DOCKER_ARCH),arm64)
+# the Docker VM's, not necessarily the host's. The value is filtered to known
+# architectures so that a daemon error printed on stdout cannot end up
+# embedded in a path, and falls back to the host's own arch rather than a
+# hardcoded guess.
+DOCKER_ARCH ?= $(shell docker version --format '{{.Server.Arch}}' 2>/dev/null \
+    | grep -Ex 'arm64|aarch64|amd64|x86_64' || uname -m)
+ifneq ($(filter arm64 aarch64,$(DOCKER_ARCH)),)
 PLATFORM_TAGS := --platform manylinux_2_17_aarch64 --platform manylinux2014_aarch64
 SKOPEO_ARCH   := arm64
 else
@@ -73,6 +77,7 @@ linux-image:
 	@if docker image inspect $(PYTHON_IMAGE) >/dev/null 2>&1; then \
 	    echo "==> $(PYTHON_IMAGE) already loaded"; \
 	else \
+	    set -e; \
 	    echo "==> fetching $(PYTHON_IMAGE) for linux/$(SKOPEO_ARCH) via skopeo"; \
 	    tmp=$$(mktemp -d); \
 	    skopeo --insecure-policy copy \
@@ -89,9 +94,10 @@ linux-image:
 # former makes pip report "no matching distribution" for a version that does
 # exist -- hence both tags above.
 linux-wheels:
-	@if [ -f "$(WHEEL_DIR)/requirements.txt" ]; then \
+	@if [ -f "$(WHEEL_DIR)/.complete" ]; then \
 	    echo "==> wheel cache present at $(WHEEL_DIR)"; \
 	else \
+	    set -e; \
 	    echo "==> downloading linux/$(DOCKER_ARCH) wheels to $(WHEEL_DIR)"; \
 	    mkdir -p "$(WHEEL_DIR)"; \
 	    $(HOST_PYTHON) -c "import re; s = open('setup.py').read(); \
@@ -103,6 +109,7 @@ open('$(WHEEL_DIR)/requirements.txt', 'w').write('\n'.join(deps) + '\n')"; \
 	        --implementation cp --python-version $(subst .,,$(PYTHON_VERSION)) \
 	        --abi cp$(subst .,,$(PYTHON_VERSION)) \
 	        --only-binary :all: -r "$(WHEEL_DIR)/requirements.txt"; \
+	    touch "$(WHEEL_DIR)/.complete"; \
 	fi
 
 ## clean-linux-cache: drop the downloaded wheel cache

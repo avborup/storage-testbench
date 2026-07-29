@@ -49,14 +49,25 @@ class TestGzippedPayloadLiteral(unittest.TestCase):
     trace_rest.py's GZIPPED_PAYLOAD is a fixed literal precisely because a
     runtime `gzip.compress(...)` call bakes in the capturing machine's zlib
     OS byte (see the comment at its definition), making the golden valid
-    only on that machine. This pins the one property that matters: the
-    literal must still decompress to the plaintext PAYLOAD.
+    only on that machine.
+
+    Two assertions, and the second is the load-bearing one. Round-tripping
+    to PAYLOAD is true of *any* valid gzip stream of that plaintext,
+    including one produced at runtime -- so on its own it does not detect
+    the regression this class exists to catch. Byte 9 is the gzip header's
+    OS field, which is exactly what varies: 0xff from Python's pure-Python
+    writer, 0x13 from zlib on Darwin, 0x03 from zlib on Linux. Pinning it
+    to 0xff is what makes a reintroduced `gzip.compress(...)` fail here
+    rather than silently in CI on a different platform.
     """
 
     def test_gzipped_payload_decompresses_to_payload(self):
         self.assertEqual(
             trace_rest.PAYLOAD, gzip.decompress(trace_rest.GZIPPED_PAYLOAD)
         )
+
+    def test_gzipped_payload_header_declares_an_unknown_os(self):
+        self.assertEqual(0xFF, trace_rest.GZIPPED_PAYLOAD[9])
 
 
 class TestTracesRunEndToEnd(unittest.TestCase):

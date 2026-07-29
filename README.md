@@ -396,8 +396,9 @@ and a set of Linux wheels (about 11 MiB, cached under
 `~/.cache/storage-testbench-linux-wheels/`); later runs reuse both.
 `make clean-linux-cache` drops the wheel cache.
 
-It needs a working Docker daemon and `skopeo`, both provided by the Nix
-devShell. Two details it handles that are easy to trip over on macOS: a
+It needs `skopeo` and the Docker CLI, both provided by the Nix devShell, plus
+a running Docker daemon, which is not -- supply that yourself with colima,
+Docker Desktop, OrbStack, or equivalent. Two details it handles that are easy to trip over on macOS: a
 `colima` VM often has no network egress even when the host shell does, so
 the image is fetched host-side with `skopeo` and loaded over the daemon
 socket rather than pulled by the daemon; and `colima` mounts only `$HOME`,

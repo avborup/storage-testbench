@@ -565,15 +565,22 @@ class Database:
         preconditions=[],
         require_live_current_generation=True,
     ) -> T:
-        # Every current call site's `update_fn` mutates (object PUT/PATCH,
-        # ACL insert/update/patch/delete, gRPC UpdateObject, and the
-        # appendable-upload paths that write `blob.media` itself), so this
-        # notifies unconditionally after `update_fn` runs. A hypothetical
-        # future read-only caller would pay for one redundant, idempotent
-        # rewrite; the alternative -- staying silent by default -- is what
-        # let object PATCH/PUT and appendable media writes go unobserved by
-        # a `Store` in the first place, which is a data-loss bug, not a
-        # cosmetic one.
+        # Notifies unconditionally after `update_fn` runs, because
+        # `Database` cannot inspect an arbitrary callback to learn whether it
+        # changed anything. Most call sites do mutate: object PUT/PATCH, ACL
+        # insert/update/patch/delete, gRPC UpdateObject, and the
+        # appendable-upload paths that assign `blob.media` itself.
+        #
+        # Two callers can reach here without mutating the blob they were
+        # handed -- `gcs/upload.py`'s `bump_upload_gen` returns early when
+        # the generation does not match, and `_insert_empty_appendable_object`
+        # inserts a *different*, new blob rather than touching this one -- so
+        # a redundant notification is possible and a `Store` must treat
+        # `object_updated` as "this generation may have changed", not as
+        # proof that it did. That costs one idempotent rewrite. The
+        # alternative, staying silent by default, is what let object
+        # PATCH/PUT and appendable media writes go unobserved by a `Store`
+        # entirely, which is a data-loss bug rather than a cosmetic one.
         with self._resources_lock:
             blob, live_generation = self.__get_object(
                 bucket_name,
