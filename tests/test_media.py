@@ -52,3 +52,32 @@ class TestBytesMedia(unittest.TestCase):
         m = BytesMedia()
         self.assertEqual(crc32c.crc32c(b""), m.crc32c())
         self.assertEqual(hashlib.md5(b"").digest(), m.md5())
+
+    def test_eq_matches_bytes_bytearray_and_other_bytesmedia(self):
+        # `blob.media == b"..."` is a normal assertion shape in test_object.py
+        # (and was always true of the raw bytes this class replaces), so all
+        # three bytes-like counterparts must compare equal.
+        m = BytesMedia(b"hello")
+        self.assertEqual(m, b"hello")
+        self.assertEqual(m, bytearray(b"hello"))
+        self.assertEqual(m, BytesMedia(b"hello"))
+
+    def test_eq_rejects_mismatched_content(self):
+        m = BytesMedia(b"hello")
+        self.assertNotEqual(m, b"world")
+        self.assertNotEqual(m, bytearray(b"world"))
+        self.assertNotEqual(m, BytesMedia(b"world"))
+
+    def test_eq_returns_false_for_unrelated_type(self):
+        # Neither side implements the buffer protocol for the other, so `==`
+        # falls through both reflected attempts to Python's default: False,
+        # not a TypeError.
+        self.assertFalse(BytesMedia(b"x") == 5)
+        self.assertTrue(BytesMedia(b"x") != 5)
+
+    def test_unhashable_by_design(self):
+        # BytesMedia is mutable (append/__iadd__ change its content), so
+        # defining __eq__ without a paired __hash__ must leave it unhashable
+        # -- the same guarantee `bytearray` gives, and `bytes` does not.
+        with self.assertRaises(TypeError):
+            hash(BytesMedia(b"x"))
