@@ -616,11 +616,18 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
                 next_instruction
             )
 
-        while start <= read_end:
-            end = min(start + size, read_end)
+        # Stream the range through BytesMedia.chunks(...) so a FileMedia backend
+        # can read from disk instead of materialising the whole object. The
+        # chunk size (MAX_READ_CHUNK_BYTES) is unchanged, so the response
+        # boundaries recorded by the conformance harness do not move. `pos`
+        # mirrors the `start` the previous `while start <= read_end` loop used to
+        # slice with, so the broken-stream truncation point is identical.
+        pos = start
+        for chunk in blob.media.chunks(start, read_end, size):
+            end = pos + len(chunk)
             # Handle retry test broken-stream failures if applicable.
             if broken_stream_after_bytes and end >= broken_stream_after_bytes:
-                chunk = blob.media[start:broken_stream_after_bytes]
+                chunk = blob.media[pos:broken_stream_after_bytes]
                 yield storage_pb2.ReadObjectResponse(
                     checksummed_data={
                         "content": chunk,
@@ -635,7 +642,6 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
                     grpc.StatusCode.UNAVAILABLE,
                     "Injected 'broken stream' fault",
                 )
-            chunk = blob.media[start:end]
             yield storage_pb2.ReadObjectResponse(
                 checksummed_data={
                     "content": chunk,
@@ -646,7 +652,41 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
             )
             meta = None
             content_range = None
-            start = start + size
+            pos = end
+        # The previous loop advanced `start` by `size` under a `<=` guard, so it
+        # ran one extra pass emitting an empty chunk whenever the range length
+        # was an exact multiple of `size` -- including a 0-byte range, whose
+        # single (metadata-bearing) response is the ONLY response a client
+        # reading a 0-byte object receives. chunks() yields nothing for an empty
+        # [pos, read_end) slice, so replay that trailing empty response here to
+        # keep the emitted sequence byte-identical. The broken-stream guard is
+        # repeated because in the original that extra pass also ran the check
+        # (it can only fire for a 0-byte range; for a non-empty exact-multiple
+        # range the loop above already aborted before reaching this point).
+        if (read_end - start) % size == 0:
+            if broken_stream_after_bytes and read_end >= broken_stream_after_bytes:
+                chunk = blob.media[read_end:broken_stream_after_bytes]
+                yield storage_pb2.ReadObjectResponse(
+                    checksummed_data={
+                        "content": chunk,
+                        "crc32c": crc32c.crc32c(chunk),
+                    },
+                    metadata=meta,
+                    content_range=content_range,
+                )
+                self.db.dequeue_next_instruction(test_id, method)
+                context.abort(
+                    grpc.StatusCode.UNAVAILABLE,
+                    "Injected 'broken stream' fault",
+                )
+            yield storage_pb2.ReadObjectResponse(
+                checksummed_data={
+                    "content": b"",
+                    "crc32c": crc32c.crc32c(b""),
+                },
+                metadata=meta,
+                content_range=content_range,
+            )
 
     @retry_test(method="storage.objects.get")
     def BidiReadObject(self, request_iterator, context):
@@ -735,20 +775,33 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
             if range.read_length > 0:
                 read_end = min(read_end, start + range.read_length)
 
-            while True:
-                end = min(start + size, read_end)
+            # Stream through BytesMedia.chunks(...) so a FileMedia backend reads
+            # from disk instead of materialising the range; the chunk size
+            # (MAX_READ_CHUNK_BYTES) is unchanged, so recorded boundaries hold.
+            # `pos` mirrors the `start` the previous loop sliced with.
+            pos = start
+            for chunk in blob.media.chunks(start, read_end, size):
+                end = pos + len(chunk)
                 # Verify if there are no more bytes to read for the given ReadRange.
                 range_end = end == read_end
-                chunk = blob.media[start:end]
                 read_range = {
-                    "read_offset": start,
-                    "read_length": end - start,
+                    "read_offset": pos,
+                    "read_length": end - pos,
                     "read_id": read_id,
                 }
                 yield (chunk, range_end, read_range)
-                if start >= read_end:
-                    break
-                start = end
+                pos = end
+            # The previous `while True:` loop tested its `start >= read_end` break
+            # only AFTER advancing `start = end`, so it always ran one final pass
+            # with `start == read_end` that emitted an empty, range_end=True chunk
+            # (the sole response for a 0-byte range). chunks() yields nothing for
+            # an empty slice, so emit that trailing empty tuple unconditionally to
+            # keep the (chunk, range_end, read_range) sequence byte-identical.
+            yield (
+                b"",
+                True,
+                {"read_offset": read_end, "read_length": 0, "read_id": read_id},
+            )
 
         # We force all BidiReadObject streams to cancel on the server side after
         # 10 seconds. This is to bound the effect of thread exhaustion on the

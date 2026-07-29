@@ -51,21 +51,22 @@ testbench/grpc_server.py:530
 testbench/grpc_server.py:595
 testbench/grpc_server.py:596
 testbench/grpc_server.py:604
-testbench/grpc_server.py:638
-testbench/grpc_server.py:724
-testbench/grpc_server.py:742
-testbench/grpc_server.py:1022
-testbench/grpc_server.py:1055
-testbench/grpc_server.py:1115
-testbench/grpc_server.py:1118
-testbench/grpc_server.py:1120
-testbench/grpc_server.py:1121
-testbench/grpc_server.py:1124
-testbench/grpc_server.py:1143
+testbench/grpc_server.py:626
+testbench/grpc_server.py:764
+testbench/grpc_server.py:783
+testbench/grpc_server.py:1075
+testbench/grpc_server.py:1108
+testbench/grpc_server.py:1168
+testbench/grpc_server.py:1171
 testbench/grpc_server.py:1173
-# UNCOVERED testbench/grpc_server.py:623 -- broken-stream fault chunk in ReadObject; the trace injects no broken-stream fault on a gRPC read
-# UNCOVERED testbench/grpc_server.py:723 -- negative read_offset in BidiReadObject; the trace uses no negative offset on a bidi read
-# UNCOVERED testbench/grpc_server.py:1051 -- resumable-but-unfinished WriteObject early return; the trace's WriteObject always sets finish_write
+testbench/grpc_server.py:1174
+testbench/grpc_server.py:1177
+testbench/grpc_server.py:1196
+testbench/grpc_server.py:1226
+# UNCOVERED testbench/grpc_server.py:630 -- broken-stream fault chunk in ReadObject's chunks() loop; the trace injects no broken-stream fault on a gRPC read
+# UNCOVERED testbench/grpc_server.py:668 -- broken-stream fault chunk on ReadObject's trailing empty response; needs a 0-byte or exact-size-multiple read combined with a broken-stream fault, which the trace never does
+# UNCOVERED testbench/grpc_server.py:763 -- negative read_offset in BidiReadObject; the trace uses no negative offset on a bidi read
+# UNCOVERED testbench/grpc_server.py:1104 -- resumable-but-unfinished WriteObject early return; the trace's WriteObject always sets finish_write
 
 # --- testbench/rest_server.py ---
 testbench/rest_server.py:87
