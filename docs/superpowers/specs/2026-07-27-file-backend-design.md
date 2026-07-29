@@ -632,6 +632,51 @@ Stated so the gaps are chosen rather than discovered:
 - Behavior under multi-process operation, which is an explicit non-goal.
 - Performance parity with real GCS; only internal scaling behavior is bounded.
 
+### The capture-platform hazard, and `make verify-linux`
+
+Learned the hard way during Plan 1, and the single most important operational
+fact about this harness: **a golden is only as portable as the least portable
+value in it.** The goldens are captured on a developer's machine while the gate
+that enforces them runs on Linux in CI, so any recorded value that depends on
+the OS, the interpreter version, or a third-party library's internals produces
+a red CI run on a green local tree.
+
+It happened once, concretely. `gzip.compress(data, mtime=0)` pins the gzip
+header's timestamp but not byte 9, its **OS field**: Python ≤ 3.10 writes
+`0xff` from its pure-Python writer, while 3.11+ delegates to zlib, which writes
+its build-time `OS_CODE` — `0x13` on Darwin, `0x03` on Linux. That single byte
+changed the stored object's `crc32c` and `md5Hash` and the downloaded bytes'
+SHA-256, across three interactions. The fix was to commit the compressed
+payload as a literal with `0xff`, making it platform-invariant.
+
+Two durable consequences:
+
+1. **`make verify-linux`** runs the gate inside a `python:3.12-slim` container.
+   Run it after regenerating goldens and before pushing. See the README for
+   what it needs and for the macOS/colima specifics (the VM often has no
+   network egress even when the host shell does; only `$HOME` is mounted).
+2. **A standing question for every recorded value:** *does this depend on the
+   interpreter, the OS, or a third-party library's internals?* Plan 1 produced
+   five separate instances of this one class — the `crc32c` seed assumption, a
+   `protobuf` keyword removed rather than deprecated, grpcio's private
+   exception class names reaching a golden, transport-exception subclasses
+   differing by platform, and the gzip OS byte. Asking the question once would
+   have caught all five.
+
+### Tests must be mutation-checked, not merely written
+
+Plan 1 produced **six** guard tests that passed while testing nothing, found
+only because reviewers deleted or reverted the thing under test and watched the
+suite stay green. The most instructive was the guard added *for* the gzip bug
+above: it asserted the literal decompressed to the plaintext, which is true of
+any valid gzip stream, so reintroducing the exact regression left it passing.
+
+The habit that catches these: **after writing a guard, reintroduce the defect
+it guards and confirm the test fails.** For a notification seam, that means
+deleting each notification in turn; for a canonicalizer rule, removing the
+scoping clause; for a literal, substituting the runtime computation. A test
+that has never been observed to fail is not yet known to work.
+
 ## Risks
 
 | Area | Risk | Mitigation |
@@ -644,6 +689,98 @@ Stated so the gaps are chosen rather than discovered:
 | gRPC thread starvation | Random test timeouts under a shared container | `TESTBENCH_GRPC_THREADS`, default 32 |
 | Path traversal via caller-controlled object names | Writes outside the root on an unauthenticated service | `realpath` containment check, `O_NOFOLLOW`, overflow store for `.`/`..`, bucket-name validation, constrained `rmtree` |
 | Upstream divergence | Painful rebases | Opt-in seams, no new dependencies, default behavior unchanged |
+| Recorded values that vary by platform or library version | Goldens are red on CI while green locally; the gate gets muted | `make verify-linux` before pushing; ask the standing question above for every new recorded value |
+| Guard tests that pass vacuously | A defect ships behind a green suite | Mutation-check every guard: reintroduce the defect and confirm the test fails |
+
+## Known coverage gaps in the conformance baseline
+
+The baseline captured in Plan 1 is 112 interactions. What it catches and misses
+is recorded here so later plans scope against the truth rather than an
+assumption of completeness.
+
+**It catches:** any change to a JSON or proto response's field set or values on
+covered interactions; status codes across the 200/206/308/400/404/409/412/416
+families; response headers outside the dropped set; media bytes exactly, via
+SHA-256, plus gRPC stream chunk boundaries; gRPC status codes; whether an
+injected fault manifests as a status or a torn connection; aliasing between
+distinct non-deterministic values; and generation monotonicity.
+
+**It does not catch, because the canonicalizer erases it:**
+
+- Timestamp *format* changes that remain RFC 3339 (fractional-second precision,
+  `Z` vs `+00:00`), and generation *scheme* changes that remain non-decreasing.
+- **Response framing** — both `content-length` and `transfer-encoding` are
+  dropped, so a switch to chunked encoding, or a `Content-Length` inconsistent
+  with the body, is invisible. **This must be closed before the `Media` seam
+  phase**, because that phase refactors exactly this axis; refactoring media
+  behind a gate that cannot see framing is the wrong order. The suggested shape
+  is a derived `framing: content-length|chunked` field plus a
+  body-length-consistency flag, which keeps the axis observable without pinning
+  a value that legitimately varies.
+- gRPC error *messages* and details payloads — only the status code and a
+  `has_details` boolean survive, while REST error text is diffed. An asymmetry
+  worth closing when convenient.
+- Which of six transport-breaking fault instructions actually fired: all six
+  collapse to an identical `<TRANSPORT_ERROR>` record distinguished only by
+  label, because the concrete exception subclass is OS-dependent. Honest
+  coverage of those six is "the transfer broke".
+
+**It does not catch, because the surface is untouched:**
+
+- **gRPC `UpdateObject` and `UpdateBucket` — zero interactions.** This is the
+  highest-value gap, because the `FileStore` phase's first task is routing
+  bucket mutations through `Database`, and it would otherwise do so with no
+  baseline at all. Close it before touching `Database`.
+- **Soft-deleted reads and listings** (`soft_deleted=True` on `GetObject` and
+  `ListObjects`) — precisely the reads a `FileStore` must keep working across a
+  restart, and the reason the soft-delete notifications exist.
+- Bucket ACL, `defaultObjectAcl`, and `setIamPolicy`.
+- XML API beyond one PUT and one GET — no listing, DELETE, multipart, ACL
+  headers, or error bodies.
+- Multi-call rewrite with a continuation token: the 1 MiB `MIN_REWRITE_BYTES`
+  floor makes the recorded rewrite always single-call.
+- `CancelResumableWrite`; `QueryWriteStatus` after finalize; object holds,
+  retention policy, lifecycle rules; HMAC keys, notifications,
+  `serviceAccount`; pagination on any listing; `fields`/`projection` filtering.
+- Bucket names containing a dot, so the validation bypass described under
+  "Security: path handling" is unmonitored.
+- The Windows/waitress server path, by design — the conformance job is
+  Linux-only because fault outcomes differ between waitress and gunicorn.
+
+## Carried-forward defects and constraints
+
+Small, non-blocking items found during Plan 1 that later phases will meet:
+
+- **`object_updated` fires on "may have changed", not "did change".**
+  `Database` cannot inspect an arbitrary `update_fn`, and two callers reach it
+  without mutating the blob they were handed (`bump_upload_gen` returns early on
+  a generation mismatch; `_insert_empty_appendable_object` inserts a different
+  blob). A `Store` must treat the notification as advisory and make its write
+  idempotent. Not data loss; a redundant rewrite.
+- **Bucket metadata mutations bypass `Database` entirely.** `bucket_update` and
+  `bucket_patch` mutate the `Bucket` object in place and never call a mutator,
+  so no bucket metadata change is observable by a `Store`. Routing them through
+  `Database` and adding `bucket_updated` is the `FileStore` phase's first task;
+  it changes REST handler control flow and so was deliberately kept out of the
+  no-op seam phase.
+- **Notifications are guarded against deletion but not misplacement.** Deleting
+  any notification fails a test; *moving* one to fire before the mutation it
+  reports does not, except for `object_inserted`, whose test handler re-reads
+  the database from inside the callback. Replicating that pattern is the fix.
+  Until then, placement is protected by review rather than by the suite.
+- **Bucket-name validation has a bypass.** `__validate_json_bucket_name`
+  branches on `if "." in bucket_name:` and in that branch checks only lengths,
+  never applying the character-class regex — so any dotted name is accepted, and
+  `..` contains dots. A live probe produced a `bucket_inserted` notification for
+  `projects/_/buckets/../../etc/passwd`. A test pins this as current behavior.
+  See "Security: path handling" rule 4.
+- **`_STALL_LABELS` matches exact labels while the emulator matches
+  `stall-always` by prefix**, so a future `stall-always/retry-1` instruction
+  would receive the long completion timeout and hang its trace step.
+- **`make verify-linux` resolves unpinned dependencies at download time**
+  (`requests`, `setuptools`, `wheel`), so it drifts from CI's resolution over
+  time, and it runs the host's Docker architecture — `arm64` on Apple Silicon
+  against CI's `x86_64`.
 
 ## Phasing
 

@@ -2635,4 +2635,31 @@ the default, so behavior is unchanged: the conformance baseline diffs clean."
 
 ## Handoff to Plan 2
 
-Plan 2 implements spec phase 3, the `Media` seam, and its coverage gate. It depends on this plan for the conformance baseline, and its gate is the same: an empty diff. Before starting it, record the configuration-A commit hash from Task 6 Step 10 in Plan 2's header, because that hash is the definition of "pre-change behavior" for the rest of the project.
+Plan 2 implements spec phase 3, the `Media` seam, and its coverage gate. It depends on this plan for the conformance baseline, and its gate is the same: an empty diff.
+
+### What this plan actually delivered
+
+- A `flake.nix` devShell (interpreter, docker client, `skopeo`, `gnumake`) plus a pip venv pinned from `setup.py`, and `make verify-linux` to run the gate in a Linux container.
+- A black-box conformance harness in `tests/conformance/` and a committed baseline of **112 interactions** (`rest` 47, `grpc` 48, `faults` 17) across the JSON API, XML API, gRPC v2, and fault injection.
+- A `Store` notification seam in `testbench/database.py` with `NullStore` as the default. Eleven notifications, all fired inside the existing lock after the mutation. The seam is a **verified no-op**: the conformance gate is green with the seam in place, on both macOS and Linux.
+- The `crc32c` incremental-checksum assumption the design rests on is **verified true** (`crc32c==2.7.1`), so the large-object plan needs no amendment.
+
+### Before Plan 2's first task, two things
+
+**1. Close the framing gap.** `DROPPED_HEADERS` erases both `content-length` and `transfer-encoding`, so response framing is invisible to the gate. Plan 2 refactors exactly that axis — a change switching a download to chunked encoding, or declaring a length inconsistent with the body, would not move a golden. Fixing it after the refactor proves nothing. See the spec's "Known coverage gaps" for the suggested shape.
+
+**2. Re-establish A ≡ B against the final goldens.** A subtlety worth ten minutes: the goldens were regenerated *after* the `Store` seam landed, because the gzip-literal fix legitimately changed a trace. So the committed goldens describe configuration **B** (post-seam), not A. The seam was proven a no-op against the *intermediate* goldens, which is good evidence but not the same claim. To close it, restore `gcs/` and `testbench/` from `e8c8507` (upstream `main`) alongside the current `tests/`, and run the gate. A green result proves the committed baseline describes untouched-upstream behavior — the property every later plan leans on. Record the result in Plan 2's header along with the configuration-A hash.
+
+### Prerequisites Plan 3 will need, best added while writing Plan 2
+
+- **gRPC `UpdateObject` and `UpdateBucket` have no baseline at all**, and Plan 3's first task is routing bucket mutations through `Database` and adding `bucket_updated`. Add those trace interactions *before* touching `Database`.
+- **Soft-deleted reads and listings** (`soft_deleted=True`) are uncovered — the exact reads a `FileStore` must keep working across a restart.
+- `FileStore` must validate bucket and object names itself; the emulator's dotted-name validation bypass means the spec's old "a validated bucket name is a safe path segment" premise is false, and rule 4 has been corrected accordingly.
+- Expect the `Store` protocol to change. `object_updated`'s "may have changed" semantics is the known soft spot.
+
+### Two habits this plan paid for, worth keeping
+
+Both are recorded in the spec, and both were learned by shipping the mistake first:
+
+- **Ask of every recorded value: does this depend on the interpreter, the OS, or a third-party library's internals?** Five separate defects in this plan were that one class, including the only one that reached CI.
+- **Mutation-check every guard test.** Six tests in this plan passed while testing nothing, found only by reintroducing the defect and watching the suite stay green.
