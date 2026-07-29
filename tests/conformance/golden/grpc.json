@@ -332,6 +332,136 @@
     },
     {
       "body": {
+        "acl": [
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-owners-123456789",
+            "entity_alt": "",
+            "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+            "id": "<ID:1>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-editors-123456789",
+            "entity_alt": "",
+            "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+            "etag": "b0f6636a6467106c1c9550f8f503b1d5",
+            "id": "<ID:2>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "editors"
+            },
+            "role": "WRITER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-viewers-123456789",
+            "entity_alt": "",
+            "entity_id": "1af53c4385287cb946b49d191d2520c1",
+            "etag": "b251b29ae33075d18ed4f18ec96cc301",
+            "id": "<ID:3>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "bucket_id": "grpc-bucket",
+        "cors": [],
+        "create_time": "<TIME:1>",
+        "default_event_based_hold": false,
+        "default_object_acl": [
+          {
+            "domain": "",
+            "email": "object.owners@example.com",
+            "entity": "user-object.owners@example.com",
+            "entity_alt": "",
+            "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+            "etag": "edc9c331cec6ba3544bac46b50ca7666",
+            "id": "<ID:4>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": ""
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-owners-123456789",
+            "entity_alt": "",
+            "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+            "id": "<ID:1>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-editors-123456789",
+            "entity_alt": "",
+            "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+            "etag": "fef2f17b4425221f39306563f46061d7",
+            "id": "<ID:5>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "editors"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-viewers-123456789",
+            "entity_alt": "",
+            "entity_id": "1af53c4385287cb946b49d191d2520c1",
+            "etag": "b251b29ae33075d18ed4f18ec96cc301",
+            "id": "<ID:3>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "labels": {
+          "env": "conformance"
+        },
+        "location": "",
+        "location_type": "",
+        "metageneration": "2",
+        "name": "projects/_/buckets/grpc-bucket",
+        "owner": {
+          "entity": "project-owners-123456789",
+          "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc"
+        },
+        "project": "projects/123456789",
+        "rpo": "DEFAULT",
+        "satisfies_pzs": false,
+        "storage_class": "STANDARD",
+        "update_time": "<TIME:2>"
+      },
+      "kind": "grpc",
+      "label": "update-bucket",
+      "type": "google.storage.v2.Bucket"
+    },
+    {
+      "body": {
         "resource": {
           "acl": [
             {
@@ -402,9 +532,9 @@
           "content_encoding": "",
           "content_language": "",
           "content_type": "",
-          "create_time": "<TIME:2>",
+          "create_time": "<TIME:3>",
           "etag": "c4ca4238a0b923820dcc509a6f75849b",
-          "finalize_time": "<TIME:2>",
+          "finalize_time": "<TIME:3>",
           "generation": "<GEN:1>",
           "kms_key": "",
           "metadata": {
@@ -421,7 +551,7 @@
           "size": "43",
           "storage_class": "",
           "temporary_hold": false,
-          "update_time": "<TIME:2>"
+          "update_time": "<TIME:3>"
         }
       },
       "kind": "grpc",
@@ -500,9 +630,9 @@
           "content_encoding": "",
           "content_language": "",
           "content_type": "",
-          "create_time": "<TIME:3>",
+          "create_time": "<TIME:4>",
           "etag": "c4ca4238a0b923820dcc509a6f75849b",
-          "finalize_time": "<TIME:3>",
+          "finalize_time": "<TIME:4>",
           "generation": "<GEN:2>",
           "kms_key": "",
           "metadata": {
@@ -519,7 +649,7 @@
           "size": "43",
           "storage_class": "",
           "temporary_hold": false,
-          "update_time": "<TIME:3>"
+          "update_time": "<TIME:4>"
         }
       },
       "kind": "grpc",
@@ -610,9 +740,9 @@
           "content_encoding": "",
           "content_language": "",
           "content_type": "",
-          "create_time": "<TIME:4>",
+          "create_time": "<TIME:5>",
           "etag": "c4ca4238a0b923820dcc509a6f75849b",
-          "finalize_time": "<TIME:4>",
+          "finalize_time": "<TIME:5>",
           "generation": "<GEN:3>",
           "kms_key": "",
           "metadata": {
@@ -629,7 +759,7 @@
           "size": "43",
           "storage_class": "",
           "temporary_hold": false,
-          "update_time": "<TIME:4>"
+          "update_time": "<TIME:5>"
         }
       },
       "kind": "grpc",
@@ -724,9 +854,9 @@
           "content_encoding": "",
           "content_language": "",
           "content_type": "",
-          "create_time": "<TIME:5>",
+          "create_time": "<TIME:6>",
           "etag": "c4ca4238a0b923820dcc509a6f75849b",
-          "finalize_time": "<TIME:5>",
+          "finalize_time": "<TIME:6>",
           "generation": "<GEN:4>",
           "kms_key": "",
           "metadata": {
@@ -743,7 +873,7 @@
           "size": "43",
           "storage_class": "",
           "temporary_hold": false,
-          "update_time": "<TIME:5>"
+          "update_time": "<TIME:6>"
         }
       },
       "kind": "grpc",
@@ -821,9 +951,9 @@
         "content_encoding": "",
         "content_language": "",
         "content_type": "",
-        "create_time": "<TIME:2>",
+        "create_time": "<TIME:3>",
         "etag": "c4ca4238a0b923820dcc509a6f75849b",
-        "finalize_time": "<TIME:2>",
+        "finalize_time": "<TIME:3>",
         "generation": "<GEN:1>",
         "kms_key": "",
         "metadata": {
@@ -840,7 +970,7 @@
         "size": "43",
         "storage_class": "",
         "temporary_hold": false,
-        "update_time": "<TIME:2>"
+        "update_time": "<TIME:3>"
       },
       "kind": "grpc",
       "label": "get-object",
@@ -978,9 +1108,9 @@
           "content_encoding": "",
           "content_language": "",
           "content_type": "",
-          "create_time": "<TIME:6>",
+          "create_time": "<TIME:7>",
           "etag": "c4ca4238a0b923820dcc509a6f75849b",
-          "finalize_time": "<TIME:6>",
+          "finalize_time": "<TIME:7>",
           "generation": "<GEN:5>",
           "kms_key": "",
           "metadata": {
@@ -997,7 +1127,7 @@
           "size": "43",
           "storage_class": "",
           "temporary_hold": false,
-          "update_time": "<TIME:6>"
+          "update_time": "<TIME:7>"
         }
       },
       "kind": "grpc",
@@ -1078,9 +1208,9 @@
             "content_encoding": "",
             "content_language": "",
             "content_type": "",
-            "create_time": "<TIME:2>",
+            "create_time": "<TIME:3>",
             "etag": "c4ca4238a0b923820dcc509a6f75849b",
-            "finalize_time": "<TIME:2>",
+            "finalize_time": "<TIME:3>",
             "generation": "<GEN:1>",
             "kms_key": "",
             "metadata": {
@@ -1097,7 +1227,7 @@
             "size": "43",
             "storage_class": "",
             "temporary_hold": false,
-            "update_time": "<TIME:2>"
+            "update_time": "<TIME:3>"
           },
           {
             "acl": [
@@ -1169,9 +1299,9 @@
             "content_encoding": "",
             "content_language": "",
             "content_type": "",
-            "create_time": "<TIME:3>",
+            "create_time": "<TIME:4>",
             "etag": "c4ca4238a0b923820dcc509a6f75849b",
-            "finalize_time": "<TIME:3>",
+            "finalize_time": "<TIME:4>",
             "generation": "<GEN:2>",
             "kms_key": "",
             "metadata": {
@@ -1188,7 +1318,7 @@
             "size": "43",
             "storage_class": "",
             "temporary_hold": false,
-            "update_time": "<TIME:3>"
+            "update_time": "<TIME:4>"
           },
           {
             "acl": [
@@ -1260,9 +1390,9 @@
             "content_encoding": "",
             "content_language": "",
             "content_type": "",
-            "create_time": "<TIME:4>",
+            "create_time": "<TIME:5>",
             "etag": "c4ca4238a0b923820dcc509a6f75849b",
-            "finalize_time": "<TIME:4>",
+            "finalize_time": "<TIME:5>",
             "generation": "<GEN:3>",
             "kms_key": "",
             "metadata": {
@@ -1279,7 +1409,7 @@
             "size": "43",
             "storage_class": "",
             "temporary_hold": false,
-            "update_time": "<TIME:4>"
+            "update_time": "<TIME:5>"
           },
           {
             "acl": [
@@ -1351,9 +1481,9 @@
             "content_encoding": "",
             "content_language": "",
             "content_type": "",
-            "create_time": "<TIME:5>",
+            "create_time": "<TIME:6>",
             "etag": "c4ca4238a0b923820dcc509a6f75849b",
-            "finalize_time": "<TIME:5>",
+            "finalize_time": "<TIME:6>",
             "generation": "<GEN:4>",
             "kms_key": "",
             "metadata": {
@@ -1370,7 +1500,7 @@
             "size": "43",
             "storage_class": "",
             "temporary_hold": false,
-            "update_time": "<TIME:5>"
+            "update_time": "<TIME:6>"
           },
           {
             "acl": [
@@ -1442,9 +1572,9 @@
             "content_encoding": "",
             "content_language": "",
             "content_type": "",
-            "create_time": "<TIME:6>",
+            "create_time": "<TIME:7>",
             "etag": "c4ca4238a0b923820dcc509a6f75849b",
-            "finalize_time": "<TIME:6>",
+            "finalize_time": "<TIME:7>",
             "generation": "<GEN:5>",
             "kms_key": "",
             "metadata": {
@@ -1461,7 +1591,7 @@
             "size": "43",
             "storage_class": "",
             "temporary_hold": false,
-            "update_time": "<TIME:6>"
+            "update_time": "<TIME:7>"
           }
         ],
         "prefixes": []
@@ -1544,9 +1674,9 @@
             "content_encoding": "",
             "content_language": "",
             "content_type": "",
-            "create_time": "<TIME:3>",
+            "create_time": "<TIME:4>",
             "etag": "c4ca4238a0b923820dcc509a6f75849b",
-            "finalize_time": "<TIME:3>",
+            "finalize_time": "<TIME:4>",
             "generation": "<GEN:2>",
             "kms_key": "",
             "metadata": {
@@ -1563,7 +1693,7 @@
             "size": "43",
             "storage_class": "",
             "temporary_hold": false,
-            "update_time": "<TIME:3>"
+            "update_time": "<TIME:4>"
           }
         ],
         "prefixes": []
@@ -1646,9 +1776,9 @@
             "content_encoding": "",
             "content_language": "",
             "content_type": "",
-            "create_time": "<TIME:2>",
+            "create_time": "<TIME:3>",
             "etag": "c4ca4238a0b923820dcc509a6f75849b",
-            "finalize_time": "<TIME:2>",
+            "finalize_time": "<TIME:3>",
             "generation": "<GEN:1>",
             "kms_key": "",
             "metadata": {
@@ -1665,7 +1795,7 @@
             "size": "43",
             "storage_class": "",
             "temporary_hold": false,
-            "update_time": "<TIME:2>"
+            "update_time": "<TIME:3>"
           },
           {
             "acl": [
@@ -1737,9 +1867,9 @@
             "content_encoding": "",
             "content_language": "",
             "content_type": "",
-            "create_time": "<TIME:3>",
+            "create_time": "<TIME:4>",
             "etag": "c4ca4238a0b923820dcc509a6f75849b",
-            "finalize_time": "<TIME:3>",
+            "finalize_time": "<TIME:4>",
             "generation": "<GEN:2>",
             "kms_key": "",
             "metadata": {
@@ -1756,7 +1886,7 @@
             "size": "43",
             "storage_class": "",
             "temporary_hold": false,
-            "update_time": "<TIME:3>"
+            "update_time": "<TIME:4>"
           },
           {
             "acl": [
@@ -1828,9 +1958,9 @@
             "content_encoding": "",
             "content_language": "",
             "content_type": "",
-            "create_time": "<TIME:4>",
+            "create_time": "<TIME:5>",
             "etag": "c4ca4238a0b923820dcc509a6f75849b",
-            "finalize_time": "<TIME:4>",
+            "finalize_time": "<TIME:5>",
             "generation": "<GEN:3>",
             "kms_key": "",
             "metadata": {
@@ -1847,7 +1977,7 @@
             "size": "43",
             "storage_class": "",
             "temporary_hold": false,
-            "update_time": "<TIME:4>"
+            "update_time": "<TIME:5>"
           },
           {
             "acl": [
@@ -1919,9 +2049,9 @@
             "content_encoding": "",
             "content_language": "",
             "content_type": "",
-            "create_time": "<TIME:5>",
+            "create_time": "<TIME:6>",
             "etag": "c4ca4238a0b923820dcc509a6f75849b",
-            "finalize_time": "<TIME:5>",
+            "finalize_time": "<TIME:6>",
             "generation": "<GEN:4>",
             "kms_key": "",
             "metadata": {
@@ -1938,7 +2068,7 @@
             "size": "43",
             "storage_class": "",
             "temporary_hold": false,
-            "update_time": "<TIME:5>"
+            "update_time": "<TIME:6>"
           }
         ],
         "prefixes": [
@@ -1951,8 +2081,200 @@
     },
     {
       "body": {
+        "resource": {
+          "acl": [
+            {
+              "domain": "",
+              "email": "object.owners@example.com",
+              "entity": "user-object.owners@example.com",
+              "entity_alt": "",
+              "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+              "etag": "edc9c331cec6ba3544bac46b50ca7666",
+              "id": "<ID:26>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": ""
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-owners-123456789",
+              "entity_alt": "",
+              "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+              "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+              "id": "<ID:27>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "owners"
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-editors-123456789",
+              "entity_alt": "",
+              "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+              "etag": "fef2f17b4425221f39306563f46061d7",
+              "id": "<ID:28>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "editors"
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-viewers-123456789",
+              "entity_alt": "",
+              "entity_id": "1af53c4385287cb946b49d191d2520c1",
+              "etag": "b251b29ae33075d18ed4f18ec96cc301",
+              "id": "<ID:29>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "viewers"
+              },
+              "role": "READER"
+            }
+          ],
+          "bucket": "projects/_/buckets/grpc-bucket",
+          "cache_control": "",
+          "checksums": {
+            "crc32c": 576848900,
+            "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+          },
+          "component_count": 0,
+          "content_disposition": "",
+          "content_encoding": "",
+          "content_language": "",
+          "content_type": "",
+          "create_time": "<TIME:8>",
+          "etag": "c4ca4238a0b923820dcc509a6f75849b",
+          "finalize_time": "<TIME:8>",
+          "generation": "<GEN:6>",
+          "kms_key": "",
+          "metadata": {
+            "x_emulator_no_crc32c": "true",
+            "x_emulator_no_md5": "true",
+            "x_emulator_upload": "grpc"
+          },
+          "metageneration": "1",
+          "name": "06-update.txt",
+          "owner": {
+            "entity": "user-object.owners@example.com",
+            "entity_id": ""
+          },
+          "size": "43",
+          "storage_class": "",
+          "temporary_hold": false,
+          "update_time": "<TIME:8>"
+        }
+      },
+      "kind": "grpc",
+      "label": "write-update-target",
+      "type": "google.storage.v2.WriteObjectResponse"
+    },
+    {
+      "body": {
+        "acl": [
+          {
+            "domain": "",
+            "email": "object.owners@example.com",
+            "entity": "user-object.owners@example.com",
+            "entity_alt": "",
+            "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+            "etag": "edc9c331cec6ba3544bac46b50ca7666",
+            "id": "<ID:26>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": ""
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-owners-123456789",
+            "entity_alt": "",
+            "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+            "id": "<ID:27>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-editors-123456789",
+            "entity_alt": "",
+            "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+            "etag": "fef2f17b4425221f39306563f46061d7",
+            "id": "<ID:28>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "editors"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-viewers-123456789",
+            "entity_alt": "",
+            "entity_id": "1af53c4385287cb946b49d191d2520c1",
+            "etag": "b251b29ae33075d18ed4f18ec96cc301",
+            "id": "<ID:29>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "bucket": "projects/_/buckets/grpc-bucket",
+        "cache_control": "",
+        "checksums": {
+          "crc32c": 576848900,
+          "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+        },
+        "component_count": 0,
+        "content_disposition": "",
+        "content_encoding": "",
+        "content_language": "",
+        "content_type": "text/plain",
+        "create_time": "<TIME:8>",
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "finalize_time": "<TIME:8>",
+        "generation": "<GEN:6>",
+        "kms_key": "",
+        "metadata": {
+          "reviewed": "yes"
+        },
+        "metageneration": "2",
+        "name": "06-update.txt",
+        "owner": {
+          "entity": "user-object.owners@example.com",
+          "entity_id": ""
+        },
+        "size": "43",
+        "storage_class": "",
+        "temporary_hold": false,
+        "update_time": "<TIME:9>"
+      },
+      "kind": "grpc",
+      "label": "update-object",
+      "type": "google.storage.v2.Object"
+    },
+    {
+      "body": {
         "completed": false,
-        "id": "<ID:26>",
+        "id": "<ID:30>",
         "instructions": {
           "storage.objects.insert": [
             "redirect-send-token-t"
@@ -1981,7 +2303,7 @@
     {
       "body": {
         "completed": false,
-        "id": "<ID:27>",
+        "id": "<ID:31>",
         "instructions": {
           "storage.objects.get": [
             "redirect-send-handle-and-token-t"
@@ -2010,7 +2332,7 @@
     {
       "body": {
         "completed": false,
-        "id": "<ID:28>",
+        "id": "<ID:32>",
         "instructions": {
           "storage.objects.insert": [
             "redirect-expect-token-t"
@@ -2040,7 +2362,7 @@
               "entity_alt": "",
               "entity_id": "eae1b38342abd983cbc68ce650bc410c",
               "etag": "edc9c331cec6ba3544bac46b50ca7666",
-              "id": "<ID:29>",
+              "id": "<ID:33>",
               "project_team": {
                 "project_number": "123456789",
                 "team": ""
@@ -2054,7 +2376,7 @@
               "entity_alt": "",
               "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
               "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
-              "id": "<ID:30>",
+              "id": "<ID:34>",
               "project_team": {
                 "project_number": "123456789",
                 "team": "owners"
@@ -2068,7 +2390,7 @@
               "entity_alt": "",
               "entity_id": "32b6a918db9f75d2ff648c02b754520f",
               "etag": "fef2f17b4425221f39306563f46061d7",
-              "id": "<ID:31>",
+              "id": "<ID:35>",
               "project_team": {
                 "project_number": "123456789",
                 "team": "editors"
@@ -2082,7 +2404,7 @@
               "entity_alt": "",
               "entity_id": "1af53c4385287cb946b49d191d2520c1",
               "etag": "b251b29ae33075d18ed4f18ec96cc301",
-              "id": "<ID:32>",
+              "id": "<ID:36>",
               "project_team": {
                 "project_number": "123456789",
                 "team": "viewers"
@@ -2101,10 +2423,10 @@
           "content_encoding": "",
           "content_language": "",
           "content_type": "",
-          "create_time": "<TIME:7>",
+          "create_time": "<TIME:10>",
           "etag": "c4ca4238a0b923820dcc509a6f75849b",
-          "finalize_time": "<TIME:7>",
-          "generation": "<GEN:6>",
+          "finalize_time": "<TIME:10>",
+          "generation": "<GEN:7>",
           "kms_key": "",
           "metadata": {
             "x_emulator_no_crc32c": "true",
@@ -2120,7 +2442,7 @@
           "size": "43",
           "storage_class": "",
           "temporary_hold": false,
-          "update_time": "<TIME:7>"
+          "update_time": "<TIME:10>"
         }
       },
       "kind": "grpc",
@@ -2130,7 +2452,7 @@
     {
       "body": {
         "completed": true,
-        "id": "<ID:28>",
+        "id": "<ID:32>",
         "instructions": {
           "storage.objects.insert": []
         },
@@ -2157,7 +2479,7 @@
             "entity_alt": "",
             "entity_id": "eae1b38342abd983cbc68ce650bc410c",
             "etag": "edc9c331cec6ba3544bac46b50ca7666",
-            "id": "<ID:33>",
+            "id": "<ID:37>",
             "project_team": {
               "project_number": "123456789",
               "team": ""
@@ -2171,7 +2493,7 @@
             "entity_alt": "",
             "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
             "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
-            "id": "<ID:34>",
+            "id": "<ID:38>",
             "project_team": {
               "project_number": "123456789",
               "team": "owners"
@@ -2185,7 +2507,7 @@
             "entity_alt": "",
             "entity_id": "32b6a918db9f75d2ff648c02b754520f",
             "etag": "fef2f17b4425221f39306563f46061d7",
-            "id": "<ID:35>",
+            "id": "<ID:39>",
             "project_team": {
               "project_number": "123456789",
               "team": "editors"
@@ -2199,7 +2521,7 @@
             "entity_alt": "",
             "entity_id": "1af53c4385287cb946b49d191d2520c1",
             "etag": "b251b29ae33075d18ed4f18ec96cc301",
-            "id": "<ID:36>",
+            "id": "<ID:40>",
             "project_team": {
               "project_number": "123456789",
               "team": "viewers"
@@ -2218,10 +2540,10 @@
         "content_encoding": "",
         "content_language": "",
         "content_type": "",
-        "create_time": "<TIME:8>",
+        "create_time": "<TIME:11>",
         "etag": "c4ca4238a0b923820dcc509a6f75849b",
-        "finalize_time": "<TIME:8>",
-        "generation": "<GEN:7>",
+        "finalize_time": "<TIME:11>",
+        "generation": "<GEN:8>",
         "kms_key": "",
         "metadata": {},
         "metageneration": "1",
@@ -2233,7 +2555,7 @@
         "size": "86",
         "storage_class": "",
         "temporary_hold": false,
-        "update_time": "<TIME:8>"
+        "update_time": "<TIME:11>"
       },
       "kind": "grpc",
       "label": "compose-object",
@@ -2313,10 +2635,10 @@
           "content_encoding": "",
           "content_language": "",
           "content_type": "",
-          "create_time": "<TIME:9>",
+          "create_time": "<TIME:12>",
           "etag": "c4ca4238a0b923820dcc509a6f75849b",
-          "finalize_time": "<TIME:9>",
-          "generation": "<GEN:8>",
+          "finalize_time": "<TIME:12>",
+          "generation": "<GEN:9>",
           "kms_key": "",
           "metadata": {
             "x_emulator_no_crc32c": "true",
@@ -2332,7 +2654,7 @@
           "size": "43",
           "storage_class": "",
           "temporary_hold": false,
-          "update_time": "<TIME:9>"
+          "update_time": "<TIME:12>"
         },
         "rewrite_token": "<REWRITE:1>",
         "total_bytes_rewritten": "43"
@@ -2412,10 +2734,10 @@
         "content_encoding": "",
         "content_language": "",
         "content_type": "",
-        "create_time": "<TIME:10>",
+        "create_time": "<TIME:13>",
         "etag": "c4ca4238a0b923820dcc509a6f75849b",
-        "finalize_time": "<TIME:10>",
-        "generation": "<GEN:9>",
+        "finalize_time": "<TIME:13>",
+        "generation": "<GEN:10>",
         "kms_key": "",
         "metadata": {
           "x_emulator_no_crc32c": "true",
@@ -2431,7 +2753,7 @@
         "size": "43",
         "storage_class": "",
         "temporary_hold": false,
-        "update_time": "<TIME:10>"
+        "update_time": "<TIME:13>"
       },
       "kind": "grpc",
       "label": "move-object",
@@ -2460,7 +2782,7 @@
             "entity_alt": "",
             "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
             "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
-            "id": "<ID:37>",
+            "id": "<ID:41>",
             "project_team": {
               "project_number": "123456789",
               "team": "owners"
@@ -2474,7 +2796,7 @@
             "entity_alt": "",
             "entity_id": "32b6a918db9f75d2ff648c02b754520f",
             "etag": "b0f6636a6467106c1c9550f8f503b1d5",
-            "id": "<ID:38>",
+            "id": "<ID:42>",
             "project_team": {
               "project_number": "123456789",
               "team": "editors"
@@ -2488,7 +2810,7 @@
             "entity_alt": "",
             "entity_id": "1af53c4385287cb946b49d191d2520c1",
             "etag": "b251b29ae33075d18ed4f18ec96cc301",
-            "id": "<ID:39>",
+            "id": "<ID:43>",
             "project_team": {
               "project_number": "123456789",
               "team": "viewers"
@@ -2498,7 +2820,7 @@
         ],
         "bucket_id": "grpc-soft-delete",
         "cors": [],
-        "create_time": "<TIME:11>",
+        "create_time": "<TIME:14>",
         "default_event_based_hold": false,
         "default_object_acl": [
           {
@@ -2508,7 +2830,7 @@
             "entity_alt": "",
             "entity_id": "eae1b38342abd983cbc68ce650bc410c",
             "etag": "edc9c331cec6ba3544bac46b50ca7666",
-            "id": "<ID:40>",
+            "id": "<ID:44>",
             "project_team": {
               "project_number": "123456789",
               "team": ""
@@ -2522,7 +2844,7 @@
             "entity_alt": "",
             "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
             "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
-            "id": "<ID:37>",
+            "id": "<ID:41>",
             "project_team": {
               "project_number": "123456789",
               "team": "owners"
@@ -2536,7 +2858,7 @@
             "entity_alt": "",
             "entity_id": "32b6a918db9f75d2ff648c02b754520f",
             "etag": "fef2f17b4425221f39306563f46061d7",
-            "id": "<ID:41>",
+            "id": "<ID:45>",
             "project_team": {
               "project_number": "123456789",
               "team": "editors"
@@ -2550,7 +2872,7 @@
             "entity_alt": "",
             "entity_id": "1af53c4385287cb946b49d191d2520c1",
             "etag": "b251b29ae33075d18ed4f18ec96cc301",
-            "id": "<ID:39>",
+            "id": "<ID:43>",
             "project_team": {
               "project_number": "123456789",
               "team": "viewers"
@@ -2572,11 +2894,11 @@
         "rpo": "DEFAULT",
         "satisfies_pzs": false,
         "soft_delete_policy": {
-          "effective_time": "<TIME:12>",
+          "effective_time": "<TIME:15>",
           "retention_duration": "604800s"
         },
         "storage_class": "STANDARD",
-        "update_time": "<TIME:11>"
+        "update_time": "<TIME:14>"
       },
       "kind": "grpc",
       "label": "create-soft-delete-bucket",
@@ -2593,7 +2915,7 @@
               "entity_alt": "",
               "entity_id": "eae1b38342abd983cbc68ce650bc410c",
               "etag": "edc9c331cec6ba3544bac46b50ca7666",
-              "id": "<ID:42>",
+              "id": "<ID:46>",
               "project_team": {
                 "project_number": "123456789",
                 "team": ""
@@ -2607,7 +2929,7 @@
               "entity_alt": "",
               "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
               "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
-              "id": "<ID:43>",
+              "id": "<ID:47>",
               "project_team": {
                 "project_number": "123456789",
                 "team": "owners"
@@ -2621,7 +2943,7 @@
               "entity_alt": "",
               "entity_id": "32b6a918db9f75d2ff648c02b754520f",
               "etag": "fef2f17b4425221f39306563f46061d7",
-              "id": "<ID:44>",
+              "id": "<ID:48>",
               "project_team": {
                 "project_number": "123456789",
                 "team": "editors"
@@ -2635,7 +2957,7 @@
               "entity_alt": "",
               "entity_id": "1af53c4385287cb946b49d191d2520c1",
               "etag": "b251b29ae33075d18ed4f18ec96cc301",
-              "id": "<ID:45>",
+              "id": "<ID:49>",
               "project_team": {
                 "project_number": "123456789",
                 "team": "viewers"
@@ -2654,10 +2976,10 @@
           "content_encoding": "",
           "content_language": "",
           "content_type": "",
-          "create_time": "<TIME:13>",
+          "create_time": "<TIME:16>",
           "etag": "c4ca4238a0b923820dcc509a6f75849b",
-          "finalize_time": "<TIME:13>",
-          "generation": "<GEN:10>",
+          "finalize_time": "<TIME:16>",
+          "generation": "<GEN:11>",
           "kms_key": "",
           "metadata": {
             "x_emulator_no_crc32c": "true",
@@ -2673,7 +2995,7 @@
           "size": "43",
           "storage_class": "",
           "temporary_hold": false,
-          "update_time": "<TIME:13>"
+          "update_time": "<TIME:16>"
         }
       },
       "kind": "grpc",
@@ -2696,7 +3018,7 @@
             "entity_alt": "",
             "entity_id": "eae1b38342abd983cbc68ce650bc410c",
             "etag": "edc9c331cec6ba3544bac46b50ca7666",
-            "id": "<ID:42>",
+            "id": "<ID:46>",
             "project_team": {
               "project_number": "123456789",
               "team": ""
@@ -2710,7 +3032,7 @@
             "entity_alt": "",
             "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
             "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
-            "id": "<ID:43>",
+            "id": "<ID:47>",
             "project_team": {
               "project_number": "123456789",
               "team": "owners"
@@ -2724,7 +3046,7 @@
             "entity_alt": "",
             "entity_id": "32b6a918db9f75d2ff648c02b754520f",
             "etag": "fef2f17b4425221f39306563f46061d7",
-            "id": "<ID:44>",
+            "id": "<ID:48>",
             "project_team": {
               "project_number": "123456789",
               "team": "editors"
@@ -2738,7 +3060,7 @@
             "entity_alt": "",
             "entity_id": "1af53c4385287cb946b49d191d2520c1",
             "etag": "b251b29ae33075d18ed4f18ec96cc301",
-            "id": "<ID:45>",
+            "id": "<ID:49>",
             "project_team": {
               "project_number": "123456789",
               "team": "viewers"
@@ -2757,11 +3079,213 @@
         "content_encoding": "",
         "content_language": "",
         "content_type": "",
-        "create_time": "<TIME:14>",
+        "create_time": "<TIME:16>",
         "etag": "c4ca4238a0b923820dcc509a6f75849b",
-        "finalize_time": "<TIME:13>",
+        "finalize_time": "<TIME:16>",
         "generation": "<GEN:11>",
-        "hard_delete_time": "<TIME:15>",
+        "hard_delete_time": "<TIME:18>",
+        "kms_key": "",
+        "metadata": {
+          "x_emulator_no_crc32c": "true",
+          "x_emulator_no_md5": "true",
+          "x_emulator_upload": "grpc"
+        },
+        "metageneration": "1",
+        "name": "sd.txt",
+        "owner": {
+          "entity": "user-object.owners@example.com",
+          "entity_id": ""
+        },
+        "size": "43",
+        "soft_delete_time": "<TIME:17>",
+        "storage_class": "",
+        "temporary_hold": false,
+        "update_time": "<TIME:16>"
+      },
+      "kind": "grpc",
+      "label": "get-object-soft-deleted",
+      "type": "google.storage.v2.Object"
+    },
+    {
+      "body": {
+        "next_page_token": "",
+        "objects": [
+          {
+            "acl": [
+              {
+                "domain": "",
+                "email": "object.owners@example.com",
+                "entity": "user-object.owners@example.com",
+                "entity_alt": "",
+                "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+                "etag": "edc9c331cec6ba3544bac46b50ca7666",
+                "id": "<ID:46>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": ""
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-owners-123456789",
+                "entity_alt": "",
+                "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "id": "<ID:47>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-editors-123456789",
+                "entity_alt": "",
+                "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "fef2f17b4425221f39306563f46061d7",
+                "id": "<ID:48>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "editors"
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-viewers-123456789",
+                "entity_alt": "",
+                "entity_id": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "id": "<ID:49>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "bucket": "projects/_/buckets/grpc-soft-delete",
+            "cache_control": "",
+            "checksums": {
+              "crc32c": 576848900,
+              "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+            },
+            "component_count": 0,
+            "content_disposition": "",
+            "content_encoding": "",
+            "content_language": "",
+            "content_type": "",
+            "create_time": "<TIME:16>",
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "finalize_time": "<TIME:16>",
+            "generation": "<GEN:11>",
+            "hard_delete_time": "<TIME:18>",
+            "kms_key": "",
+            "metadata": {
+              "x_emulator_no_crc32c": "true",
+              "x_emulator_no_md5": "true",
+              "x_emulator_upload": "grpc"
+            },
+            "metageneration": "1",
+            "name": "sd.txt",
+            "owner": {
+              "entity": "user-object.owners@example.com",
+              "entity_id": ""
+            },
+            "size": "43",
+            "soft_delete_time": "<TIME:17>",
+            "storage_class": "",
+            "temporary_hold": false,
+            "update_time": "<TIME:16>"
+          }
+        ],
+        "prefixes": []
+      },
+      "kind": "grpc",
+      "label": "list-objects-soft-deleted",
+      "type": "google.storage.v2.ListObjectsResponse"
+    },
+    {
+      "body": {
+        "acl": [
+          {
+            "domain": "",
+            "email": "object.owners@example.com",
+            "entity": "user-object.owners@example.com",
+            "entity_alt": "",
+            "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+            "etag": "edc9c331cec6ba3544bac46b50ca7666",
+            "id": "<ID:46>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": ""
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-owners-123456789",
+            "entity_alt": "",
+            "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+            "id": "<ID:47>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-editors-123456789",
+            "entity_alt": "",
+            "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+            "etag": "fef2f17b4425221f39306563f46061d7",
+            "id": "<ID:48>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "editors"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-viewers-123456789",
+            "entity_alt": "",
+            "entity_id": "1af53c4385287cb946b49d191d2520c1",
+            "etag": "b251b29ae33075d18ed4f18ec96cc301",
+            "id": "<ID:49>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "bucket": "projects/_/buckets/grpc-soft-delete",
+        "cache_control": "",
+        "checksums": {
+          "crc32c": 576848900,
+          "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+        },
+        "component_count": 0,
+        "content_disposition": "",
+        "content_encoding": "",
+        "content_language": "",
+        "content_type": "",
+        "create_time": "<TIME:19>",
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "finalize_time": "<TIME:16>",
+        "generation": "<GEN:12>",
+        "hard_delete_time": "<TIME:18>",
         "kms_key": "",
         "metadata": {
           "x_emulator_no_crc32c": "true",
@@ -2777,7 +3301,7 @@
         "size": "43",
         "storage_class": "",
         "temporary_hold": false,
-        "update_time": "<TIME:13>"
+        "update_time": "<TIME:16>"
       },
       "kind": "grpc",
       "label": "restore-object",
@@ -2798,10 +3322,10 @@
     },
     {
       "body": {
-        "create_time": "<TIME:16>",
+        "create_time": "<TIME:20>",
         "metageneration": "1",
         "name": "projects/_/buckets/grpc-bucket/folders/folder-a/",
-        "update_time": "<TIME:16>"
+        "update_time": "<TIME:20>"
       },
       "kind": "grpc",
       "label": "create-folder",
@@ -2809,10 +3333,10 @@
     },
     {
       "body": {
-        "create_time": "<TIME:16>",
+        "create_time": "<TIME:20>",
         "metageneration": "1",
         "name": "projects/_/buckets/grpc-bucket/folders/folder-a/",
-        "update_time": "<TIME:16>"
+        "update_time": "<TIME:20>"
       },
       "kind": "grpc",
       "label": "get-folder",
@@ -2822,10 +3346,10 @@
       "body": {
         "folders": [
           {
-            "create_time": "<TIME:16>",
+            "create_time": "<TIME:20>",
             "metageneration": "1",
             "name": "projects/_/buckets/grpc-bucket/folders/folder-a/",
-            "update_time": "<TIME:16>"
+            "update_time": "<TIME:20>"
           }
         ],
         "next_page_token": ""
@@ -2846,10 +3370,10 @@
     },
     {
       "body": {
-        "create_time": "<TIME:17>",
+        "create_time": "<TIME:21>",
         "metageneration": "1",
         "name": "projects/_/buckets/grpc-bucket/folders/folder-c/",
-        "update_time": "<TIME:17>"
+        "update_time": "<TIME:21>"
       },
       "kind": "grpc",
       "label": "create-folder-for-delete",

@@ -24,6 +24,7 @@ silent gap in coverage.
 
 import grpc
 import requests
+from google.protobuf import field_mask_pb2
 
 from google.iam.v1 import iam_policy_pb2
 from google.storage.control.v2 import storage_control_pb2, storage_control_pb2_grpc
@@ -117,6 +118,22 @@ def run(emulator):
         "get-iam-policy",
         storage.GetIamPolicy,
         iam_policy_pb2.GetIamPolicyRequest(resource=_bucket_path(BUCKET)),
+    )
+    # UpdateBucket had zero coverage before this, yet Plan 3's first task routes
+    # bucket mutations through Database -- so the gate must be able to see a
+    # bucket metadata change. `labels` is the one field UpdateBucket's own
+    # immutable-field guard (grpc_server.py:UpdateBucket) permits; the FieldMask
+    # scopes the write to it. `get-bucket` above still reports metageneration 1,
+    # so the increment to 2 here is itself observable in the golden.
+    call(
+        "update-bucket",
+        storage.UpdateBucket,
+        storage_pb2.UpdateBucketRequest(
+            bucket=storage_pb2.Bucket(
+                name=_bucket_path(BUCKET), labels={"env": "conformance"}
+            ),
+            update_mask=field_mask_pb2.FieldMask(paths=["labels"]),
+        ),
     )
 
     # --- WriteObject, single message and multi message ---------------------
@@ -317,6 +334,44 @@ def run(emulator):
     )
     assert delimiter_response.prefixes, "list-objects-delimiter produced no prefixes"
     rec.record_grpc("list-objects-delimiter", delimiter_response)
+
+    # UpdateObject had zero coverage before this. A dedicated object, rather
+    # than one of the objects read above, so the metageneration bump and the
+    # new metadata do not perturb any earlier interaction's expected state.
+    # Named "06-" so it sorts after every existing object: its generation is
+    # therefore the newest at first sighting, keeping the generation-
+    # monotonicity invariant intact (see the naming comment at the top). No
+    # later interaction lists BUCKET, so the extra object stays invisible to
+    # the existing listings. `content_type` and `metadata` are the mutable
+    # fields UpdateObject's immutable-field guard permits; the response echoes
+    # the applied change, so no follow-up read is needed to observe it.
+    call(
+        "write-update-target",
+        storage.WriteObject,
+        iter(
+            [
+                storage_pb2.WriteObjectRequest(
+                    write_object_spec=write_spec("06-update.txt"),
+                    write_offset=0,
+                    checksummed_data=storage_pb2.ChecksummedData(content=PAYLOAD),
+                    finish_write=True,
+                ),
+            ]
+        ),
+    )
+    call(
+        "update-object",
+        storage.UpdateObject,
+        storage_pb2.UpdateObjectRequest(
+            object=storage_pb2.Object(
+                name="06-update.txt",
+                bucket=_bucket_path(BUCKET),
+                content_type="text/plain",
+                metadata={"reviewed": "yes"},
+            ),
+            update_mask=field_mask_pb2.FieldMask(paths=["content_type", "metadata"]),
+        ),
+    )
 
     # --- redirect faults (gRPC-only; see README and trace_faults.py) -------
     # The Retry Test API's instruction grammar requires a lowercase token
@@ -549,6 +604,30 @@ def run(emulator):
         storage.DeleteObject,
         storage_pb2.DeleteObjectRequest(
             bucket=_bucket_path(SOFT_DELETE), object="sd.txt"
+        ),
+    )
+    # Soft-deleted reads had zero coverage. Between the soft delete and the
+    # restore, the object is invisible to an ordinary GetObject/ListObjects but
+    # must remain readable with `soft_deleted=True` -- exactly the distinction a
+    # FileStore has to preserve across a restart (see the spec's soft/hard/purge
+    # notification split). GetObject requires the generation when reading a
+    # soft-deleted object; it is the same generation read back above, so this
+    # re-reports an already-bound value and adds no ordering risk.
+    call(
+        "get-object-soft-deleted",
+        storage.GetObject,
+        storage_pb2.GetObjectRequest(
+            bucket=_bucket_path(SOFT_DELETE),
+            object="sd.txt",
+            generation=generation,
+            soft_deleted=True,
+        ),
+    )
+    call(
+        "list-objects-soft-deleted",
+        storage.ListObjects,
+        storage_pb2.ListObjectsRequest(
+            parent=_bucket_path(SOFT_DELETE), soft_deleted=True
         ),
     )
     call(
