@@ -32,6 +32,11 @@
             pkgs.python312
             pkgs.docker-client
             pkgs.docker-compose
+            pkgs.gnumake
+            # `make verify-linux` fetches its Linux image with skopeo on the
+            # host, because the Docker VM may have no network egress even when
+            # the host shell does.
+            pkgs.skopeo
             pkgs.curl
             pkgs.jq
           ];
