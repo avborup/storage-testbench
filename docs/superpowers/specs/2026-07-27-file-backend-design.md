@@ -237,10 +237,18 @@ containment, and are independent of it.
 3. **Do not follow symlinks.** Open the final path component with `O_NOFOLLOW`, and
    prefer `openat` against a directory descriptor for the bucket root so containment
    cannot be defeated by a symlink swapped in between the check and the open.
-4. **Validate bucket names against GCS bucket naming rules** (3–63 characters,
-   lowercase alphanumerics, hyphens, underscores, dots) *before* they become directory
-   names. These rules are far stricter than object-name rules, so a validated bucket
-   name is always a safe single path segment and needs no escaping.
+4. **Validate bucket names against GCS bucket naming rules yourself** (3–63
+   characters, lowercase alphanumerics, hyphens, underscores, dots) *before* they
+   become directory names -- do not assume the emulator already did this. It does
+   not: `gcs/bucket.py`'s `__validate_json_bucket_name` branches on `if "." in
+   bucket_name:`, and in that branch checks only length constraints, never the
+   character-class regex the other branch enforces. A dotted, traversal-shaped name
+   such as `"../../etc/passwd"` (which contains a `.`) is accepted today and reaches
+   every `Store` notification unchanged -- confirmed against a live emulator and
+   pinned as a test in `tests/test_store.py`. Because a notification's bucket name
+   arrives as `projects/_/buckets/<name>`, the natural "strip the prefix" first step
+   hands a handler `../../etc/passwd` directly. The file backend's own validation is
+   therefore not a redundant belt-and-suspenders check; it is the *only* check.
 5. **Constrain `shutil.rmtree`.** Only remove a path that is a direct child of the
    root, is a real directory rather than a symlink, and corresponds to a bucket present
    in the index.

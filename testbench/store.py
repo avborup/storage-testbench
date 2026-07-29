@@ -57,6 +57,38 @@ Consequences a `Store` implementation must plan around:
   lookup that legitimately misses raises `AttributeError` instead of the
   usual REST/gRPC error. That still surfaces as a failure, but it is a
   different failure than a normal lookup miss would produce.
+- `Database.clear()` establishes a `_resources_lock` -> `_folders_lock`
+  acquisition order at the one site (`clear()` itself) that takes both --
+  see the comment there. No call today violates it: every other site takes
+  exactly one of the two. But a notification handler is re-entrant only in
+  the direction its own lock allows (previous bullet); a handler for a
+  *folder* notification (`folder_inserted`/`folder_deleted`/
+  `folder_renamed`, delivered while `Database` holds `_folders_lock`) that
+  re-enters `Database` to read or mutate bucket or object state (which needs
+  `_resources_lock`) would acquire the two locks in the reverse order from
+  `clear()`. Two threads doing that against each other -- one already inside
+  `clear()` holding `_resources_lock` and waiting on `_folders_lock`, the
+  other inside a folder notification holding `_folders_lock` and waiting on
+  `_resources_lock` -- deadlock. Nothing in `Database` prevents a future
+  `Store` from writing such a handler; keep the established order (resources
+  before folders) in any notification that needs both.
+- `bucket_name` and `object_name` arguments are unvalidated, fully
+  caller-controlled input, not names a `Store` can trust before turning them
+  into a filesystem path. `gcs.bucket.py`'s bucket-name validation has a live
+  gap: its `if "." in bucket_name:` branch checks only length constraints
+  and never applies the character-class regex the other branch enforces, so
+  a dotted, traversal-shaped name such as `"../../etc/passwd"` is accepted
+  and reaches every notification below (`tests/test_store.py` pins this as
+  current, tested behavior). Object names are even less constrained --
+  legal GCS object names may contain arbitrary bytes including `/` and `..`
+  segments. Because a notification's `bucket_name` is already in proto form
+  (`"projects/_/buckets/<name>"`), the natural first step for a `Store` --
+  strip that fixed prefix to recover `<name>` -- hands a handler for the
+  example above `"../../etc/passwd"` directly, with no further decoding
+  needed to escape a storage root. A `Store` implementation must validate
+  both names itself, before either one is used to construct a path; it
+  cannot assume `Database` or the emulator's REST/gRPC layers already did
+  so.
 """
 
 
@@ -89,7 +121,15 @@ class Store:
         """
 
     def object_updated(self, bucket_name, blob):
-        """An existing object's metadata changed."""
+        """An existing object generation was mutated in place.
+
+        Fired for every `Database.do_update_object` call: object PUT/PATCH,
+        ACL insert/update/patch/delete, gRPC `UpdateObject`, and the
+        appendable-upload paths that mutate `blob.media` itself (an
+        appendable object's bytes and size change without a new generation,
+        so this -- not `object_inserted` -- is a persistent store's only
+        signal that its copy of the content is stale).
+        """
 
     def object_soft_deleted(self, bucket_name, blob, hard_delete_time):
         """A live object generation moved to the soft-deleted set instead of

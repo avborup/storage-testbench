@@ -25,9 +25,15 @@ asserted explicitly.
 import datetime
 import json
 import unittest
+import unittest.mock
+
+import crc32c
+from google.protobuf import field_mask_pb2
 
 import gcs
 import testbench
+from google.storage.v2 import storage_pb2
+from testbench import rest_server
 from testbench.store import NullStore, Store
 
 _RETENTION_SECONDS = 7 * 24 * 60 * 60  # minimum allowed by validate_soft_delete_policy
@@ -381,6 +387,185 @@ class TestStoreContract(unittest.TestCase):
     def test_clear_notifies(self):
         self.db.clear()
         self.assertIn(("cleared",), self.store.calls)
+
+
+class _CapturingObjectUpdatedStore(Store):
+    """Records `object_updated` calls with a fully-materialized snapshot.
+
+    `blob.rest_metadata()` is called eagerly, inside the notification, so the
+    recorded dict reflects exactly what `update_fn` left behind -- not
+    whatever the same, mutable blob happens to look like by the time the
+    test later inspects it.
+    """
+
+    def __init__(self):
+        self.calls = []
+
+    def object_updated(self, bucket_name, blob):
+        self.calls.append((bucket_name, blob.rest_metadata()))
+
+
+def _grpc_context():
+    context = unittest.mock.Mock()
+    context.invocation_metadata = unittest.mock.Mock(return_value=dict())
+    context.abort.side_effect = testbench.error.RestException("aborted", 400)
+    return context
+
+
+class TestDoUpdateObjectNotifiesObjectUpdated(unittest.TestCase):
+    """C2: every `do_update_object` call site mutates, so every one must
+    notify `object_updated`. Driven through real REST and gRPC entry points
+    (never by calling `do_update_object` directly), so each test also pins
+    that call site's own path to the notification, not just the generic
+    wiring inside `Database`.
+    """
+
+    def setUp(self):
+        self.store = _CapturingObjectUpdatedStore()
+        # `rest_server.db` is a plain module attribute the route handlers
+        # look up dynamically, so it can be swapped for the duration of a
+        # test and must be restored afterwards -- it is shared, global state
+        # for the whole test process.
+        self._original_rest_db = rest_server.db
+        rest_server.db = testbench.database.Database.init(store=self.store)
+        rest_server.db.insert_bucket(_make_bucket("bucket-name"), None)
+        self.client = rest_server.server.test_client()
+
+    def tearDown(self):
+        rest_server.db = self._original_rest_db
+
+    def test_object_patch_notifies_object_updated_with_post_mutation_blob(self):
+        self.client.put("/bucket-name/o.txt", content_type="text/plain", data=b"hello")
+        self.store.calls.clear()
+
+        response = self.client.patch(
+            "/storage/v1/b/bucket-name/o/o.txt",
+            data=json.dumps({"metadata": {"colour": "blue"}}),
+        )
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(1, len(self.store.calls))
+        bucket_name, snapshot = self.store.calls[0]
+        self.assertEqual("projects/_/buckets/bucket-name", bucket_name)
+        self.assertEqual("o.txt", snapshot["name"])
+        self.assertEqual("blue", snapshot["metadata"]["colour"])
+
+    def test_object_acl_insert_notifies_object_updated_with_post_mutation_blob(self):
+        self.client.put("/bucket-name/o.txt", content_type="text/plain", data=b"hello")
+        self.store.calls.clear()
+
+        response = self.client.post(
+            "/storage/v1/b/bucket-name/o/o.txt/acl",
+            data=json.dumps({"entity": "allUsers", "role": "READER"}),
+        )
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(1, len(self.store.calls))
+        bucket_name, snapshot = self.store.calls[0]
+        self.assertEqual("projects/_/buckets/bucket-name", bucket_name)
+        self.assertIn("allUsers", [entry["entity"] for entry in snapshot["acl"]])
+
+    def test_grpc_update_object_notifies_object_updated_with_post_mutation_blob(self):
+        store = _CapturingObjectUpdatedStore()
+        db = testbench.database.Database.init(store=store)
+        db.insert_bucket(_make_bucket("bucket-name"), None)
+        blob = _make_object(_make_bucket("bucket-name"), "o.txt")
+        db.insert_object("bucket-name", blob, None)
+        grpc = testbench.grpc_server.StorageServicer(db)
+
+        request = storage_pb2.UpdateObjectRequest(
+            object=storage_pb2.Object(
+                bucket="projects/_/buckets/bucket-name",
+                name="o.txt",
+                content_type="text/plain",
+            ),
+            update_mask=field_mask_pb2.FieldMask(paths=["content_type"]),
+        )
+        response = grpc.UpdateObject(request, _grpc_context())
+
+        self.assertEqual("text/plain", response.content_type)
+        self.assertEqual(1, len(store.calls))
+        bucket_name, snapshot = store.calls[0]
+        self.assertEqual("projects/_/buckets/bucket-name", bucket_name)
+        self.assertEqual("text/plain", snapshot["contentType"])
+
+    def test_appendable_finalize_notifies_object_updated_with_post_mutation_media(self):
+        # Driving this through gcs/upload.py's real BidiWriteObject appendable
+        # path (rather than the two REST cases above) is what proves
+        # `do_update_object`'s notification also covers a mutation of
+        # `blob.media` itself -- an appendable object's bytes and size change
+        # without ever calling `insert_object`, so this is the one call site
+        # `object_inserted` cannot stand in for. A single message carrying
+        # `write_object_spec`, `checksummed_data`, and `finish_write=True`
+        # together drives the emulator through both `do_update_object`
+        # mutators in one call: `update_appendable_blob` (writes the bytes)
+        # and, once the loop sees `upload.complete`, `finalize_blob` (sets
+        # `finalize_time`). This was verified against a live Database before
+        # being committed here, so it is not a fabricated substitute for the
+        # brief's literal REST-only fallback.
+        store = _CapturingObjectUpdatedStore()
+        db = testbench.database.Database.init(store=store)
+        db.insert_bucket(_make_bucket("bucket-name"), None)
+        grpc = testbench.grpc_server.StorageServicer(db)
+
+        media = b"hello world, this is appendable content"
+        request = storage_pb2.BidiWriteObjectRequest(
+            write_object_spec=storage_pb2.WriteObjectSpec(
+                resource=storage_pb2.Object(
+                    name="appendable.txt", bucket="projects/_/buckets/bucket-name"
+                ),
+                appendable=True,
+            ),
+            write_offset=0,
+            checksummed_data=storage_pb2.ChecksummedData(
+                content=media, crc32c=crc32c.crc32c(media)
+            ),
+            finish_write=True,
+        )
+        responses = list(grpc.BidiWriteObject(iter([request]), context=_grpc_context()))
+
+        # Not asserted against `responses[0].resource`: a single-message
+        # appendable write that both creates and finalizes the object in one
+        # call hits a pre-existing, unrelated quirk in `gcs/upload.py`'s
+        # `response()` closure (it treats the terminal yield as the "first
+        # response" and overwrites `resource` from the pre-finalize
+        # `upload.metadata`), which is production behavior out of scope
+        # here. The store's snapshot, captured from the real `blob` object
+        # `finalize_blob` mutated, is unaffected by that response-encoding
+        # detail and is what this test is actually about.
+        self.assertEqual(1, len(responses))
+        # `update_appendable_blob` (media write) then `finalize_blob`
+        # (finalize_time) -- both are `object_updated`, not `object_inserted`.
+        self.assertEqual(2, len(store.calls))
+        for bucket_name, snapshot in store.calls:
+            self.assertEqual("projects/_/buckets/bucket-name", bucket_name)
+            self.assertEqual("appendable.txt", snapshot["name"])
+        _, last_snapshot = store.calls[-1]
+        self.assertEqual(str(len(media)), last_snapshot["size"])
+        self.assertIn("timeFinalized", last_snapshot)
+
+
+class TestObjectAndBucketNamesAreUnvalidatedCallerInput(unittest.TestCase):
+    """I8: `Database` and the notifications it fires trust `bucket_name`
+    exactly as given. `gcs.bucket.py`'s bucket-name validation only checks
+    length in its dotted-name branch and never applies the character-class
+    regex, so a dotted, traversal-shaped name is accepted today. This pins
+    that as current, tested behavior -- not a defect this branch introduces
+    or fixes -- so a future `Store` author does not have to rediscover it.
+    """
+
+    def test_dotted_traversal_shaped_bucket_name_is_accepted_and_notified(self):
+        store = RecordingStore()
+        db = testbench.database.Database.init(store=store)
+        traversal_name = "../../etc/passwd"
+
+        bucket = _make_bucket(traversal_name)
+        db.insert_bucket(bucket, None)
+
+        self.assertIn(
+            ("bucket_inserted", "projects/_/buckets/../../etc/passwd"),
+            store.calls,
+        )
 
 
 if __name__ == "__main__":

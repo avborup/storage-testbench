@@ -565,11 +565,15 @@ class Database:
         preconditions=[],
         require_live_current_generation=True,
     ) -> T:
-        # Deliberately does not notify `self._store.object_updated(...)` here:
-        # `update_fn` is an arbitrary callback and `Database` cannot tell
-        # whether it actually mutated `blob.metadata`, so firing
-        # unconditionally would also notify on read-only callers. Callers
-        # that intend a metadata mutation are expected to notify explicitly.
+        # Every current call site's `update_fn` mutates (object PUT/PATCH,
+        # ACL insert/update/patch/delete, gRPC UpdateObject, and the
+        # appendable-upload paths that write `blob.media` itself), so this
+        # notifies unconditionally after `update_fn` runs. A hypothetical
+        # future read-only caller would pay for one redundant, idempotent
+        # rewrite; the alternative -- staying silent by default -- is what
+        # let object PATCH/PUT and appendable media writes go unobserved by
+        # a `Store` in the first place, which is a data-loss bug, not a
+        # cosmetic one.
         with self._resources_lock:
             blob, live_generation = self.__get_object(
                 bucket_name,
@@ -579,7 +583,12 @@ class Database:
                 preconditions,
                 require_live_current_generation=require_live_current_generation,
             )
-            return update_fn(blob, live_generation)
+            result = update_fn(blob, live_generation)
+            if blob is not None:
+                self._store.object_updated(
+                    self.__bucket_key(bucket_name, context), blob
+                )
+            return result
 
     def restore_object(
         self,
