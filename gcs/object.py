@@ -518,11 +518,11 @@ class Object:
 
     def rest_media(self, request, delay=time.sleep):
         is_decompressive_transcode = self._decompress_on_download(request)
-        response_payload = (
-            gzip.decompress(self.media.to_bytes())
-            if is_decompressive_transcode
-            else self.media
-        )
+        if is_decompressive_transcode:
+            with gzip.GzipFile(fileobj=self.media.reader(), mode="rb") as gz:
+                response_payload = gz.read()
+        else:
+            response_payload = self.media
         range_header = request.headers.get("range")
         begin, end, length, response_payload = self._download_range(
             request, response_payload

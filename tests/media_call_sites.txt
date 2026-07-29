@@ -20,7 +20,8 @@ gcs/object.py:68
 gcs/object.py:92
 gcs/object.py:137
 gcs/object.py:138
-gcs/object.py:521
+gcs/object.py:522
+gcs/object.py:525
 gcs/object.py:536
 gcs/object.py:556
 # gcs/object.py:68 is `media.chunks(...)` in the module-level `_stream_media`
