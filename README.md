@@ -351,6 +351,33 @@ A golden diff means external behavior changed. If the change is intended,
 regenerate and explain it in the commit message. An unexplained diff is a
 bug.
 
+#### Reading a golden diff
+
+A failing hunk names the interaction it belongs to (`interaction: 'label'`,
+appended to the `@@` header) and canonicalizes volatile values into stable
+placeholders before comparing, so the diff shows only what actually changed:
+
+- `<GEN:n>` -- an object generation, in the order it was first seen.
+- `<TIME:n>` -- an RFC 3339 timestamp.
+- `<ORIGIN:n>` -- a link's `scheme://host:port`, which is only ever the
+  ephemeral port the emulator happened to bind that run.
+- `<UPLOAD:n>` -- a resumable upload id.
+- `<TRANSPORT_ERROR>` -- any `requests` transport-level failure (a broken
+  connection, a timeout); the concrete exception subclass is a property of
+  the client OS and socket timing, not of the emulator, so it collapses to
+  one token rather than being recorded verbatim.
+- `<GRPC_ERROR>` -- any gRPC failure's `type`; `grpc_code` next to it still
+  carries the emulator-chosen status code verbatim.
+
+**`--regenerate` is never the way to turn a red build green.** It exists to
+update the baseline after a reviewed, intentional behavior change, with that
+change explained in the commit message -- not to make an unexplained
+failure disappear. If the *first* CI run on a fresh clone is red with no
+local changes to explain it, suspect the goldens themselves before the
+code: they may have been captured on a different platform than the one CI
+runs on (see the gzip-OS-byte story behind `GZIPPED_PAYLOAD` in
+`trace_rest.py` for a concrete example of exactly this).
+
 ## Releasing the testbench
 
 The repository currently uses [Github Tags](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository#creating-a-release)
