@@ -280,10 +280,19 @@ def _blocks(text):
 
 
 def stale_allowlist_labels(expected, observed, allowlist):
-    """Allow-listed labels whose block did NOT diverge -- a stale entry would
-    silently absorb a future regression, so verify() fails on any."""
+    """Allow-listed labels that are PRESENT in this trace but whose block did
+    NOT diverge -- a stale entry would silently absorb a future regression, so
+    verify() fails on any.
+
+    Presence matters because the allow-list is global across the rest/grpc/
+    faults traces while any one divergence appears in only some of them. A
+    label absent from THIS trace is Not-Applicable here, not stale: without the
+    presence guard, `exp.get(l) == obs.get(l)` is `None == None` for an absent
+    label, which would falsely flag e.g. a rest-only entry as stale in the
+    faults trace and redden a trace that has no divergence at all."""
     exp, obs = _blocks(expected), _blocks(observed)
-    return sorted(l for l in allowlist if exp.get(l) == obs.get(l))
+    present = set(exp) | set(obs)
+    return sorted(l for l in allowlist if l in present and exp.get(l) == obs.get(l))
 
 
 def main(argv=None):

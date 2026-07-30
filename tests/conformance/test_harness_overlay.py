@@ -69,6 +69,26 @@ class TestAllowListOverlay(unittest.TestCase):
             harness.stale_allowlist_labels(same, same, {"create-bucket": "x"}),
         )
 
+    def test_label_absent_from_trace_is_not_stale(self):
+        # The allow-list is global across the rest/grpc/faults traces, but a
+        # divergence appears in only some. A label present in NO block of this
+        # trace must NOT be reported stale -- otherwise a legitimate rest-only
+        # entry (create-bucket-traversal) falsely reddens the faults trace,
+        # which has no such interaction. (Regression: the naive
+        # exp.get(l)==obs.get(l) is None==None for an absent label.)
+        trace = _trace([{"label": "delete-bucket", "status": 204}])
+        self.assertEqual(
+            [],
+            harness.stale_allowlist_labels(
+                trace, trace, {"create-bucket-traversal": "x"}
+            ),
+        )
+        # A present, non-diverging label is still flagged.
+        self.assertEqual(
+            ["delete-bucket"],
+            harness.stale_allowlist_labels(trace, trace, {"delete-bucket": "x"}),
+        )
+
     def test_committed_goldens_carry_no_volatile_root_token(self):
         for name in ("rest", "grpc", "faults"):
             with open(harness.golden_path(name), encoding="utf-8") as fh:
