@@ -45,6 +45,25 @@ import testbench.rest_server
 
 _ACTIVE_ROOT = {"path": None}
 
+# The file backend is POSIX-only and explicitly out of scope on Windows (it
+# requires openat/O_NOFOLLOW/dir_fd and os.replace(src_dir_fd=, dst_dir_fd=),
+# none of which Windows provides). Do not even COLLECT its test modules there:
+# a module-level skipif cannot prevent test_pathing.py's top-level
+# `from hypothesis import given` from erroring at import time, and
+# test_sidecar/test_filestore*/wiring exercise fd-based ops that raise on
+# Windows. Skipping collection keeps the Windows leg a pure memory-backend run
+# (the memory backend must stay unaffected) and avoids adding hypothesis to the
+# Windows CI env for tests that would only be skipped anyway.
+if os.name == "nt":
+    collect_ignore = [
+        "tests/test_pathing.py",
+        "tests/test_containment.py",
+        "tests/test_sidecar.py",
+        "tests/test_filestore.py",
+        "tests/test_filestore_scan.py",
+        "tests/test_file_backend_wiring.py",
+    ]
+
 
 @pytest.fixture
 def file_root():
