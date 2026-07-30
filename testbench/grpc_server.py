@@ -518,7 +518,9 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
                 % len(request.source_objects),
                 context,
             )
-        composed_media = BytesMedia()
+        composed_media = self.db.store.new_staging_media(
+            request.destination.bucket, uuid.uuid4().hex
+        )
         for source in request.source_objects:
             if len(source.name) == 0:
                 return testbench.error.missing("Name of source compose object", context)
@@ -548,7 +550,12 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
             )
             if source_blob is None:
                 return None
-            composed_media.append(source_blob.media.to_bytes())
+            # Stream the source into the staging Media one read chunk at a time
+            # (FileMedia O_APPEND on the file backend, BytesMedia on memory) so
+            # a multi-GB source is never materialised into one buffer.
+            size = storage_pb2.ServiceConstants.Values.MAX_READ_CHUNK_BYTES
+            for chunk in source_blob.media.chunks(0, len(source_blob.media), size):
+                composed_media.append(chunk)
 
             if request.delete_source_objects:
                 self.db.delete_object(

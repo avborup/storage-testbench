@@ -18,6 +18,7 @@ import json
 import logging
 import os
 import time
+import uuid
 
 import flask
 from google.protobuf import json_format
@@ -703,12 +704,11 @@ def objects_compose(bucket_name, object_name):
             "The number of source components provided (%d > 32)" % len(source_objects),
             None,
         )
-    # Accumulated via BytesMedia's bytes-compat operators (bytes + BytesMedia
-    # uses __radd__) rather than the explicit .append(...to_bytes()) idiom used
-    # on the gRPC path: Plan 2 scoped the streaming migration to gRPC, this
-    # REST site still materializes the whole source and will move to explicit
-    # streaming with FileMedia in Plan 3.
-    composed_media = b""
+    # Stream each source into a store-provided staging Media (FileMedia
+    # O_APPEND on the file backend, BytesMedia on memory) rather than the old
+    # `b"" += source.media` idiom, which materialised every source into one
+    # in-memory buffer; the token names the staging file under containment.
+    composed_media = db.store.new_staging_media(bucket_name, uuid.uuid4().hex)
     for source_object in source_objects:
         source_object_name = source_object.get("name")
         if source_object_name is None:
@@ -736,7 +736,9 @@ def objects_compose(bucket_name, object_name):
             preconditions=[precondition],
             context=None,
         )
-        composed_media += source_object.media
+        size = storage_pb2.ServiceConstants.Values.MAX_READ_CHUNK_BYTES
+        for chunk in source_object.media.chunks(0, len(source_object.media), size):
+            composed_media.append(chunk)
 
         delete_source_objects = flask.request.args.get("deleteSourceObjects", None)
         if delete_source_objects == "true":
