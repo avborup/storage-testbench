@@ -1089,6 +1089,10 @@ def object_insert(bucket_name):
         testbench.error.invalid("uploadType %s" % upload_type, None)
     if upload_type == "resumable":
         upload = gcs_type.upload.Upload.init_resumable_rest(flask.request, bucket)
+        # Stream this resumable upload into a store-provided staging Media
+        # (FileMedia O_APPEND on FILE, BytesMedia on memory). Subsequent
+        # `upload.media += data` chunks route through the staging file.
+        upload.media = db.store.new_upload_media(upload.bucket.name, upload.upload_id)
         db.insert_upload(upload)
         response = flask.make_response("")
         response.headers["Location"] = upload.location
@@ -1182,7 +1186,7 @@ def resumable_upload_chunk(bucket_name):
                 blob, _ = gcs_type.object.Object.init(
                     upload.request,
                     upload.metadata,
-                    upload.media.to_bytes(),
+                    upload.media,
                     upload.bucket,
                     False,
                     None,
@@ -1301,7 +1305,7 @@ def resumable_upload_chunk(bucket_name):
         blob, _ = gcs_type.object.Object.init(
             upload.request,
             upload.metadata,
-            upload.media.to_bytes(),
+            upload.media,
             upload.bucket,
             False,
             None,

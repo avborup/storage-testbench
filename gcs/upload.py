@@ -32,7 +32,7 @@ from grpc_status import rpc_status
 import gcs
 import testbench
 from google.storage.v2 import storage_pb2
-from testbench.media import BytesMedia
+from testbench.media import BytesMedia, Media
 
 
 class Upload(types.SimpleNamespace):
@@ -186,6 +186,12 @@ class Upload(types.SimpleNamespace):
                     request.write_object_spec.resource.bucket, context
                 ).metadata
                 upload = cls.__init_first_write_grpc(request, bucket, context)
+                # Stream this upload into a store-provided staging Media (a
+                # FileMedia O_APPEND file on the FILE backend, BytesMedia on
+                # memory). WriteObject is never appendable, so it always stages.
+                upload.media = db.store.new_upload_media(
+                    upload.bucket.name, upload.upload_id
+                )
             elif upload is None:
                 testbench.error.invalid("Upload missing a first_message field", context)
                 return None, False
@@ -396,6 +402,13 @@ class Upload(types.SimpleNamespace):
                 upload.blob = blob
                 db.insert_upload(upload)
                 handle = str(1).encode("utf-8")
+            else:
+                # Non-appendable new object: stream into a store-provided
+                # staging Media (FileMedia on FILE, BytesMedia on memory). The
+                # appendable branch stays on BytesMedia until Task 10.
+                upload.media = db.store.new_upload_media(
+                    upload.bucket.name, upload.upload_id
+                )
         elif write_type == "append_object_spec":
             is_appendable = True
             preconditions = testbench.common.make_grpc_preconditions(
@@ -680,7 +693,7 @@ class Upload(types.SimpleNamespace):
                 blob, _ = gcs.object.Object.init(
                     upload.request,
                     upload.metadata,
-                    upload.media.to_bytes(),
+                    upload.media,
                     upload.bucket,
                     False,
                     context,

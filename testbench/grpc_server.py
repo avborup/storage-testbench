@@ -1126,7 +1126,7 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
         blob, _ = gcs.object.Object.init(
             upload.request,
             upload.metadata,
-            upload.media.to_bytes(),
+            upload.media,
             upload.bucket,
             False,
             context,
@@ -1239,6 +1239,11 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
     def StartResumableWrite(self, request, context):
         bucket = self.__get_bucket(request.write_object_spec.resource.bucket, context)
         upload = gcs.upload.Upload.init_resumable_grpc(request, bucket, context)
+        # Stream this resumable upload into a store-provided staging Media
+        # (FileMedia O_APPEND on FILE, BytesMedia on memory).
+        upload.media = self.db.store.new_upload_media(
+            upload.bucket.name, upload.upload_id
+        )
         self.db.insert_upload(upload)
         return storage_pb2.StartResumableWriteResponse(upload_id=upload.upload_id)
 

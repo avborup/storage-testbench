@@ -30,6 +30,7 @@ from werkzeug.wrappers import Request
 import gcs
 import testbench
 from google.storage.v2 import storage_pb2
+from testbench.media import BytesMedia
 from tests.format_multipart_upload import format_multipart_upload
 
 
@@ -464,6 +465,13 @@ class TestObject(unittest.TestCase):
         )
         db = unittest.mock.Mock()
         db.get_bucket = unittest.mock.MagicMock(return_value=self.bucket)
+        # Since Plan 3 Task 5, init_write_object_grpc builds the staging media
+        # via db.store.new_upload_media(...); a mock db must return a real,
+        # empty BytesMedia (exactly what Upload.init used to seed) so the
+        # accumulate/len/to_bytes below still works. Not a behaviour change.
+        db.store.new_upload_media = unittest.mock.MagicMock(
+            side_effect=lambda *a, **k: BytesMedia(b"")
+        )
 
         context = unittest.mock.Mock()
         context.invocation_metadata = unittest.mock.Mock(return_value=dict())
