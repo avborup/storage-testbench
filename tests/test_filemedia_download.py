@@ -35,6 +35,7 @@ process that actually streams the bytes.
 """
 
 import gc
+import gzip
 import json
 import os
 import resource
@@ -271,6 +272,127 @@ class TestDownloadBoundedMemory(unittest.TestCase):
             delta,
             128 * MiB,
             "peak RSS delta %d MiB: ranged GET loaded the whole file" % (delta // MiB),
+        )
+
+
+class TestTranscodeStreaming(unittest.TestCase):
+    """Task-7 decompressive-transcode streaming.
+
+    A ``content_encoding=gzip`` object downloaded WITHOUT ``gzip`` in
+    ``accept-encoding`` is decompressively transcoded: the server gunzips the
+    stored bytes and serves the decompressed body with a ``Content-Length`` equal
+    to the decompressed size. The transcoded length is not known a priori, so a
+    bounded two-pass counting-then-streaming approach supplies it -- the whole
+    decompressed object must never be held in memory.
+    """
+
+    def setUp(self):
+        request = testbench.common.FakeRequest(
+            args={}, data=json.dumps({"name": "bucket"})
+        )
+        self.bucket, _ = gcs.bucket.Bucket.init(request, None)
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+
+    def _blob(self, media, raw):
+        # ``media`` is a Media holding gzip-compressed bytes; ``raw`` is the
+        # decompressed payload the transcode must reproduce.
+        blob, _ = gcs.object.Object.init_dict(
+            testbench.common.FakeRequest(
+                args={"contentEncoding": "gzip"}, headers={}, environ={}
+            ),
+            {"name": "o", "contentEncoding": "gzip"},
+            media,
+            self.bucket.metadata,
+            False,
+        )
+        return blob
+
+    def _bytes_blob(self, raw):
+        return self._blob(BytesMedia(gzip.compress(raw)), raw)
+
+    def _file_blob(self, raw):
+        dfd = os.open(self.tmp, os.O_RDONLY)
+        try:
+            fm = FileMedia.new_staging(dfd, "gz-%d" % id(raw))
+        finally:
+            os.close(dfd)
+        fm.append(gzip.compress(raw))
+        self.addCleanup(fm.close)
+        return self._blob(fm, raw)
+
+    def _transcode_request(self):
+        # No ``gzip`` in accept-encoding -> decompressive transcoding fires.
+        return Request(
+            create_environ(
+                base_url="http://localhost:8080",
+                headers={"accept-encoding": "identity"},
+                data=json.dumps({}),
+            )
+        )
+
+    def _check_correctness(self, blob, raw):
+        response = blob.rest_media(self._transcode_request())
+        total, body = _drain(response)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(raw, body)
+        # Content-Length is the DECOMPRESSED length and must match the body.
+        self.assertEqual(str(len(raw)), str(response.headers["Content-Length"]))
+        self.assertEqual(len(raw), total)
+        self.assertEqual(
+            "gunzipped",
+            response.headers.get("x-guploader-response-body-transformations"),
+        )
+
+    def test_bytesmedia_transcode_correctness(self):
+        raw = b"How vexingly quick daft zebras jump!" * 100
+        self._check_correctness(self._bytes_blob(raw), raw)
+
+    def test_filemedia_transcode_correctness(self):
+        raw = b"How vexingly quick daft zebras jump!" * 100
+        self._check_correctness(self._file_blob(raw), raw)
+
+    def test_backends_agree_on_transcode(self):
+        raw = b"the quick brown fox" * 500
+        rb = self._bytes_blob(raw).rest_media(self._transcode_request())
+        rf = self._file_blob(raw).rest_media(self._transcode_request())
+        _, body_b = _drain(rb)
+        _, body_f = _drain(rf)
+        self.assertEqual(body_b, body_f)
+        self.assertEqual(
+            str(rb.headers["Content-Length"]), str(rf.headers["Content-Length"])
+        )
+
+    def test_file_transcode_streams_without_materialising_whole_object(self):
+        # A highly compressible 256 MiB payload: the compressed staging file is
+        # tiny, but the transcoded body is 256 MiB. The pre-Task-7 gz.read()
+        # materialised the whole decompressed object; the streaming transcode
+        # must keep peak RSS bounded.
+        size = 256 * MiB
+        raw = b"\0" * size
+        dfd = os.open(self.tmp, os.O_RDONLY)
+        try:
+            fm = FileMedia.new_staging(dfd, "big-gz")
+        finally:
+            os.close(dfd)
+        fm.append(gzip.compress(raw))
+        self.addCleanup(fm.close)
+        blob = self._blob(fm, raw)
+        del raw
+        gc.collect()
+        base = rss_bytes()
+        response = blob.rest_media(self._transcode_request())
+        total = _drain_count(response)
+        peak = rss_bytes()
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(size, total)
+        self.assertEqual(str(size), str(response.headers["Content-Length"]))
+        delta = peak - base
+        self.assertLess(
+            delta,
+            128 * MiB,
+            "peak RSS delta %d MiB: transcode materialised the whole object"
+            % (delta // MiB),
         )
 
 

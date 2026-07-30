@@ -67,6 +67,22 @@ def _stream_media(media, begin, end, size=DOWNLOAD_CHUNK_SIZE):
     yield from media.chunks(begin, end, size)
 
 
+def _stream_transcode(media, size=DOWNLOAD_CHUNK_SIZE):
+    """Yield the gunzipped body of a gzip-encoded ``media`` in bounded chunks.
+
+    Decompressive transcoding streams through a fresh ``gzip.GzipFile`` over
+    ``media.reader()`` so a multi-GB object is never decompressed into a single
+    buffer. The transcoded ``Content-Length`` is not known a priori; ``rest_media``
+    supplies it with a separate bounded counting pass over this same generator.
+    """
+    with gzip.GzipFile(fileobj=media.reader(), mode="rb") as gz:
+        while True:
+            buf = gz.read(size)
+            if not buf:
+                break
+            yield buf
+
+
 class Object:
     modifiable_fields = [
         "content_encoding",
@@ -524,9 +540,15 @@ class Object:
     def rest_media(self, request, delay=time.sleep):
         is_decompressive_transcode = self._decompress_on_download(request)
         if is_decompressive_transcode:
-            with gzip.GzipFile(fileobj=self.media.reader(), mode="rb") as gz:
-                response_payload = gz.read()
-            begin, end, length = 0, len(response_payload), len(response_payload)
+            # Two-pass counted Content-Length: a bounded counting pass over a
+            # fresh GzipFile yields the transcoded length without ever holding
+            # the whole decompressed object; the body streams from a SECOND
+            # fresh GzipFile below. `response_payload` stays the Media so the
+            # normal path never materialises (the fault path materialises the
+            # decompressed bytes on demand).
+            response_payload = self.media
+            transcoded_len = sum(len(buf) for buf in _stream_transcode(self.media))
+            begin, end, length = 0, transcoded_len, transcoded_len
         else:
             # The normal/ranged path never materialises: `response_payload` stays
             # the object's Media, and the streamer below yields bounded chunks
@@ -548,20 +570,21 @@ class Object:
         # These are small, trace-only objects and -- per trace_faults.py -- fire
         # only on UNRANGED GETs (begin=0/end=length), so absolute indexing into
         # the whole buffer stays correct. The normal/ranged path never reaches
-        # this branch and streams via `_stream_media` without materialising.
-        if (
-            instructions is not None
-            and not is_decompressive_transcode
-            and isinstance(response_payload, Media)
-        ):
-            response_payload = response_payload.to_bytes()
+        # this branch and streams via `_stream_media`/`_stream_transcode` without
+        # materialising. For a transcode fault we materialise the DECOMPRESSED
+        # bytes (what the pre-Task-7 code served), otherwise the raw object bytes.
+        if instructions is not None and isinstance(response_payload, Media):
+            if is_decompressive_transcode:
+                response_payload = b"".join(_stream_transcode(self.media))
+            else:
+                response_payload = response_payload.to_bytes()
         if instructions is None:
 
             def streamer():
                 if is_decompressive_transcode:
-                    # Transcoded body is a materialized `bytes` from the
-                    # gzip.decompress above; Task 8 migrates it onto the seam.
-                    yield response_payload
+                    # Stream the gunzipped body from a fresh GzipFile; the
+                    # counting pass above already supplied Content-Length.
+                    yield from _stream_transcode(self.media)
                 else:
                     # `max(0, begin)` guards an over-long suffix range
                     # (bytes=-N, N>length), preserving the whole-buffer result.
@@ -663,10 +686,10 @@ class Object:
 
             def streamer():
                 if is_decompressive_transcode:
-                    # See the `instructions is None` streamer above: transcoded
-                    # bytes stay single-shot (Task 8); the normal path streams
-                    # through the Media seam so FileMedia (Plan 5) can mmap.
-                    yield response_payload
+                    # See the `instructions is None` streamer above: the
+                    # transcode body streams from a fresh GzipFile so FileMedia
+                    # (Plan 5) never decompresses the whole object into memory.
+                    yield from _stream_transcode(self.media)
                 else:
                     yield from _stream_media(self.media, max(0, begin), end)
 
@@ -687,9 +710,11 @@ class Object:
 
         headers["x-goog-stored-content-length"] = self.metadata.size
         if is_decompressive_transcode:
-            # Transcode still materialises a `bytes` buffer (Task 7 streams it);
-            # its length is the decompressed size.
-            headers["Content-Length"] = len(response_payload)
+            # Counted transcoded length from the bounded counting pass above --
+            # the decompressed size, supplied WITHOUT materialising the object.
+            # Must be set before the streamer is returned or Werkzeug falls back
+            # to chunked transfer-encoding and flips `framing.mode`.
+            headers["Content-Length"] = transcoded_len
         else:
             # Arithmetic Content-Length -- MUST be set before the streamer is
             # returned or Werkzeug falls back to chunked transfer-encoding and

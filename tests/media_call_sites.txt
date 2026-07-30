@@ -23,37 +23,48 @@
 
 # --- gcs/object.py ---
 gcs/object.py:67
-gcs/object.py:91
-gcs/object.py:129
-gcs/object.py:135
-gcs/object.py:136
-gcs/object.py:137
-gcs/object.py:503
-gcs/object.py:527
-gcs/object.py:534
-gcs/object.py:555
-gcs/object.py:557
-gcs/object.py:568
+gcs/object.py:78
+gcs/object.py:107
+gcs/object.py:145
+gcs/object.py:151
+gcs/object.py:152
+gcs/object.py:153
+gcs/object.py:519
+gcs/object.py:549
+gcs/object.py:550
+gcs/object.py:556
+gcs/object.py:576
+gcs/object.py:580
+gcs/object.py:587
+gcs/object.py:591
 # gcs/object.py:67 is `media.chunks(...)` in the module-level `_stream_media`
-# helper; gcs/object.py:568 is the `instructions is None` REST download streamer
-# passing `self.media` into it. Together they are the normal-download streaming
-# path (Task 6 made this the ONLY non-fault download path -- normal AND ranged --
-# and dropped the old unranged `to_bytes()` hot path at object.py:535-536).
-# gcs/object.py:503 is `_download_range`'s `len(self.media)`, now computed
+# helper and :78 is `media.reader()` in the module-level `_stream_transcode`
+# helper (Task 7). :591 is the `instructions is None` REST download streamer
+# passing `self.media` into `_stream_media` (the ONLY non-fault normal AND ranged
+# path -- Task 6 dropped the old unranged `to_bytes()` hot path); :587 is the same
+# streamer's decompressive-transcode branch passing `self.media` into
+# `_stream_transcode`. Task 7 streams the transcode with a bounded two-pass
+# counted Content-Length -- :550 is the counting pass
+# (`sum(len(buf) for buf in _stream_transcode(self.media))`), so neither the
+# normal nor the transcode download ever materialises the whole object.
+# gcs/object.py:519 is `_download_range`'s `len(self.media)`, computed
 # arithmetically (no payload slicing) so a FileMedia is never materialised to
-# clamp a range; :534 is `response_payload = self.media` (the non-transcode
-# payload stays the Media); :527 is the transcode `self.media.reader()`.
-# gcs/object.py:129 is `Object.init`'s own media-wrap (`media if isinstance(...)
-# else BytesMedia(media)`) and :135 the size assignment that follows it -- the
-# classmethod every insert/compose/rewrite/finalize path uses to construct a
-# new Object. gcs/object.py:555/:557 are the widened fault-injection escape
-# hatch: `isinstance(response_payload, Media)` (was BytesMedia at old :535)
-# taking its `.to_bytes()` branch. Task 6 narrowed this to the fault/instruction
-# path only (`instructions is not None`), so it now fires solely on the faults
-# trace's small, unranged instruction downloads (begin=0), never on the normal
-# or ranged path.
-# UNCOVERED gcs/object.py:128 -- corrupt_media() call gated on the `inject-upload-data-error` instruction; the trace never sends that instruction into Object.init
-# UNCOVERED gcs/object.py:671 -- the default `else` REST download streamer's self.media access; the trace issues no download whose testbench instructions fall through to this branch
+# clamp a range; :556 is `response_payload = self.media` (the non-transcode
+# payload stays the Media) and :549 the transcode branch's `response_payload =
+# self.media`.
+# gcs/object.py:145 is `Object.init`'s own media-wrap (`media if isinstance(...)
+# else BytesMedia(media)`) and :151/:152/:153 the size/md5/crc32c reads that
+# follow it -- the classmethod every insert/compose/rewrite/finalize path uses to
+# construct a new Object; :107 is the matching wrap in `Object.__init__`.
+# gcs/object.py:576/:580 are the widened fault-injection escape hatch:
+# `isinstance(response_payload, Media)` (was BytesMedia) taking its `.to_bytes()`
+# branch. Task 6 narrowed this to the fault/instruction path only (`instructions
+# is not None`), so it now fires solely on the faults trace's small, unranged
+# instruction downloads (begin=0), never on the normal or ranged path.
+# UNCOVERED gcs/object.py:144 -- corrupt_media() call gated on the `inject-upload-data-error` instruction; the trace never sends that instruction into Object.init
+# UNCOVERED gcs/object.py:578 -- the transcode fault path materialising the gunzipped bytes (b"".join(_stream_transcode(self.media))); the trace injects no fault on a decompressive-transcode download
+# UNCOVERED gcs/object.py:692 -- the default `else` REST download streamer's transcode branch (_stream_transcode(self.media)); the trace issues no download whose testbench instructions fall through to this branch
+# UNCOVERED gcs/object.py:694 -- the default `else` REST download streamer's non-transcode branch (_stream_media(self.media)); the trace issues no download whose testbench instructions fall through to this branch
 
 # --- gcs/upload.py ---
 gcs/upload.py:192
