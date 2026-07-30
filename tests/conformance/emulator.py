@@ -109,6 +109,11 @@ _INHERITED_ENV = (
     # reads to call coverage.process_startup()). A no-op when unset, so
     # normal emulator operation and the goldens are unaffected.
     "COVERAGE_PROCESS_START",
+    # Coverage-only: the media gate points this at a private per-run temp dir so
+    # the worker's parallel .coverage.* data files land there instead of the
+    # shared repo root -- isolating the measurement from any stray/concurrent
+    # coverage files. A no-op when unset, so the goldens are unaffected.
+    "COVERAGE_FILE",
 )
 
 

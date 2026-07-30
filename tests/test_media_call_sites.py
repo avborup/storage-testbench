@@ -39,10 +39,30 @@ forwards it through its env allowlist, and ``testbench/__init__.py`` calls
 ``os.killpg(SIGTERM)`` -- without it the worker's atexit save never runs and no
 data is written). After the traces run we ``combine()`` the parallel data files
 and assert against the *combined* data, not the near-empty in-process data.
+
+Determinism (two hardenings over the naive one-shot combine)
+------------------------------------------------------------
+1. *Isolation.* Every data file lives in a private per-run temp dir pointed at
+   by ``COVERAGE_FILE`` (forwarded to the worker through the emulator env
+   allowlist), never the shared repo root. A stale ``.coverage.*`` or a
+   concurrently-spawned emulator can then neither contaminate this measurement
+   nor be clobbered by it.
+2. *Late-flush tolerance.* The emulator reaps the gunicorn *master* with
+   ``proc.wait``, but the coverage-writing *worker* is a grandchild that
+   flushes on SIGTERM; under load that flush can land just after the master
+   exits. A single one-shot ``combine()`` therefore occasionally raced the
+   worker and saw a not-yet-written data file, reddening the gate spuriously.
+   We instead retry ``combine()`` on the SAME (accumulating) ``Coverage``
+   object until every listed site is present or a bounded deadline passes. A
+   genuinely uncovered site never appears no matter how long we wait, so the
+   gate still fails correctly -- only flush LATENCY is tolerated, never a
+   missing site.
 """
 
-import glob
 import os
+import shutil
+import tempfile
+import time
 import unittest
 
 import pytest
@@ -50,10 +70,11 @@ import pytest
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LIST = os.path.join(REPO, "tests", "media_call_sites.txt")
 COVERAGERC = os.path.join(REPO, ".coveragerc")
-# Anchor every data file at the repo root so the in-process save, the worker's
-# save (its cwd is the repo root) and combine() all agree regardless of the
-# directory pytest was launched from.
-DATA_FILE = os.path.join(REPO, ".coverage")
+
+# Upper bound on how long we wait for a slow worker SIGTERM-flush to land. Only
+# ever fully spent on a genuine miss (an uncovered site never appears), so it
+# does not slow the common green path.
+_COMBINE_DEADLINE_SECONDS = 30.0
 
 
 def _listed_sites():
@@ -68,11 +89,14 @@ def _listed_sites():
     return sites
 
 
-def _erase_data_files():
-    # Only the data files (exact-name .coverage and the parallel
-    # .coverage.<host>.<pid> siblings) -- never .coveragerc.
-    for f in glob.glob(DATA_FILE) + glob.glob(DATA_FILE + ".*"):
-        os.remove(f)
+def _missing_sites(sites, data):
+    missing = []
+    for path, num in sites:
+        abspath = os.path.join(REPO, path)
+        executed = set(data.lines(abspath) or [])
+        if num not in executed:
+            missing.append("%s:%d" % (path, num))
+    return missing
 
 
 @pytest.mark.skipif(
@@ -88,11 +112,17 @@ class TestMediaCallSitesAreCovered(unittest.TestCase):
         import coverage
 
         cls._prev_process_start = os.environ.get("COVERAGE_PROCESS_START")
-        # Set BEFORE any Emulator spawns: the worker reads it at import time.
-        os.environ["COVERAGE_PROCESS_START"] = COVERAGERC
-        _erase_data_files()
+        cls._prev_coverage_file = os.environ.get("COVERAGE_FILE")
 
-        cov = coverage.Coverage(config_file=COVERAGERC, data_file=DATA_FILE)
+        # Isolate every data file in a private temp dir (worker inherits
+        # COVERAGE_FILE via the emulator env allowlist). Set BEFORE any Emulator
+        # spawns: the worker reads both env vars at import time.
+        cls._cov_dir = tempfile.mkdtemp(prefix="media-cov-")
+        data_file = os.path.join(cls._cov_dir, ".coverage")
+        os.environ["COVERAGE_PROCESS_START"] = COVERAGERC
+        os.environ["COVERAGE_FILE"] = data_file
+
+        cov = coverage.Coverage(config_file=COVERAGERC, data_file=data_file)
         cov.start()
         # Each trace runs against its own freshly-launched emulator subprocess;
         # the worker records gcs/ and testbench/ lines to its own parallel data
@@ -108,24 +138,33 @@ class TestMediaCallSitesAreCovered(unittest.TestCase):
 
         # Combine the parallel data files (this process's plus every worker's)
         # into one dataset and read *that* -- the in-process data alone does
-        # not contain the worker's lines.
-        combined = coverage.Coverage(config_file=COVERAGERC, data_file=DATA_FILE)
-        combined.combine()
-        cls.data = combined.get_data()
+        # not contain the worker's lines. Retry on the SAME accumulating object
+        # so a late worker flush is absorbed once its file lands (see the
+        # module docstring's late-flush note); stop as soon as every site is
+        # covered, or when the bounded deadline passes.
+        combined = coverage.Coverage(config_file=COVERAGERC, data_file=data_file)
+        sites = _listed_sites()
+        deadline = time.monotonic() + _COMBINE_DEADLINE_SECONDS
+        while True:
+            combined.combine(strict=False, keep=False)
+            data = combined.get_data()
+            if not _missing_sites(sites, data) or time.monotonic() >= deadline:
+                break
+            time.sleep(0.25)
+        cls.data = data
 
     @classmethod
     def tearDownClass(cls):
-        _erase_data_files()
-        if cls._prev_process_start is None:
-            os.environ.pop("COVERAGE_PROCESS_START", None)
-        else:
-            os.environ["COVERAGE_PROCESS_START"] = cls._prev_process_start
+        shutil.rmtree(cls._cov_dir, ignore_errors=True)
+        for name, prev in (
+            ("COVERAGE_PROCESS_START", cls._prev_process_start),
+            ("COVERAGE_FILE", cls._prev_coverage_file),
+        ):
+            if prev is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = prev
 
     def test_every_listed_site_executed(self):
-        missing = []
-        for path, num in _listed_sites():
-            abspath = os.path.join(REPO, path)
-            executed = set(self.data.lines(abspath) or [])
-            if num not in executed:
-                missing.append("%s:%d" % (path, num))
+        missing = _missing_sites(_listed_sites(), self.data)
         self.assertEqual([], missing, "media call sites never executed: %s" % missing)
