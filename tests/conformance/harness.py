@@ -62,36 +62,48 @@ def serialize(record):
     return json.dumps(record, indent=2, sort_keys=True) + "\n"
 
 
-def capture(name):
-    with Emulator() as emulator:
+def capture(name, store="memory"):
+    with Emulator(store=store) as emulator:
         return TRACES[name](emulator)
 
 
-def verify(name):
+def verify(name, store="memory"):
     """Return a unified diff of golden versus observed, or "" when identical.
 
     The existence check precedes `capture()` so that a missing golden costs
     nothing: running a full trace only to report "missing golden" wastes an
     emulator launch.
+
+    In memory mode the comparison is byte-for-byte. In file mode the
+    allow-listed interaction blocks are masked on both sides before an
+    otherwise byte-exact compare, and any allow-list entry that did not
+    actually diverge is reported as stale.
     """
     path = golden_path(name)
     if not os.path.exists(path):
         return "missing golden %s; run with --regenerate" % path
     with open(path, "r", encoding="utf-8") as handle:
         expected = handle.read()
-    observed = serialize(capture(name))
-    if expected == observed:
-        return ""
-    expected_lines = expected.splitlines(True)
-    diff = list(
-        difflib.unified_diff(
-            expected_lines,
-            observed.splitlines(True),
-            fromfile="golden/%s.json" % name,
-            tofile="observed/%s.json" % name,
+    observed = serialize(capture(name, store))
+    if store == "memory":
+        if expected == observed:
+            return ""
+        expected_lines = expected.splitlines(True)
+        diff = list(
+            difflib.unified_diff(
+                expected_lines,
+                observed.splitlines(True),
+                fromfile="golden/%s.json" % name,
+                tofile="observed/%s.json" % name,
+            )
         )
-    )
-    return "".join(_annotate_hunks_with_labels(diff, expected_lines))
+        return "".join(_annotate_hunks_with_labels(diff, expected_lines))
+    allowlist = _load_allowlist()
+    residual = diff_with_allowlist(expected, observed, allowlist)
+    stale = stale_allowlist_labels(expected, observed, allowlist)
+    if stale:
+        residual += "\nstale allow-list entries (did not diverge): %r\n" % stale
+    return residual
 
 
 def _annotate_hunks_with_labels(diff, expected_lines):
@@ -185,10 +197,100 @@ def _labels_by_line(lines):
     return labels
 
 
+# byte-exact masked overlay. `verify` uses these in file mode; the memory
+# path keeps its existing `expected == observed`.
+
+_MASK = '    {"__MASKED_ALLOWLISTED_INTERACTION__": %r},\n'
+
+
+def _load_allowlist():
+    with open(os.path.join(_HERE, "allowlist.json"), "r", encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def _segments(text):
+    """Split `text` into ('lit', str) and ('int', label, block) segments such
+    that concatenating the raw pieces reproduces `text` byte-for-byte. Only a
+    top-level interaction block (4-space "{...}") is an 'int'."""
+    segs, lit, cur, label = [], [], None, None
+    for line in text.splitlines(True):
+        if cur is None and _INTERACTION_START.match(line):
+            if lit:
+                segs.append(("lit", "".join(lit)))
+                lit = []
+            cur, label = [line], None
+        elif cur is not None:
+            cur.append(line)
+            m = _LABEL_LINE.match(line)
+            if m:
+                label = m.group("label")
+            if _INTERACTION_END.match(line):
+                segs.append(("int", label, "".join(cur)))
+                cur = None
+        else:
+            lit.append(line)
+    if cur is not None:  # unterminated block: keep bytes, surfaces as a diff
+        lit.extend(cur)
+    if lit:
+        segs.append(("lit", "".join(lit)))
+    return segs
+
+
+def _check_labels_unique(text):
+    labels = [s[1] for s in _segments(text) if s[0] == "int"]
+    if None in labels:
+        raise ValueError("interaction block with no label in trace")
+    dupes = sorted({l for l in labels if labels.count(l) > 1})
+    if dupes:
+        raise ValueError("duplicate interaction label(s): %r" % dupes)
+
+
+def _mask(text, allowlist):
+    out = []
+    for seg in _segments(text):
+        if seg[0] == "lit":
+            out.append(seg[1])
+        else:
+            _, label, block = seg
+            out.append(_MASK % label if label in allowlist else block)
+    return "".join(out)
+
+
+def diff_with_allowlist(expected, observed, allowlist):
+    """Empty string iff, after masking allow-listed interaction blocks in BOTH
+    sides, the full texts are byte-identical. Strictly as strong as the memory
+    leg's equality on every byte outside an allow-listed block."""
+    _check_labels_unique(expected)
+    _check_labels_unique(observed)
+    me, mo = _mask(expected, allowlist), _mask(observed, allowlist)
+    if me == mo:
+        return ""
+    return "".join(
+        difflib.unified_diff(
+            me.splitlines(True),
+            mo.splitlines(True),
+            fromfile="golden (masked)",
+            tofile="observed (masked)",
+        )
+    )
+
+
+def _blocks(text):
+    return {s[1]: s[2] for s in _segments(text) if s[0] == "int"}
+
+
+def stale_allowlist_labels(expected, observed, allowlist):
+    """Allow-listed labels whose block did NOT diverge -- a stale entry would
+    silently absorb a future regression, so verify() fails on any."""
+    exp, obs = _blocks(expected), _blocks(observed)
+    return sorted(l for l in allowlist if exp.get(l) == obs.get(l))
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--regenerate", action="store_true")
     parser.add_argument("--trace", action="append", choices=sorted(TRACES))
+    parser.add_argument("--store", choices=("memory", "file"), default="memory")
     args = parser.parse_args(argv)
     names = args.trace or sorted(TRACES)
 
@@ -203,7 +305,7 @@ def main(argv=None):
 
     failed = False
     for name in names:
-        diff = verify(name)
+        diff = verify(name, args.store)
         if diff:
             failed = True
             print("FAIL %s\n%s" % (name, diff))

@@ -112,34 +112,6 @@ _INHERITED_ENV = (
 )
 
 
-def _child_env():
-    """Build the emulator subprocess's environment explicitly.
-
-    Copying the parent's environment wholesale would let anything a
-    developer or a CI runner happens to have set reach the emulator; for
-    the three GOOGLE_CLOUD_CPP_STORAGE_EMULATOR_* variables that means
-    silently different goldens (see `_PINNED_ENV`). Only a fixed allowlist
-    is forwarded, plus the emulator's own knobs pinned to their documented
-    defaults, plus PYTHONPATH so `testbench` is importable.
-    """
-    env = {name: os.environ[name] for name in _INHERITED_ENV if name in os.environ}
-    env.update(_PINNED_ENV)
-    env["PYTHONPATH"] = _REPO_ROOT
-    # `testbench_run.py` launches gunicorn (on POSIX) by bare name via
-    # `subprocess.run(["gunicorn", ...])`, which is resolved against *this*
-    # child's PATH, not against `sys.executable`. Running this file's own
-    # interpreter directly (`./.venv/bin/python3 -m pytest ...`, without
-    # activating the venv first) leaves the venv's `bin/` off the inherited
-    # PATH, so the child would fail to find `gunicorn` with a misleading
-    # FileNotFoundError. Prepending the directory `sys.executable` lives in
-    # covers both that case and the already-activated case (where it is a
-    # harmless duplicate of what activation already put on PATH).
-    venv_bin = os.path.dirname(sys.executable)
-    inherited_path = env.get("PATH", "")
-    env["PATH"] = venv_bin + os.pathsep + inherited_path if inherited_path else venv_bin
-    return env
-
-
 def free_port():
     with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
         sock.bind(("127.0.0.1", 0))
@@ -154,7 +126,16 @@ class Emulator:
     server's state except through its API.
     """
 
-    def __init__(self, rest_port=None, grpc_port=None):
+    def __init__(self, rest_port=None, grpc_port=None, store="memory", root=None):
+        self._store = store
+        self._own_root = root is None and store == "file"
+        self._root = (
+            root
+            if root is not None
+            else (
+                tempfile.mkdtemp(prefix="testbench-conf-") if store == "file" else None
+            )
+        )
         self.rest_port = rest_port or free_port()
         self.grpc_port = grpc_port or free_port()
         if self.rest_port == self.grpc_port:
@@ -186,8 +167,40 @@ class Emulator:
     def grpc_target(self):
         return "127.0.0.1:%d" % self.grpc_port
 
+    def _child_env(self):
+        """Build the emulator subprocess's environment explicitly.
+
+        Copying the parent's environment wholesale would let anything a
+        developer or a CI runner happens to have set reach the emulator; for
+        the three GOOGLE_CLOUD_CPP_STORAGE_EMULATOR_* variables that means
+        silently different goldens (see `_PINNED_ENV`). Only a fixed allowlist
+        is forwarded, plus the emulator's own knobs pinned to their documented
+        defaults, plus PYTHONPATH so `testbench` is importable.
+        """
+        env = {name: os.environ[name] for name in _INHERITED_ENV if name in os.environ}
+        env.update(_PINNED_ENV)
+        if self._store == "file":
+            env["TESTBENCH_STORE"] = "file"
+            env["TESTBENCH_ROOT"] = self._root
+        env["PYTHONPATH"] = _REPO_ROOT
+        # `testbench_run.py` launches gunicorn (on POSIX) by bare name via
+        # `subprocess.run(["gunicorn", ...])`, which is resolved against *this*
+        # child's PATH, not against `sys.executable`. Running this file's own
+        # interpreter directly (`./.venv/bin/python3 -m pytest ...`, without
+        # activating the venv first) leaves the venv's `bin/` off the inherited
+        # PATH, so the child would fail to find `gunicorn` with a misleading
+        # FileNotFoundError. Prepending the directory `sys.executable` lives in
+        # covers both that case and the already-activated case (where it is a
+        # harmless duplicate of what activation already put on PATH).
+        venv_bin = os.path.dirname(sys.executable)
+        inherited_path = env.get("PATH", "")
+        env["PATH"] = (
+            venv_bin + os.pathsep + inherited_path if inherited_path else venv_bin
+        )
+        return env
+
     def __enter__(self):
-        env = _child_env()
+        env = self._child_env()
         # `testbench_run.py` picks the server for us: gunicorn with
         # --reload on POSIX, waitress on Windows (see its own
         # platform.system() check). Launching `python -m testbench` directly
@@ -286,6 +299,10 @@ class Emulator:
             except ValueError:
                 pass
             self._stdout_file.close()
+        if self._own_root and self._root is not None:
+            import shutil
+
+            shutil.rmtree(self._root, ignore_errors=True)
 
     def logs(self):
         if self._stdout_file is None:
