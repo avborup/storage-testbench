@@ -21,8 +21,10 @@ import contextlib
 import json
 import os
 
+import gcs
 import testbench.common
 import testbench.error
+from google.storage.control.v2 import storage_control_pb2
 from testbench import containment, pathing, sidecar
 from testbench.store import Store
 
@@ -258,6 +260,114 @@ class FileStore(Store):
         with self._bucket_dirfd(short) as bfd:
             with self._leaf_dirfd(bfd, [".gcs", "folders"], create=False) as ffd:
                 _unlink_quiet(ffd, relname + ".json")
+
+    # --- startup tree-scan / index hydration -------------------------------
+    def rebuild_index(self, database):
+        """Walk the on-disk tree and reseed `database`'s in-memory index
+        DIRECTLY (never via insert_*), so no notification re-fires. Fails
+        LOUDLY on a corrupt sidecar (sidecar.read's ValueError propagates) and
+        on a collision -- two distinct true-names resolving to the same on-disk
+        inode, the filesystem-truthful identity rule (fires on a
+        case-insensitive FS, correctly silent on a case-sensitive one). A media
+        file with no sidecar is an invisible orphan."""
+        for short in sorted(os.listdir(self._root)):
+            bucket_path = os.path.join(self._root, short)
+            bucket_json = os.path.join(bucket_path, ".gcs", "bucket.json")
+            if not os.path.isdir(bucket_path) or not os.path.isfile(bucket_json):
+                continue
+            _, _, bucket_proto = sidecar.read(bucket_json)
+            proto_name = bucket_proto.name
+            database._buckets[proto_name] = self._hydrate_bucket(bucket_proto)
+            database._objects[proto_name] = {}
+            database._live_generations[proto_name] = {}
+            database._soft_deleted_objects[proto_name] = {}
+            self._scan_bucket(database, bucket_path, proto_name, bucket_proto)
+
+    def _hydrate_bucket(self, bucket_proto):
+        # The sidecar persists only bucket.metadata; rebuild the in-memory
+        # gcs.bucket.Bucket around it. The IAM policy is re-derived from the
+        # persisted ACLs exactly as Bucket.init does -- it is not persisted, and
+        # its etag is a fresh uuid4 per construction, so it can never be
+        # byte-identical across a restart regardless.
+        iam_policy = gcs.bucket.Bucket._Bucket__init_iam_policy(bucket_proto, None)
+        return gcs.bucket.Bucket(bucket_proto, {}, iam_policy)
+
+    def _scan_bucket(self, database, bucket_path, proto_name, bucket_proto):
+        # `seen` maps (st_dev, st_ino) of each LIVE media file to its true-name,
+        # scoped per bucket. A second true-name landing on an already-seen inode
+        # is the collision the case-insensitive collapse produces.
+        seen = {}
+        meta_suffix = pathing.RESERVED_SUFFIX  # ".gcsmeta"
+        for dirpath, _dirnames, filenames in os.walk(bucket_path):
+            rel = os.path.relpath(dirpath, bucket_path)
+            parts = [] if rel == "." else rel.split(os.sep)
+            in_gcs = bool(parts) and parts[0] == ".gcs"
+            for filename in filenames:
+                full = os.path.join(dirpath, filename)
+                if in_gcs:
+                    if parts == [".gcs"]:
+                        continue  # bucket.json + any future top-level .gcs file
+                    sub = parts[1] if len(parts) >= 2 else None
+                    if sub == "soft_deleted" and filename == "meta" + meta_suffix:
+                        self._hydrate_soft_deleted(
+                            database, proto_name, bucket_proto, dirpath, full
+                        )
+                    elif sub == "overflow" and filename.endswith(meta_suffix):
+                        media = os.path.join(dirpath, filename[: -len(meta_suffix)])
+                        self._hydrate_live(
+                            database, proto_name, bucket_proto, full, media, seen
+                        )
+                    elif sub == "folders" and filename.endswith(".json"):
+                        self._hydrate_folder(database, full)
+                    # generations / uploads / tmp: not part of the index
+                elif filename.endswith(meta_suffix):
+                    media = os.path.join(dirpath, filename[: -len(meta_suffix)])
+                    self._hydrate_live(
+                        database, proto_name, bucket_proto, full, media, seen
+                    )
+
+    def _read_media(self, media_path):
+        if not os.path.isfile(media_path):
+            return b""
+        with open(media_path, "rb") as handle:
+            return handle.read()
+
+    def _hydrate_live(
+        self, database, proto_name, bucket_proto, sidecar_path, media_path, seen
+    ):
+        _, _true_name, obj_proto = sidecar.read(sidecar_path)
+        name = obj_proto.name
+        if os.path.isfile(media_path):
+            st = os.stat(media_path)
+            ident = (st.st_dev, st.st_ino)
+            previous = seen.get(ident)
+            if previous is not None and previous != name:
+                raise RuntimeError(
+                    "collision: %r and %r resolve to the same inode" % (previous, name)
+                )
+            seen[ident] = name
+        blob = gcs.object.Object(obj_proto, self._read_media(media_path), bucket_proto)
+        gen = obj_proto.generation
+        database._objects[proto_name]["%s#%d" % (name, gen)] = blob
+        database._live_generations[proto_name][name] = gen
+
+    def _hydrate_soft_deleted(
+        self, database, proto_name, bucket_proto, dirpath, sidecar_path
+    ):
+        _, _true_name, obj_proto = sidecar.read(sidecar_path)
+        media = os.path.join(dirpath, "media")
+        blob = gcs.object.Object(obj_proto, self._read_media(media), bucket_proto)
+        database._soft_deleted_objects[proto_name].setdefault(
+            obj_proto.name, []
+        ).append(blob)
+
+    def _hydrate_folder(self, database, envelope_path):
+        with open(envelope_path, "r", encoding="utf-8") as handle:
+            env = json.load(handle)
+        name = env["name"]
+        database._folders[name] = storage_control_pb2.Folder(
+            name=name, metageneration=1
+        )
 
     def cleared(self):
         for name in self._index_names():

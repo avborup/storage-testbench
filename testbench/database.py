@@ -68,7 +68,16 @@ class Database:
 
     @classmethod
     def init(cls, store=None):
-        return cls({}, {}, {}, {}, {}, {}, [], {}, {}, store=store)
+        db = cls({}, {}, {}, {}, {}, {}, [], {}, {}, store=store)
+        # A FileStore hydrates the fresh in-memory index from its on-disk tree
+        # before the Database is handed out. Imported lazily so the memory
+        # backend never pulls in the file-backend module (and to keep the
+        # module import graph acyclic).
+        from testbench.filestore import FileStore
+
+        if isinstance(store, FileStore):
+            store.rebuild_index(db)
+        return db
 
     @property
     def store(self):
