@@ -71,54 +71,60 @@ gcs/upload.py:702
 # UNCOVERED gcs/upload.py:667 -- finalize_blob closure size assignment; no appendable upload in the trace
 
 # --- testbench/grpc_server.py ---
-testbench/grpc_server.py:531
-testbench/grpc_server.py:596
-testbench/grpc_server.py:597
-testbench/grpc_server.py:605
-testbench/grpc_server.py:627
-testbench/grpc_server.py:765
+# Line numbers re-pinned after Task 3 routed bucket mutations through
+# do_update_bucket, which inserted lines above these media sites; the sites
+# themselves are unchanged (content-verified).
+testbench/grpc_server.py:550
+testbench/grpc_server.py:615
+testbench/grpc_server.py:616
+testbench/grpc_server.py:624
+testbench/grpc_server.py:646
 testbench/grpc_server.py:784
-testbench/grpc_server.py:1076
-testbench/grpc_server.py:1109
-testbench/grpc_server.py:1169
-testbench/grpc_server.py:1172
-testbench/grpc_server.py:1174
-testbench/grpc_server.py:1177
-testbench/grpc_server.py:1180
+testbench/grpc_server.py:803
+testbench/grpc_server.py:1095
+testbench/grpc_server.py:1128
+testbench/grpc_server.py:1188
+testbench/grpc_server.py:1191
+testbench/grpc_server.py:1193
+testbench/grpc_server.py:1196
 testbench/grpc_server.py:1199
-testbench/grpc_server.py:1229
-# grpc_server.py:531 (ComposeObject) and :1076 (single-shot Rewrite) now
+testbench/grpc_server.py:1218
+testbench/grpc_server.py:1248
+# grpc_server.py:550 (ComposeObject) and :1095 (single-shot Rewrite) now
 # accumulate via `BytesMedia().append(src.media.to_bytes())` (Task 9); the
-# `.to_bytes()` is Plan 5's explicit escape hatch. grpc_server.py:1174 is the
+# `.to_bytes()` is Plan 5's explicit escape hatch. grpc_server.py:1193 is the
 # incremental-rewrite `rewrite.media.append(...)` statement, which black wraps
-# across :1174-:1176 -- coverage attributes the whole statement to its opening
-# line :1174, so the appended `src_object.media[...]` slice on :1175 is covered
+# across :1193-:1195 -- coverage attributes the whole statement to its opening
+# line :1193, so the appended `src_object.media[...]` slice on :1194 is covered
 # there and is not listed separately.
-# UNCOVERED testbench/grpc_server.py:631 -- broken-stream fault chunk in ReadObject's chunks() loop; the trace injects no broken-stream fault on a gRPC read
-# UNCOVERED testbench/grpc_server.py:669 -- broken-stream fault chunk on ReadObject's trailing empty response; needs a 0-byte or exact-size-multiple read combined with a broken-stream fault, which the trace never does
-# UNCOVERED testbench/grpc_server.py:764 -- negative read_offset in BidiReadObject; the trace uses no negative offset on a bidi read
-# UNCOVERED testbench/grpc_server.py:1105 -- resumable-but-unfinished WriteObject early return; the trace's WriteObject always sets finish_write
+# UNCOVERED testbench/grpc_server.py:650 -- broken-stream fault chunk in ReadObject's chunks() loop; the trace injects no broken-stream fault on a gRPC read
+# UNCOVERED testbench/grpc_server.py:688 -- broken-stream fault chunk on ReadObject's trailing empty response; needs a 0-byte or exact-size-multiple read combined with a broken-stream fault, which the trace never does
+# UNCOVERED testbench/grpc_server.py:783 -- negative read_offset in BidiReadObject; the trace uses no negative offset on a bidi read
+# UNCOVERED testbench/grpc_server.py:1124 -- resumable-but-unfinished WriteObject early return; the trace's WriteObject always sets finish_write
 
 # --- testbench/rest_server.py ---
+# Line numbers re-pinned after Task 3 routed bucket mutations through
+# do_update_bucket, which inserted lines above these media sites; the sites
+# themselves are unchanged (content-verified). :87 precedes the edits.
 testbench/rest_server.py:87
-testbench/rest_server.py:660
-testbench/rest_server.py:710
-testbench/rest_server.py:779
-testbench/rest_server.py:781
-testbench/rest_server.py:786
-testbench/rest_server.py:787
-testbench/rest_server.py:790
-testbench/rest_server.py:791
-testbench/rest_server.py:800
-testbench/rest_server.py:1031
-testbench/rest_server.py:1048
-testbench/rest_server.py:1078
-testbench/rest_server.py:1100
-testbench/rest_server.py:1213
-testbench/rest_server.py:1214
-testbench/rest_server.py:1225
-# UNCOVERED testbench/rest_server.py:1106 -- finalize a chunked resumable upload via a `bytes */N` PUT matching persisted size; the trace does not finalize on this branch
-# UNCOVERED testbench/rest_server.py:1218 -- non-Content-Range simple-upload completion; the trace's resumable uploads always send a Content-Range
+testbench/rest_server.py:721
+testbench/rest_server.py:771
+testbench/rest_server.py:840
+testbench/rest_server.py:842
+testbench/rest_server.py:847
+testbench/rest_server.py:848
+testbench/rest_server.py:851
+testbench/rest_server.py:852
+testbench/rest_server.py:861
+testbench/rest_server.py:1092
+testbench/rest_server.py:1109
+testbench/rest_server.py:1139
+testbench/rest_server.py:1161
+testbench/rest_server.py:1274
+testbench/rest_server.py:1275
+testbench/rest_server.py:1286
+# UNCOVERED testbench/rest_server.py:1167 -- finalize a chunked resumable upload via a `bytes */N` PUT matching persisted size; the trace does not finalize on this branch
+# UNCOVERED testbench/rest_server.py:1279 -- non-Content-Range simple-upload completion; the trace's resumable uploads always send a Content-Range
 
 # --- testbench/common.py (fault-injection append helpers) ---
 # UNCOVERED testbench/common.py:994 -- handle_stall_uploads_after_bytes; the trace injects no stall-after-bytes fault
