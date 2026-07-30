@@ -24,6 +24,7 @@ asserted explicitly.
 
 import datetime
 import json
+import os
 import unittest
 import unittest.mock
 
@@ -650,6 +651,11 @@ class TestObjectAndBucketNamesAreUnvalidatedCallerInput(unittest.TestCase):
             store.calls,
         )
 
+    @unittest.skipIf(
+        os.name == "nt",
+        "FileStore is POSIX-only (openat/O_NOFOLLOW/dir_fd); the file backend "
+        "is out of scope on Windows, so this construction raises there.",
+    )
     def test_filestore_rejects_dotted_traversal_bucket_name(self):
         # The file backend's own validation is the ONLY check (spec Security
         # rule 4): FileStore.validate_bucket_name fires pre-commit from
