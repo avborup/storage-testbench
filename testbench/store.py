@@ -151,6 +151,20 @@ class Store:
     def folder_renamed(self, src_folder_name, dst_folder_name, folder):
         """A managed folder was renamed."""
 
+    def bucket_updated(self, bucket):
+        """Bucket metadata changed in place (PUT/PATCH, ACL, defaultObjectAcl,
+        setIamPolicy, lockRetentionPolicy, gRPC UpdateBucket). A persistent
+        store re-serializes bucket.json. Idempotent: routing that reaches here
+        without a net change is acceptable."""
+
+    def validate_bucket_name(self, name, context=None):
+        """Pre-commit hook: reject a bucket name BEFORE Database commits it, so
+        a rejection is a clean 4xx (REST) / INVALID_ARGUMENT (gRPC) rather than
+        a post-commit 500 that leaves index and disk divergent. `name` is
+        proto-form; `context` is the gRPC servicer context (None on REST) so
+        the rejection aborts with the correct status on both transports. No-op
+        here; FileStore enforces spec Security rules 2/4."""
+
     def cleared(self):
         """All resources were dropped, as in `Database.clear()`."""
 

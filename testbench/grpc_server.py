@@ -371,12 +371,17 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
                 context=ctx,
             )
 
-        bucket = self.db.get_bucket(
-            request.bucket, context, preconditions=[precondition]
-        )
-        bucket.metadata.retention_policy.is_locked = True
-        bucket.metadata.retention_policy.effective_time.FromDatetime(
-            datetime.datetime.now()
+        def _lock(bucket):
+            bucket.metadata.retention_policy.is_locked = True
+            bucket.metadata.retention_policy.effective_time.FromDatetime(
+                datetime.datetime.now()
+            )
+
+        bucket = self.db.do_update_bucket(
+            request.bucket,
+            update_fn=_lock,
+            context=context,
+            preconditions=[precondition],
         )
         return bucket.metadata
 
@@ -387,8 +392,11 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
 
     @retry_test(method="storage.buckets.setIamPolicy")
     def SetIamPolicy(self, request, context):
-        bucket = self.db.get_bucket(request.resource, context)
-        bucket.set_iam_policy(request, context)
+        bucket = self.db.do_update_bucket(
+            request.resource,
+            update_fn=lambda b: b.set_iam_policy(request, context),
+            context=context,
+        )
         return bucket.iam_policy
 
     @retry_test(method="storage.buckets.testIamPermissions")
@@ -449,33 +457,44 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
                 "UpdateBucket() invalid field for Bucket [%s]" % ",".join(mask.paths),
                 context,
             )
-        bucket = self.db.get_bucket(
+        # mask, updated_labels, removed_label_keys, replace_labels are all
+        # precomputed above (before the lock) so an invalid mask errors early.
+        # The mutation body moves verbatim into _apply so every bucket mutator
+        # funnels through Database.do_update_bucket -> bucket_updated. `now` is
+        # bound inside _apply so the update timestamp is taken at mutation time,
+        # under the lock.
+        def _apply(bucket):
+            now = datetime.datetime.now()
+            mask.MergeMessage(request.bucket, bucket.metadata)
+            if "acl" in request.update_mask.paths:
+                del bucket.metadata.acl[:]
+                bucket.metadata.acl.extend(request.bucket.acl)
+            if "autoclass" in request.update_mask.paths:
+                bucket.metadata.autoclass.toggle_time.FromDatetime(now)
+            if "default_object_acl" in request.update_mask.paths:
+                del bucket.metadata.default_object_acl[:]
+                bucket.metadata.default_object_acl.extend(
+                    request.bucket.default_object_acl
+                )
+            if replace_labels:
+                bucket.metadata.labels.clear()
+                bucket.metadata.labels.update(request.bucket.labels)
+            else:
+                bucket.metadata.labels.update(updated_labels)
+                for k in removed_label_keys:
+                    bucket.metadata.labels.pop(k, None)
+            if "soft_delete_policy" in request.update_mask.paths:
+                gcs.bucket.Bucket.validate_soft_delete_policy(bucket.metadata, context)
+                bucket.metadata.soft_delete_policy.effective_time.FromDatetime(now)
+            bucket.metadata.metageneration += 1
+            bucket.metadata.update_time.FromDatetime(now)
+
+        bucket = self.db.do_update_bucket(
             request.bucket.name,
-            context,
+            update_fn=_apply,
+            context=context,
             preconditions=testbench.common.make_grpc_bucket_preconditions(request),
         )
-        mask.MergeMessage(request.bucket, bucket.metadata)
-        if "acl" in request.update_mask.paths:
-            del bucket.metadata.acl[:]
-            bucket.metadata.acl.extend(request.bucket.acl)
-        now = datetime.datetime.now()
-        if "autoclass" in request.update_mask.paths:
-            bucket.metadata.autoclass.toggle_time.FromDatetime(now)
-        if "default_object_acl" in request.update_mask.paths:
-            del bucket.metadata.default_object_acl[:]
-            bucket.metadata.default_object_acl.extend(request.bucket.default_object_acl)
-        if replace_labels:
-            bucket.metadata.labels.clear()
-            bucket.metadata.labels.update(request.bucket.labels)
-        else:
-            bucket.metadata.labels.update(updated_labels)
-            for k in removed_label_keys:
-                bucket.metadata.labels.pop(k, None)
-        if "soft_delete_policy" in request.update_mask.paths:
-            gcs.bucket.Bucket.validate_soft_delete_policy(bucket.metadata, context)
-            bucket.metadata.soft_delete_policy.effective_time.FromDatetime(now)
-        bucket.metadata.metageneration += 1
-        bucket.metadata.update_time.FromDatetime(now)
         return bucket.metadata
 
     @retry_test(method="storage.objects.compose")

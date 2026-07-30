@@ -97,6 +97,12 @@ class RecordingStore(Store):
     def object_purged(self, bucket_name, object_name, generation):
         self.calls.append(("object_purged", bucket_name, object_name, generation))
 
+    def bucket_updated(self, bucket):
+        self.calls.append(("bucket_updated", bucket.metadata.name))
+
+    def validate_bucket_name(self, name, context=None):
+        self.calls.append(("validate_bucket_name", name))
+
     def folder_inserted(self, folder_name, folder):
         self.calls.append(("folder_inserted", folder_name))
 
@@ -207,7 +213,10 @@ class TestStoreContract(unittest.TestCase):
         self.store.calls.clear()
         with self.assertRaises(Exception):
             self.db.insert_bucket(_make_bucket("bucket-name"), None)
-        self.assertEqual([], self.store.calls)
+        # A rejected duplicate still runs the pre-commit validate_bucket_name
+        # hook (it fires before the duplicate check), but must NOT fire the
+        # bucket_inserted mutation notification -- nothing was committed.
+        self.assertEqual([], [c for c in self.store.calls if c[0] == "bucket_inserted"])
 
     def test_delete_bucket_notifies(self):
         self.db.insert_bucket(_make_bucket("bucket-name"), None)
@@ -308,11 +317,17 @@ class TestStoreContract(unittest.TestCase):
             ],
         )
 
-    def test_restore_object_notifies_via_object_inserted_only(self):
-        # Finding 1: a restore is an insert of the same blob at a new
-        # generation from a persistence standpoint, so it must notify
-        # `object_inserted` and nothing else -- specifically not a second,
-        # duplicate event for the same generation.
+    def test_restore_object_notifies_object_inserted_then_purges_original(self):
+        # Finding 1: a restore is an insert of the same blob at a NEW
+        # generation from a persistence standpoint, so it notifies
+        # `object_inserted` for that new generation -- specifically not a
+        # second, duplicate event for the same new generation. It then fires a
+        # single `object_purged` for the ORIGINAL soft-deleted generation (the
+        # `generation` argument): the restore leaves a stale on-disk copy in
+        # the soft-deleted set, and this is the one reconciliation signal that
+        # lets a FileStore drop it. The two events target different
+        # generations, so this is not the duplicate-for-the-same-generation
+        # case the docstring warns against.
         bucket = _make_soft_delete_bucket("soft-bkt")
         self.db.insert_bucket(bucket, None)
         blob = _make_object(bucket, "o.txt")
@@ -331,7 +346,13 @@ class TestStoreContract(unittest.TestCase):
                     "projects/_/buckets/soft-bkt",
                     "o.txt",
                     restored.metadata.generation,
-                )
+                ),
+                (
+                    "object_purged",
+                    "projects/_/buckets/soft-bkt",
+                    "o.txt",
+                    original_generation,
+                ),
             ],
             self.store.calls,
         )
@@ -387,6 +408,68 @@ class TestStoreContract(unittest.TestCase):
     def test_clear_notifies(self):
         self.db.clear()
         self.assertIn(("cleared",), self.store.calls)
+
+
+class TestBucketUpdatedSeam(unittest.TestCase):
+    def _routes_bucket_updated(self, mutate):
+        store = RecordingStore()
+        db = testbench.database.Database.init(store=store)
+        bucket = _make_bucket("bucket-name")
+        db.insert_bucket(bucket, None)
+        store.calls.clear()
+        # REST-style call: a short bucket name with context=None, which
+        # do_update_bucket -> get_bucket resolves to proto form. (Passing an
+        # already-proto-form name with context=None would double-prefix via
+        # bucket_name_to_proto -- see store.py's docstring.)
+        db.do_update_bucket("bucket-name", update_fn=mutate, context=None)
+        return [c for c in store.calls if c[0] == "bucket_updated"]
+
+    def test_do_update_bucket_notifies_exactly_once(self):
+        seen = self._routes_bucket_updated(
+            lambda b: setattr(b.metadata, "metageneration", 7)
+        )
+        self.assertEqual([("bucket_updated", "projects/_/buckets/bucket-name")], seen)
+
+    def test_insert_bucket_validates_name_before_commit(self):
+        store = RecordingStore()
+        db = testbench.database.Database.init(store=store)
+        db.insert_bucket(_make_bucket("bucket-name"), None)
+        self.assertEqual(
+            store.calls[0],
+            ("validate_bucket_name", "projects/_/buckets/bucket-name"),
+        )
+        self.assertEqual(store.calls[1][0], "bucket_inserted")
+
+
+class TestBucketUpdatedViaRest(unittest.TestCase):
+    """The REST bucket_patch route must funnel through do_update_bucket so a
+    Store observes the mutation. Driven through the real REST entry point (not
+    by calling do_update_bucket directly), so un-routing bucket_patch back to a
+    direct bucket.patch() makes this fail -- the mutation-check for the
+    reroute, since the conformance traces exercise bucket_patch but not with a
+    RecordingStore.
+    """
+
+    def setUp(self):
+        self.store = RecordingStore()
+        self._original_rest_db = rest_server.db
+        rest_server.db = testbench.database.Database.init(store=self.store)
+        rest_server.db.insert_bucket(_make_bucket("bucket-name"), None)
+        self.client = rest_server.server.test_client()
+
+    def tearDown(self):
+        rest_server.db = self._original_rest_db
+
+    def test_bucket_patch_notifies_bucket_updated(self):
+        self.store.calls.clear()
+        response = self.client.patch(
+            "/storage/v1/b/bucket-name",
+            data=json.dumps({"labels": {"colour": "blue"}}),
+        )
+        self.assertEqual(200, response.status_code)
+        self.assertIn(
+            ("bucket_updated", "projects/_/buckets/bucket-name"), self.store.calls
+        )
 
 
 class _CapturingObjectUpdatedStore(Store):

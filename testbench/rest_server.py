@@ -250,12 +250,13 @@ def bucket_get(bucket_name):
 @retry_test(method="storage.buckets.update")
 def bucket_update(bucket_name):
     db.insert_test_bucket()
-    bucket = db.get_bucket(
+    request = flask.request
+    bucket = db.do_update_bucket(
         bucket_name,
-        None,
-        preconditions=testbench.common.make_json_bucket_preconditions(flask.request),
+        update_fn=lambda b: b.update(request, None),
+        context=None,
+        preconditions=testbench.common.make_json_bucket_preconditions(request),
     )
-    bucket.update(flask.request, None)
     projection = testbench.common.extract_projection(flask.request, "full", None)
     fields = flask.request.args.get("fields", None)
     return testbench.common.filter_response_rest(bucket.rest(), projection, fields)
@@ -265,12 +266,13 @@ def bucket_update(bucket_name):
 @retry_test(method="storage.buckets.patch")
 def bucket_patch(bucket_name):
     testbench.common.enforce_patch_override(flask.request)
-    bucket = db.get_bucket(
+    request = flask.request
+    bucket = db.do_update_bucket(
         bucket_name,
-        None,
-        preconditions=testbench.common.make_json_bucket_preconditions(flask.request),
+        update_fn=lambda b: b.patch(request, None),
+        context=None,
+        preconditions=testbench.common.make_json_bucket_preconditions(request),
     )
-    bucket.patch(flask.request, None)
     projection = testbench.common.extract_projection(flask.request, "full", None)
     fields = flask.request.args.get("fields", None)
     return testbench.common.filter_response_rest(bucket.rest(), projection, fields)
@@ -308,9 +310,16 @@ def bucket_acl_list(bucket_name):
 @gcs.route("/b/<bucket_name>/acl", methods=["POST"])
 @retry_test(method="storage.bucket_acl.insert")
 def bucket_acl_insert(bucket_name):
-    bucket = db.get_bucket(bucket_name, None)
-    acl = bucket.insert_acl(flask.request, None)
-    response = testbench.proto2rest.bucket_access_control_as_rest(bucket_name, acl)
+    request = flask.request
+    holder = {}
+    db.do_update_bucket(
+        bucket_name,
+        update_fn=lambda b: holder.__setitem__("acl", b.insert_acl(request, None)),
+        context=None,
+    )
+    response = testbench.proto2rest.bucket_access_control_as_rest(
+        bucket_name, holder["acl"]
+    )
     fields = flask.request.args.get("fields", None)
     return testbench.common.filter_response_rest(response, None, fields)
 
@@ -328,9 +337,18 @@ def bucket_acl_get(bucket_name, entity):
 @gcs.route("/b/<bucket_name>/acl/<entity>", methods=["PUT"])
 @retry_test(method="storage.bucket_acl.update")
 def bucket_acl_update(bucket_name, entity):
-    bucket = db.get_bucket(bucket_name, None)
-    acl = bucket.update_acl(flask.request, entity, None)
-    response = testbench.proto2rest.bucket_access_control_as_rest(bucket_name, acl)
+    request = flask.request
+    holder = {}
+    db.do_update_bucket(
+        bucket_name,
+        update_fn=lambda b: holder.__setitem__(
+            "acl", b.update_acl(request, entity, None)
+        ),
+        context=None,
+    )
+    response = testbench.proto2rest.bucket_access_control_as_rest(
+        bucket_name, holder["acl"]
+    )
     fields = flask.request.args.get("fields", None)
     return testbench.common.filter_response_rest(response, None, fields)
 
@@ -339,9 +357,18 @@ def bucket_acl_update(bucket_name, entity):
 @retry_test(method="storage.bucket_acl.patch")
 def bucket_acl_patch(bucket_name, entity):
     testbench.common.enforce_patch_override(flask.request)
-    bucket = db.get_bucket(bucket_name, None)
-    acl = bucket.patch_acl(flask.request, entity, None)
-    response = testbench.proto2rest.bucket_access_control_as_rest(bucket_name, acl)
+    request = flask.request
+    holder = {}
+    db.do_update_bucket(
+        bucket_name,
+        update_fn=lambda b: holder.__setitem__(
+            "acl", b.patch_acl(request, entity, None)
+        ),
+        context=None,
+    )
+    response = testbench.proto2rest.bucket_access_control_as_rest(
+        bucket_name, holder["acl"]
+    )
     fields = flask.request.args.get("fields", None)
     return testbench.common.filter_response_rest(response, None, fields)
 
@@ -349,8 +376,11 @@ def bucket_acl_patch(bucket_name, entity):
 @gcs.route("/b/<bucket_name>/acl/<entity>", methods=["DELETE"])
 @retry_test(method="storage.bucket_acl.delete")
 def bucket_acl_delete(bucket_name, entity):
-    bucket = db.get_bucket(bucket_name, None)
-    bucket.delete_acl(entity, None)
+    db.do_update_bucket(
+        bucket_name,
+        update_fn=lambda b: b.delete_acl(entity, None),
+        context=None,
+    )
     return flask.make_response("")
 
 
@@ -372,10 +402,17 @@ def bucket_default_object_acl_list(bucket_name):
 @gcs.route("/b/<bucket_name>/defaultObjectAcl", methods=["POST"])
 @retry_test(method="storage.default_object_acl.insert")
 def bucket_default_object_acl_insert(bucket_name):
-    bucket = db.get_bucket(bucket_name, None)
-    acl = bucket.insert_default_object_acl(flask.request, None)
+    request = flask.request
+    holder = {}
+    db.do_update_bucket(
+        bucket_name,
+        update_fn=lambda b: holder.__setitem__(
+            "acl", b.insert_default_object_acl(request, None)
+        ),
+        context=None,
+    )
     response = testbench.proto2rest.default_object_access_control_as_rest(
-        bucket_name, acl
+        bucket_name, holder["acl"]
     )
     fields = flask.request.args.get("fields", None)
     return testbench.common.filter_response_rest(response, None, fields)
@@ -396,10 +433,17 @@ def bucket_default_object_acl_get(bucket_name, entity):
 @gcs.route("/b/<bucket_name>/defaultObjectAcl/<entity>", methods=["PUT"])
 @retry_test(method="storage.default_object_acl.update")
 def bucket_default_object_acl_update(bucket_name, entity):
-    bucket = db.get_bucket(bucket_name, None)
-    acl = bucket.update_default_object_acl(flask.request, entity, None)
+    request = flask.request
+    holder = {}
+    db.do_update_bucket(
+        bucket_name,
+        update_fn=lambda b: holder.__setitem__(
+            "acl", b.update_default_object_acl(request, entity, None)
+        ),
+        context=None,
+    )
     response = testbench.proto2rest.default_object_access_control_as_rest(
-        bucket_name, acl
+        bucket_name, holder["acl"]
     )
     fields = flask.request.args.get("fields", None)
     return testbench.common.filter_response_rest(response, None, fields)
@@ -409,10 +453,17 @@ def bucket_default_object_acl_update(bucket_name, entity):
 @retry_test(method="storage.default_object_acl.patch")
 def bucket_default_object_acl_patch(bucket_name, entity):
     testbench.common.enforce_patch_override(flask.request)
-    bucket = db.get_bucket(bucket_name, None)
-    acl = bucket.patch_default_object_acl(flask.request, entity, None)
+    request = flask.request
+    holder = {}
+    db.do_update_bucket(
+        bucket_name,
+        update_fn=lambda b: holder.__setitem__(
+            "acl", b.patch_default_object_acl(request, entity, None)
+        ),
+        context=None,
+    )
     response = testbench.proto2rest.default_object_access_control_as_rest(
-        bucket_name, acl
+        bucket_name, holder["acl"]
     )
     fields = flask.request.args.get("fields", None)
     return testbench.common.filter_response_rest(response, None, fields)
@@ -421,8 +472,11 @@ def bucket_default_object_acl_patch(bucket_name, entity):
 @gcs.route("/b/<bucket_name>/defaultObjectAcl/<entity>", methods=["DELETE"])
 @retry_test(method="storage.default_object_acl.delete")
 def bucket_default_object_acl_delete(bucket_name, entity):
-    bucket = db.get_bucket(bucket_name, None)
-    bucket.delete_default_object_acl(entity, None)
+    db.do_update_bucket(
+        bucket_name,
+        update_fn=lambda b: b.delete_default_object_acl(entity, None),
+        context=None,
+    )
     return flask.make_response("")
 
 
@@ -469,8 +523,12 @@ def bucket_get_iam_policy(bucket_name):
 @retry_test(method="storage.buckets.setIamPolicy")
 def bucket_set_iam_policy(bucket_name):
     db.insert_test_bucket()
-    bucket = db.get_bucket(bucket_name, None)
-    bucket.set_iam_policy(flask.request, None)
+    request = flask.request
+    bucket = db.do_update_bucket(
+        bucket_name,
+        update_fn=lambda b: b.set_iam_policy(request, None),
+        context=None,
+    )
     response = json_format.MessageToDict(bucket.iam_policy)
     response["kind"] = "storage#policy"
     return response
@@ -488,14 +546,17 @@ def bucket_test_iam_permissions(bucket_name):
 @gcs.route("/b/<bucket_name>/lockRetentionPolicy", methods=["POST"])
 @retry_test(method="storage.buckets.lockRetentionPolicy")
 def bucket_lock_retention_policy(bucket_name):
-    bucket = db.get_bucket(
+    def _lock(bucket):
+        bucket.metadata.retention_policy.is_locked = True
+        bucket.metadata.retention_policy.effective_time.FromDatetime(
+            datetime.datetime.now()
+        )
+
+    bucket = db.do_update_bucket(
         bucket_name,
+        update_fn=_lock,
         context=None,
         preconditions=testbench.common.make_json_bucket_preconditions(flask.request),
-    )
-    bucket.metadata.retention_policy.is_locked = True
-    bucket.metadata.retention_policy.effective_time.FromDatetime(
-        datetime.datetime.now()
     )
     return bucket.rest()
 

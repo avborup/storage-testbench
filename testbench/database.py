@@ -119,6 +119,7 @@ class Database:
 
     def insert_bucket(self, bucket, context):
         with self._resources_lock:
+            self._store.validate_bucket_name(bucket.metadata.name, context)
             if bucket.metadata.name in self._buckets:
                 return testbench.error.already_exists(context)
             self._buckets[bucket.metadata.name] = bucket
@@ -597,6 +598,23 @@ class Database:
                 )
             return result
 
+    def do_update_bucket(
+        self, bucket_name, *, update_fn, context=None, preconditions=[]
+    ):
+        # Mirrors do_update_object: notify unconditionally after update_fn.
+        # Every bucket-metadata mutator (REST bucket PUT/PATCH, bucket ACL,
+        # defaultObjectAcl, setIamPolicy, lockRetentionPolicy; gRPC
+        # UpdateBucket/LockBucketRetentionPolicy/SetIamPolicy) funnels here so
+        # a Store observes bucket changes -- previously they bypassed Database
+        # entirely (spec carried-forward defect).
+        with self._resources_lock:
+            bucket = self.get_bucket(bucket_name, context, preconditions)
+            if bucket is None:
+                return None
+            update_fn(bucket)
+            self._store.bucket_updated(bucket)
+            return bucket
+
     def restore_object(
         self,
         bucket_name: str,
@@ -636,6 +654,16 @@ class Database:
                 # from a persistence standpoint, so no separate notification
                 # is fired here (see `Store.object_inserted`'s docstring).
                 self.insert_object(bucket_name, blob, context, preconditions)
+                # The restored generation left a stale copy in the
+                # soft-deleted set on disk; Database drops it in memory, and now
+                # also signals object_purged for the ORIGINAL generation so a
+                # FileStore removes .gcs/soft_deleted/<generation>. This is the
+                # SINGLE reconciliation mechanism for restore (see Task 7: no
+                # duplicate cleanup in object_inserted). No-op on NullStore ->
+                # zero memory diff.
+                self._store.object_purged(
+                    self.__bucket_key(bucket_name, context), object_name, generation
+                )
                 self.__remove_restored_soft_deleted_object(
                     bucket_name, object_name, generation, context
                 )
