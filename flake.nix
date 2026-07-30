@@ -56,6 +56,7 @@
                 && "$VENV/bin/pip" install --quiet -e . \
                 && "$VENV/bin/pip" install --quiet \
                      pytest pytest-cov coverage requests \
+                     "hypothesis<6.113" \
                      black==22.3.0 isort==5.12.0 \
                 && echo "$want" > "$stamp"
             fi
