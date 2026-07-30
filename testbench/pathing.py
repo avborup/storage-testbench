@@ -17,6 +17,22 @@ RESERVED_SUFFIX = ".gcsmeta"
 
 
 def validate_bucket_name(name):
+    """The file backend's SOLE bucket-name check (spec Security rule 4).
+
+    Load-bearing clauses: `_BUCKET_RE` (the char-class regex) and the `goog`
+    reservation. Each is individually mutation-killable (drop the regex and
+    "Upper" is wrongly accepted; drop the goog clause and "goog-x" is wrongly
+    accepted).
+
+    The earlier explicit clauses (NUL / leading-slash / "."/".." / traversal
+    segment / slash / length) are INTENTIONAL defense-in-depth: they give a
+    precise error and remain a backstop should `_BUCKET_RE` ever be relaxed.
+    They are *equivalent mutants* today -- fully subsumed by `_BUCKET_RE`
+    (which rejects any "/", uppercase, out-of-range length via {1,61}+anchors,
+    NUL, and leading/trailing dot), so deleting one does not fail a test. That
+    is by design, not a vacuous guard; see the plan's Task-4 Step-5 note and the
+    "Mutation-check every guard clause" constraint's defense-in-depth carve-out.
+    """
     if "\x00" in name or name.startswith("/") or name in (".", ".."):
         raise ValueError("illegal bucket name %r" % name)
     for part in name.split("/"):

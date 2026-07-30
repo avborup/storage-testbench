@@ -76,10 +76,21 @@ def write_bytes_atomic(dir_fd, name, data):
 
 
 def constrained_rmtree(path, root, index_names):
+    # Three load-bearing guards, each independently mutation-killable: the
+    # direct-child parent check, the islink/isdir real-directory check, and the
+    # index-membership check. A caller must satisfy all three before any
+    # removal happens.
+    #
+    # `realpath` (not string `normpath`) on the parent check is intentional
+    # defense-in-depth. In this codebase it is an EQUIVALENT MUTANT vs normpath
+    # -- FileStore.__init__ pre-canonicalizes its root and the islink guard
+    # already rejects a symlinked final component, so no reachable call can make
+    # realpath and normpath disagree here (which is why the normpath mutation
+    # survives; that is by design, not a vacuous guard). It stays as a backstop
+    # against a future caller that passes a non-canonical root or reorders the
+    # guards. See the plan's Task-5 Step-5 note.
     if not os.path.lexists(path):
         return  # defensive teardown: already gone (spec Test-isolation)
-    # realpath (not string normpath) so a symlinked component cannot make an
-    # out-of-root target look like a direct child of root.
     real = os.path.realpath(path)
     if os.path.dirname(real) != os.path.realpath(root):
         raise PermissionError(
