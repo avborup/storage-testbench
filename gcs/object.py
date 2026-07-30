@@ -31,7 +31,7 @@ from google.protobuf import field_mask_pb2, json_format
 import testbench
 import testbench.common
 from google.storage.v2 import storage_pb2
-from testbench.media import BytesMedia
+from testbench.media import BytesMedia, Media
 
 # Lock to prevent race condition while generating metadata versions:
 _GENERATION_LOCK = threading.Lock()
@@ -88,7 +88,7 @@ class Object:
 
     def __init__(self, metadata, media, bucket, *, upload=None, upload_gen=0):
         self.metadata = metadata
-        self.media = media if isinstance(media, BytesMedia) else BytesMedia(media)
+        self.media = media if isinstance(media, Media) else BytesMedia(media)
         self.bucket = bucket
         self.upload = upload
         self.upload_gen = upload_gen
@@ -126,7 +126,7 @@ class Object:
         instruction = testbench.common.extract_instruction(request, context)
         if instruction == "inject-upload-data-error":
             media = testbench.common.corrupt_media(media)
-        media = media if isinstance(media, BytesMedia) else BytesMedia(media)
+        media = media if isinstance(media, Media) else BytesMedia(media)
         timestamp = datetime.datetime.now(datetime.timezone.utc)
         metadata.bucket = bucket.name
         metadata.generation = make_generation()

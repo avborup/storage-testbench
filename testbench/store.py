@@ -165,6 +165,22 @@ class Store:
         the rejection aborts with the correct status on both transports. No-op
         here; FileStore enforces spec Security rules 2/4."""
 
+    def new_upload_media(self, bucket_name, upload_id):
+        """Construct the Media an Upload accumulates into. bucket_name is
+        proto-form. Base returns BytesMedia so the memory backend is
+        byte-identical; FileStore opens an O_APPEND staging file under
+        <bucket>/.gcs/uploads/<upload_id> through containment."""
+        from testbench.media import BytesMedia
+
+        return BytesMedia(b"")
+
+    def new_staging_media(self, bucket_name, token):
+        """Construct a staging Media for compose/rewrite/move destinations.
+        Base returns BytesMedia; FileStore stages under .gcs/uploads/<token>."""
+        from testbench.media import BytesMedia
+
+        return BytesMedia(b"")
+
     def cleared(self):
         """All resources were dropped, as in `Database.clear()`."""
 

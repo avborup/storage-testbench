@@ -32,7 +32,16 @@ import io
 import crc32c
 
 
-class BytesMedia:
+class Media:
+    """Shared base for the two media backends. Exists only so the construction
+    choke-points (gcs/object.py) can widen their isinstance guard without gcs/
+    importing any file-backend code. BytesMedia is the memory impl; FileMedia
+    (this plan) is the FILE-backend impl. Defines no behaviour: the interface is
+    the duck surface (__len__/__getitem__/append/chunks/reader/crc32c/md5/
+    finalize/to_bytes) both subclasses implement."""
+
+
+class BytesMedia(Media):
     def __init__(self, initial=b""):
         self._buf = bytearray(initial)
         # Rolling checksums. Maintained incrementally so crc32c()/md5() are O(1)
