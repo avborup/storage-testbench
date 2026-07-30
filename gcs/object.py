@@ -489,51 +489,51 @@ class Object:
         # decompressive transcoding
         return not ("gzip" in request.headers.get("accept-encoding", ""))
 
-    def _download_range(self, request, response_payload):
+    def _download_range(self, request):
+        # Arithmetic range clamp: returns ``(begin, end, length)`` WITHOUT
+        # slicing the payload, so a ``FileMedia`` is never materialised just to
+        # compute a range. The clamps reproduce the pre-refactor slicing code
+        # byte-for-byte:
+        #   forward ``bytes=B-E`` -> begin=B, end=min(E+1, length)
+        #   open    ``bytes=B-``  -> begin=B, end=length
+        #   suffix  ``bytes=-N``  -> begin=length-N (may be negative), end=length
+        # The negative ``begin`` a suffix overflow (N>length) produces is
+        # preserved so ``Content-Range`` renders identically; the caller uses
+        # ``max(0, begin)`` when it needs a real offset.
+        length = len(self.media)
         range_header = request.headers.get("range")
-        length = len(response_payload)
-        if range_header is None or self._decompress_on_download(request):
-            return 0, length, length, response_payload
+        if range_header is None:
+            return 0, length, length
         begin = 0
         end = length
-        if range_header is not None:
-            m = re.match("bytes=([0-9]+)-([0-9]+)", range_header)
-            if m:
-                begin = int(m.group(1))
-                end = int(m.group(2)) + 1
-                response_payload = response_payload[begin:end]
-                # Ensure end is correct if the specified byte range was truncated.
-                end = begin + len(response_payload)
-            m = re.match("bytes=([0-9]+)-$", range_header)
-            if m:
-                begin = int(m.group(1))
-                response_payload = response_payload[begin:]
-            m = re.match("bytes=-([0-9]+)$", range_header)
-            if m:
-                last = int(m.group(1))
-                begin = end - last
-                response_payload = response_payload[-last:]
-        return begin, end, length, response_payload
+        m = re.match("bytes=([0-9]+)-([0-9]+)", range_header)
+        if m:
+            begin = int(m.group(1))
+            end = min(int(m.group(2)) + 1, length)
+        m = re.match("bytes=([0-9]+)-$", range_header)
+        if m:
+            begin = int(m.group(1))
+            end = length
+        m = re.match("bytes=-([0-9]+)$", range_header)
+        if m:
+            last = int(m.group(1))
+            begin = length - last
+            end = length
+        return begin, end, length
 
     def rest_media(self, request, delay=time.sleep):
         is_decompressive_transcode = self._decompress_on_download(request)
         if is_decompressive_transcode:
             with gzip.GzipFile(fileobj=self.media.reader(), mode="rb") as gz:
                 response_payload = gz.read()
+            begin, end, length = 0, len(response_payload), len(response_payload)
         else:
+            # The normal/ranged path never materialises: `response_payload` stays
+            # the object's Media, and the streamer below yields bounded chunks
+            # through `_stream_media`. `_download_range` clamps arithmetically.
             response_payload = self.media
+            begin, end, length = self._download_range(request)
         range_header = request.headers.get("range")
-        begin, end, length, response_payload = self._download_range(
-            request, response_payload
-        )
-        # `_download_range` only slices into real `bytes` when a range header
-        # is present; an unranged, non-decompressed request reaches here with
-        # `response_payload` still the object's `BytesMedia`. Everything below
-        # hands the payload to Werkzeug/WSGI response streaming, which -- like
-        # `gzip.decompress` above -- needs a genuine buffer-protocol `bytes`,
-        # not a `BytesMedia` wrapper.
-        if isinstance(response_payload, BytesMedia):
-            response_payload = response_payload.to_bytes()
         # Return 416 if the requested range cannot be satisfied.
         if range_header is not None and begin >= length:
             testbench.error.range_not_satisfiable()
@@ -542,6 +542,19 @@ class Object:
         content_range = "bytes %d-%d/%d" % (begin, end - 1, length)
 
         instructions = testbench.common.extract_instruction(request, None)
+        # The fault-injection / instruction streamers below index and slice
+        # `response_payload` as a concrete buffer, so materialise ANY Media
+        # (widened from the old BytesMedia-only guard so a FileMedia works too).
+        # These are small, trace-only objects and -- per trace_faults.py -- fire
+        # only on UNRANGED GETs (begin=0/end=length), so absolute indexing into
+        # the whole buffer stays correct. The normal/ranged path never reaches
+        # this branch and streams via `_stream_media` without materialising.
+        if (
+            instructions is not None
+            and not is_decompressive_transcode
+            and isinstance(response_payload, Media)
+        ):
+            response_payload = response_payload.to_bytes()
         if instructions is None:
 
             def streamer():
@@ -673,7 +686,17 @@ class Object:
             headers["Content-Type"] = "application/octet-stream"
 
         headers["x-goog-stored-content-length"] = self.metadata.size
-        headers["Content-Length"] = len(response_payload)
+        if is_decompressive_transcode:
+            # Transcode still materialises a `bytes` buffer (Task 7 streams it);
+            # its length is the decompressed size.
+            headers["Content-Length"] = len(response_payload)
+        else:
+            # Arithmetic Content-Length -- MUST be set before the streamer is
+            # returned or Werkzeug falls back to chunked transfer-encoding and
+            # flips `framing.mode`. `max(0, begin)` reproduces the whole-buffer
+            # length the pre-refactor suffix-overflow slice produced (a negative
+            # `begin` from `bytes=-N, N>length`).
+            headers["Content-Length"] = end - max(0, begin)
 
         if self.metadata.content_encoding:
             headers["x-goog-stored-content-encoding"] = self.metadata.content_encoding
