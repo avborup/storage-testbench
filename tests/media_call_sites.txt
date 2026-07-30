@@ -16,29 +16,29 @@
 # These are comments: the gate skips them, so they do not turn it red.
 
 # --- gcs/object.py ---
-gcs/object.py:68
-gcs/object.py:92
-gcs/object.py:130
+gcs/object.py:67
+gcs/object.py:91
+gcs/object.py:129
+gcs/object.py:135
 gcs/object.py:136
 gcs/object.py:137
-gcs/object.py:138
-gcs/object.py:522
-gcs/object.py:525
+gcs/object.py:521
+gcs/object.py:524
+gcs/object.py:535
 gcs/object.py:536
-gcs/object.py:537
-gcs/object.py:556
-# gcs/object.py:68 is `media.chunks(...)` in the module-level `_stream_media`
-# helper; gcs/object.py:556 is the `instructions is None` REST download streamer
+gcs/object.py:555
+# gcs/object.py:67 is `media.chunks(...)` in the module-level `_stream_media`
+# helper; gcs/object.py:555 is the `instructions is None` REST download streamer
 # passing `self.media` into it. Together they are the normal-download streaming
 # path added in Task 7 (single `yield response_payload` -> chunked generator).
-# gcs/object.py:130 is `Object.init`'s own media-wrap (`media if isinstance(...)
-# else BytesMedia(media)`) and :136 the size assignment that follows it -- the
+# gcs/object.py:129 is `Object.init`'s own media-wrap (`media if isinstance(...)
+# else BytesMedia(media)`) and :135 the size assignment that follows it -- the
 # classmethod every insert/compose/rewrite/finalize path uses to construct a
-# new Object. gcs/object.py:537 is the `isinstance(response_payload, BytesMedia)`
-# guard at :536 taking its `.to_bytes()` branch -- the Plan 5 escape hatch an
+# new Object. gcs/object.py:536 is the `isinstance(response_payload, BytesMedia)`
+# guard at :535 taking its `.to_bytes()` branch -- the Plan 5 escape hatch an
 # unranged, non-decompressed REST download hits before Werkzeug streaming.
-# UNCOVERED gcs/object.py:129 -- corrupt_media() call gated on the `inject-upload-data-error` instruction; the trace never sends that instruction into Object.init
-# UNCOVERED gcs/object.py:659 -- the default `else` REST download streamer's self.media access; the trace issues no download whose testbench instructions fall through to this branch
+# UNCOVERED gcs/object.py:128 -- corrupt_media() call gated on the `inject-upload-data-error` instruction; the trace never sends that instruction into Object.init
+# UNCOVERED gcs/object.py:658 -- the default `else` REST download streamer's self.media access; the trace issues no download whose testbench instructions fall through to this branch
 
 # --- gcs/upload.py ---
 gcs/upload.py:238
@@ -50,25 +50,25 @@ gcs/upload.py:556
 gcs/upload.py:574
 gcs/upload.py:589
 gcs/upload.py:591
-gcs/upload.py:631
-gcs/upload.py:670
-gcs/upload.py:688
-gcs/upload.py:689
+gcs/upload.py:642
+gcs/upload.py:683
+gcs/upload.py:701
+gcs/upload.py:702
 # UNCOVERED gcs/upload.py:239 -- partial-media resend branch (write_offset < persisted size); the gRPC write trace never re-sends already-persisted bytes
 # UNCOVERED gcs/upload.py:249 -- OUT_OF_RANGE abort (write_offset > persisted size); the trace never sends a gap-ahead offset
 # UNCOVERED gcs/upload.py:305 -- _insert_empty_appendable_object; the trace performs no appendable-object upload
 # UNCOVERED gcs/upload.py:552 -- partial-media resend branch, BidiWrite variant of :239
 # UNCOVERED gcs/upload.py:562 -- OUT_OF_RANGE abort, BidiWrite variant of :249
-# UNCOVERED gcs/upload.py:602 -- update_appendable_blob closure (checksummed_data flush); no appendable upload in the trace
-# UNCOVERED gcs/upload.py:603 -- same update_appendable_blob ternary as :602 (the BytesMedia-passthrough value); no appendable upload in the trace
-# UNCOVERED gcs/upload.py:604 -- same update_appendable_blob ternary as :602 (the isinstance condition); no appendable upload in the trace
-# UNCOVERED gcs/upload.py:605 -- same update_appendable_blob ternary as :602 (the BytesMedia-wrap else branch); no appendable upload in the trace
-# UNCOVERED gcs/upload.py:607 -- update_appendable_blob closure size assignment; no appendable upload in the trace
-# UNCOVERED gcs/upload.py:646 -- finalize_blob closure (appendable finalize); no appendable upload in the trace
-# UNCOVERED gcs/upload.py:647 -- same finalize_blob ternary as :646 (the BytesMedia-passthrough value); no appendable upload in the trace
-# UNCOVERED gcs/upload.py:648 -- same finalize_blob ternary as :646 (the isinstance condition); no appendable upload in the trace
-# UNCOVERED gcs/upload.py:649 -- same finalize_blob ternary as :646 (the BytesMedia-wrap else branch); no appendable upload in the trace
-# UNCOVERED gcs/upload.py:654 -- finalize_blob closure size assignment; no appendable upload in the trace
+# UNCOVERED gcs/upload.py:613 -- update_appendable_blob closure (checksummed_data flush); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:614 -- same update_appendable_blob ternary as :613 (the BytesMedia-passthrough value); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:615 -- same update_appendable_blob ternary as :613 (the isinstance condition); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:616 -- same update_appendable_blob ternary as :613 (the BytesMedia-wrap else branch); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:618 -- update_appendable_blob closure size assignment; no appendable upload in the trace
+# UNCOVERED gcs/upload.py:659 -- finalize_blob closure (appendable finalize); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:660 -- same finalize_blob ternary as :659 (the BytesMedia-passthrough value); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:661 -- same finalize_blob ternary as :659 (the isinstance condition); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:662 -- same finalize_blob ternary as :659 (the BytesMedia-wrap else branch); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:667 -- finalize_blob closure size assignment; no appendable upload in the trace
 
 # --- testbench/grpc_server.py ---
 testbench/grpc_server.py:531
@@ -101,24 +101,24 @@ testbench/grpc_server.py:1229
 
 # --- testbench/rest_server.py ---
 testbench/rest_server.py:87
-testbench/rest_server.py:655
-testbench/rest_server.py:703
-testbench/rest_server.py:772
-testbench/rest_server.py:774
-testbench/rest_server.py:776
-testbench/rest_server.py:777
-testbench/rest_server.py:780
+testbench/rest_server.py:660
+testbench/rest_server.py:710
+testbench/rest_server.py:779
 testbench/rest_server.py:781
+testbench/rest_server.py:786
+testbench/rest_server.py:787
 testbench/rest_server.py:790
-testbench/rest_server.py:1021
-testbench/rest_server.py:1038
-testbench/rest_server.py:1068
-testbench/rest_server.py:1090
-testbench/rest_server.py:1203
-testbench/rest_server.py:1204
-testbench/rest_server.py:1215
-# UNCOVERED testbench/rest_server.py:1096 -- finalize a chunked resumable upload via a `bytes */N` PUT matching persisted size; the trace does not finalize on this branch
-# UNCOVERED testbench/rest_server.py:1208 -- non-Content-Range simple-upload completion; the trace's resumable uploads always send a Content-Range
+testbench/rest_server.py:791
+testbench/rest_server.py:800
+testbench/rest_server.py:1031
+testbench/rest_server.py:1048
+testbench/rest_server.py:1078
+testbench/rest_server.py:1100
+testbench/rest_server.py:1213
+testbench/rest_server.py:1214
+testbench/rest_server.py:1225
+# UNCOVERED testbench/rest_server.py:1106 -- finalize a chunked resumable upload via a `bytes */N` PUT matching persisted size; the trace does not finalize on this branch
+# UNCOVERED testbench/rest_server.py:1218 -- non-Content-Range simple-upload completion; the trace's resumable uploads always send a Content-Range
 
 # --- testbench/common.py (fault-injection append helpers) ---
 # UNCOVERED testbench/common.py:994 -- handle_stall_uploads_after_bytes; the trace injects no stall-after-bytes fault

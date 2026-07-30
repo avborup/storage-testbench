@@ -624,6 +624,11 @@ def objects_compose(bucket_name, object_name):
             "The number of source components provided (%d > 32)" % len(source_objects),
             None,
         )
+    # Accumulated via BytesMedia's bytes-compat operators (bytes + BytesMedia
+    # uses __radd__) rather than the explicit .append(...to_bytes()) idiom used
+    # on the gRPC path: Plan 2 scoped the streaming migration to gRPC, this
+    # REST site still materializes the whole source and will move to explicit
+    # streaming with FileMedia in Plan 3.
     composed_media = b""
     for source_object in source_objects:
         source_object_name = source_object.get("name")
@@ -699,6 +704,8 @@ def objects_copy(src_bucket_name, src_object_name, dst_bucket_name, dst_object_n
     del dst_metadata.acl[:]
     dst_metadata.bucket = dst_bucket_name
     dst_metadata.name = dst_object_name
+    # Same BytesMedia bytes-compat operator surface as objects_compose above
+    # (__radd__/__iadd__); see the comment there re: Plan 3/FileMedia.
     dst_media = b""
     dst_media += src_object.media
     dst_object, _ = gcs_type.object.Object.init(
@@ -773,6 +780,9 @@ def objects_rewrite(src_bucket_name, src_object_name, dst_bucket_name, dst_objec
     total_bytes_rewritten += min(
         rewrite.max_bytes_rewritten_per_call, len(src_object.media) - len(rewrite.media)
     )
+    # Incremental accumulation via BytesMedia.__iadd__ (bytes-compat operator
+    # surface), not the explicit .append(...to_bytes()) idiom used on the gRPC
+    # path; see the comment in objects_compose re: Plan 3/FileMedia streaming.
     rewrite.media += src_object.media[len(rewrite.media) : total_bytes_rewritten]
     done, dst_object = total_bytes_rewritten == len(src_object.media), None
     response = {

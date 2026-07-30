@@ -25,7 +25,6 @@ import struct
 import threading
 import time
 
-import crc32c
 import flask
 from google.protobuf import field_mask_pb2, json_format
 

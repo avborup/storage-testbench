@@ -599,6 +599,17 @@ class Upload(types.SimpleNamespace):
                     update_upload_checksums(upload.metadata, object_checksums)
 
                     def update_appendable_blob(blob, unused_generation):
+                        # Upload.init always seeds BytesMedia(b""), so the isinstance
+                        # branch below is always true and blob.media becomes an ALIAS
+                        # to the same mutable BytesMedia object as upload.media, not a
+                        # snapshot copy. Pre-seam, upload.media was immutable bytes and
+                        # `upload.media += content` rebound the name, so blob.media ended
+                        # up as a frozen snapshot; now both names refer to one mutable
+                        # buffer. This is intentional and currently benign here: the
+                        # appendable path always checkpoints/flushes (see TODO(#592)
+                        # above) and there is no mid-upload read of blob.media. A
+                        # FileMedia backend with real staging/finalize (Plan 3) must
+                        # revisit whether a defensive copy is needed instead of aliasing.
                         blob.media = (
                             upload.media
                             if isinstance(upload.media, BytesMedia)
@@ -643,6 +654,8 @@ class Upload(types.SimpleNamespace):
             if is_appendable:
 
                 def finalize_blob(blob, unused_generation):
+                    # Same aliasing behavior as update_appendable_blob above (see the
+                    # comment there re: snapshot-vs-alias semantics and Plan 3/FileMedia).
                     blob.media = (
                         upload.media
                         if isinstance(upload.media, BytesMedia)
