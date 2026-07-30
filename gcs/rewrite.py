@@ -18,6 +18,7 @@ import types
 import uuid
 
 import testbench
+from testbench.media import BytesMedia
 
 
 class Rewrite(types.SimpleNamespace):
@@ -67,7 +68,7 @@ class Rewrite(types.SimpleNamespace):
             dst_bucket_name=dst_bucket_name,
             dst_object_name=dst_object_name,
             token=cls._token(),
-            media=b"",
+            media=BytesMedia(b""),
             max_bytes_rewritten_per_call=cls._normalize_max_bytes(
                 fake_request.args.get("maxBytesRewrittenPerCall")
             ),
@@ -120,7 +121,7 @@ class Rewrite(types.SimpleNamespace):
             dst_bucket_name=dst_bucket_name,
             dst_object_name=dst_object_name,
             token=cls._token(),
-            media=b"",
+            media=BytesMedia(b""),
             max_bytes_rewritten_per_call=cls._normalize_max_bytes(
                 request.max_bytes_rewritten_per_call
             ),

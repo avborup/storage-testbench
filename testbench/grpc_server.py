@@ -41,6 +41,7 @@ import testbench
 from google.iam.v1 import iam_policy_pb2
 from google.storage.control.v2 import storage_control_pb2, storage_control_pb2_grpc
 from google.storage.v2 import storage_pb2, storage_pb2_grpc
+from testbench.media import BytesMedia
 
 _GRPC_SERVER_THREAD_COUNT = 2
 
@@ -497,7 +498,7 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
                 % len(request.source_objects),
                 context,
             )
-        composed_media = b""
+        composed_media = BytesMedia()
         for source in request.source_objects:
             if len(source.name) == 0:
                 return testbench.error.missing("Name of source compose object", context)
@@ -527,7 +528,7 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
             )
             if source_blob is None:
                 return None
-            composed_media += source_blob.media
+            composed_media.append(source_blob.media.to_bytes())
 
             if request.delete_source_objects:
                 self.db.delete_object(
@@ -1071,8 +1072,8 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
         dst_metadata.CopyFrom(src_object.metadata)
         dst_metadata.bucket = request.bucket
         dst_metadata.name = request.destination_object
-        dst_media = b""
-        dst_media += src_object.media
+        dst_media = BytesMedia()
+        dst_media.append(src_object.media.to_bytes())
         dst_object, _ = gcs.object.Object.init(
             request, dst_metadata, dst_media, bucket, False, context, csek=False
         )
@@ -1170,7 +1171,9 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
             rewrite.max_bytes_rewritten_per_call,
             len(src_object.media) - len(rewrite.media),
         )
-        rewrite.media += src_object.media[len(rewrite.media) : total_bytes_rewritten]
+        rewrite.media.append(
+            src_object.media[len(rewrite.media) : total_bytes_rewritten]
+        )
         done, dst_object = total_bytes_rewritten == len(src_object.media), None
         response = storage_pb2.RewriteResponse(
             total_bytes_rewritten=total_bytes_rewritten,

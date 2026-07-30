@@ -55,26 +55,33 @@ gcs/upload.py:689
 # UNCOVERED gcs/upload.py:654 -- finalize_blob closure size assignment; no appendable upload in the trace
 
 # --- testbench/grpc_server.py ---
-testbench/grpc_server.py:530
-testbench/grpc_server.py:595
+testbench/grpc_server.py:531
 testbench/grpc_server.py:596
-testbench/grpc_server.py:604
-testbench/grpc_server.py:626
-testbench/grpc_server.py:764
-testbench/grpc_server.py:783
-testbench/grpc_server.py:1075
-testbench/grpc_server.py:1108
-testbench/grpc_server.py:1168
-testbench/grpc_server.py:1171
-testbench/grpc_server.py:1173
+testbench/grpc_server.py:597
+testbench/grpc_server.py:605
+testbench/grpc_server.py:627
+testbench/grpc_server.py:765
+testbench/grpc_server.py:784
+testbench/grpc_server.py:1076
+testbench/grpc_server.py:1109
+testbench/grpc_server.py:1169
+testbench/grpc_server.py:1172
 testbench/grpc_server.py:1174
 testbench/grpc_server.py:1177
-testbench/grpc_server.py:1196
-testbench/grpc_server.py:1226
-# UNCOVERED testbench/grpc_server.py:630 -- broken-stream fault chunk in ReadObject's chunks() loop; the trace injects no broken-stream fault on a gRPC read
-# UNCOVERED testbench/grpc_server.py:668 -- broken-stream fault chunk on ReadObject's trailing empty response; needs a 0-byte or exact-size-multiple read combined with a broken-stream fault, which the trace never does
-# UNCOVERED testbench/grpc_server.py:763 -- negative read_offset in BidiReadObject; the trace uses no negative offset on a bidi read
-# UNCOVERED testbench/grpc_server.py:1104 -- resumable-but-unfinished WriteObject early return; the trace's WriteObject always sets finish_write
+testbench/grpc_server.py:1180
+testbench/grpc_server.py:1199
+testbench/grpc_server.py:1229
+# grpc_server.py:531 (ComposeObject) and :1076 (single-shot Rewrite) now
+# accumulate via `BytesMedia().append(src.media.to_bytes())` (Task 9); the
+# `.to_bytes()` is Plan 5's explicit escape hatch. grpc_server.py:1174 is the
+# incremental-rewrite `rewrite.media.append(...)` statement, which black wraps
+# across :1174-:1176 -- coverage attributes the whole statement to its opening
+# line :1174, so the appended `src_object.media[...]` slice on :1175 is covered
+# there and is not listed separately.
+# UNCOVERED testbench/grpc_server.py:631 -- broken-stream fault chunk in ReadObject's chunks() loop; the trace injects no broken-stream fault on a gRPC read
+# UNCOVERED testbench/grpc_server.py:669 -- broken-stream fault chunk on ReadObject's trailing empty response; needs a 0-byte or exact-size-multiple read combined with a broken-stream fault, which the trace never does
+# UNCOVERED testbench/grpc_server.py:764 -- negative read_offset in BidiReadObject; the trace uses no negative offset on a bidi read
+# UNCOVERED testbench/grpc_server.py:1105 -- resumable-but-unfinished WriteObject early return; the trace's WriteObject always sets finish_write
 
 # --- testbench/rest_server.py ---
 testbench/rest_server.py:87
