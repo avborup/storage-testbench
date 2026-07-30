@@ -131,15 +131,61 @@ class FileStore(Store):
         parts = target.split("/")
         return parts[:-1], parts[-1]
 
+    @contextlib.contextmanager
+    def _uploads_dfd(self, bucket_name):
+        short = self._bucket_name(bucket_name)
+        with self._bucket_dirfd(short) as bfd:
+            with self._leaf_dirfd(bfd, [".gcs", "uploads"], create=True) as ufd:
+                yield ufd
+
+    def new_upload_media(self, bucket_name, upload_id):
+        """Stage an Upload's bytes in a real O_APPEND file under
+        <bucket>/.gcs/uploads/<upload_id>. FileMedia.new_staging dup's the dir_fd,
+        so the staging fds outlive this `with` context (released by
+        finalize/seal/close). bucket_name is proto-form."""
+        from testbench.filemedia import FileMedia
+
+        with self._uploads_dfd(bucket_name) as ufd:
+            return FileMedia.new_staging(ufd, upload_id)
+
+    def new_staging_media(self, bucket_name, token):
+        """Compose/rewrite/move destinations stage under the same uploads dir,
+        keyed by a caller-supplied token."""
+        return self.new_upload_media(bucket_name, token)
+
+    def delete_upload(self, bucket_name, upload_id):
+        """Remove an abandoned/cancelled staging file (Task 12 wires this to
+        Database.delete_upload / CancelResumableWrite)."""
+        with self._uploads_dfd(bucket_name) as ufd:
+            _unlink_quiet(ufd, upload_id)
+
     def object_inserted(self, bucket_name, blob):
+        from testbench.filemedia import FileMedia
+
         object_name = blob.metadata.name
         short = self._bucket_name(bucket_name)
         parts, base = self._dest_parts(object_name)
-        data = blob.media.to_bytes()  # MEDIA CALL SITE (tests/media_call_sites.txt)
         with self._bucket_dirfd(short) as bfd:
             with self._leaf_dirfd(bfd, parts, create=True) as dfd:
                 self._guard_collision(dfd, base, object_name)  # write-time
-                containment.write_bytes_atomic(dfd, base, data)
+                if isinstance(blob.media, FileMedia):
+                    # blob.upload is set iff this is an in-progress (unfinalized)
+                    # appendable insert (see upload.py _insert_empty_appendable_object,
+                    # which passes upload=upload). Those keep growing, so hardlink
+                    # the staging inode into the destination and leave it open so
+                    # subsequent appends flow to the shared inode; everything else
+                    # is a one-shot O(1) promote. No to_bytes(), no double-write.
+                    if getattr(blob, "upload", None) is not None:
+                        blob.media.link_into(
+                            (dfd, base)
+                        )  # MEDIA CALL SITE (appendable)
+                    else:
+                        blob.media.finalize((dfd, base))  # MEDIA CALL SITE (one-shot)
+                else:
+                    data = (
+                        blob.media.to_bytes()
+                    )  # MEDIA CALL SITE (BytesMedia fallback)
+                    containment.write_bytes_atomic(dfd, base, data)
                 sidecar.write_atomic(
                     dfd, base + ".gcsmeta", sidecar.dump(blob.metadata, object_name)
                 )

@@ -129,7 +129,9 @@ testbench/rest_server.py:1304
 # UNCOVERED testbench/rest_server.py:1297 -- non-Content-Range simple-upload completion; the trace's resumable uploads always send a Content-Range
 
 # --- testbench/filestore.py ---
-# UNCOVERED testbench/filestore.py:138 -- object_inserted persists blob.media.to_bytes() to the on-disk tree; only exercised under TESTBENCH_STORE=file, and the coverage gate runs the memory-config conformance trace (NullStore), which never constructs a FileStore
+# UNCOVERED testbench/filestore.py:179 -- object_inserted link_into's a still-growing appendable FileMedia into its destination; only under TESTBENCH_STORE=file, and the coverage gate runs the memory-config conformance trace (NullStore), which never constructs a FileStore
+# UNCOVERED testbench/filestore.py:183 -- object_inserted finalize's a one-shot FileMedia (O(1) promote) into its destination; only under TESTBENCH_STORE=file, and the coverage gate runs the memory-config conformance trace (NullStore), which never constructs a FileStore
+# UNCOVERED testbench/filestore.py:186 -- object_inserted persists a BytesMedia via to_bytes()+write_bytes_atomic (fallback); only under TESTBENCH_STORE=file, and the coverage gate runs the memory-config conformance trace (NullStore), which never constructs a FileStore
 
 # --- testbench/common.py (fault-injection append helpers) ---
 # UNCOVERED testbench/common.py:994 -- handle_stall_uploads_after_bytes; the trace injects no stall-after-bytes fault
