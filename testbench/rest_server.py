@@ -16,6 +16,7 @@ import argparse
 import datetime
 import json
 import logging
+import os
 import time
 
 import flask
@@ -28,7 +29,24 @@ import testbench
 from google.storage.v2 import storage_pb2
 from testbench.servers import echo, iam_rest_server, projects_rest_server
 
-db = testbench.database.Database.init()
+
+def _init_db_from_env():
+    # Select the storage backend from the environment. The traversal-capable,
+    # disk-writing FileStore is opt-in via TESTBENCH_STORE=file and requires an
+    # explicit on-disk root; the default remains the in-memory NullStore-backed
+    # Database. Imported lazily so the memory backend never pulls in the
+    # file-backend module.
+    if os.environ.get("TESTBENCH_STORE", "memory") == "file":
+        root = os.environ.get("TESTBENCH_ROOT")
+        if not root:
+            raise RuntimeError("TESTBENCH_STORE=file requires TESTBENCH_ROOT")
+        from testbench.filestore import FileStore
+
+        return testbench.database.Database.init(store=FileStore(root))
+    return testbench.database.Database.init()
+
+
+db = _init_db_from_env()
 # retry_test decorates a routing function to handle the Retry Test API, with
 # method names based on the JSON API
 retry_test = testbench.common.gen_retry_test_decorator(db)

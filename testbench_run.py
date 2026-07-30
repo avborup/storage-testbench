@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import logging
+import os
 import platform
 import subprocess
 import sys
@@ -32,6 +33,15 @@ def start_server():
         sock_port = int(sys.argv[2])
         num_of_threads = int(sys.argv[3])
         sys.argv.clear()
+
+        if os.environ.get("TESTBENCH_STORE") == "file" and sock_host not in (
+            "127.0.0.1",
+            "localhost",
+            "::1",
+        ):
+            raise SystemExit(
+                "file backend refuses non-loopback bind host %r" % sock_host
+            )
 
         if platform.system().lower() == "windows":
             print("Starting waitress server")

@@ -18,6 +18,7 @@ import datetime
 import functools
 import itertools
 import json
+import os
 import re
 import sys
 import types
@@ -1354,6 +1355,11 @@ class StorageControlServicer(storage_control_pb2_grpc.StorageControlServicer):
         return layout
 
 
+def _bind_host():
+    # The traversal-capable file backend must never listen off-loopback.
+    return "127.0.0.1" if os.environ.get("TESTBENCH_STORE") == "file" else "0.0.0.0"
+
+
 def run(port, database, echo_metadata=False):
     server = grpc.server(
         futures.ThreadPoolExecutor(max_workers=_GRPC_SERVER_THREAD_COUNT)
@@ -1364,6 +1370,6 @@ def run(port, database, echo_metadata=False):
     storage_control_pb2_grpc.add_StorageControlServicer_to_server(
         StorageControlServicer(database, echo_metadata), server
     )
-    port = server.add_insecure_port("0.0.0.0:%d" % port)
+    port = server.add_insecure_port("%s:%d" % (_bind_host(), port))
     server.start()
     return port, server
