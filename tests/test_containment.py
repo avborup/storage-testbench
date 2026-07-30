@@ -57,6 +57,44 @@ class TestContainment(unittest.TestCase):
             os.close(rfd)
         self.assertEqual(b"hello", open(os.path.join(self.root, "m"), "rb").read())
 
+    @_POSIX_ONLY
+    def test_open_staging_refuses_symlink_final_component(self):
+        target = os.path.join(self.root, "real")
+        open(target, "wb").close()
+        os.symlink(target, os.path.join(self.root, "stage"))
+        rfd = os.open(self.root, os.O_RDONLY)
+        self.addCleanup(os.close, rfd)
+        with self.assertRaises(OSError):
+            containment.open_staging(rfd, "stage")
+
+    @_POSIX_ONLY
+    def test_promote_rejects_slash_bearing_name(self):
+        rfd = os.open(self.root, os.O_RDONLY)
+        self.addCleanup(os.close, rfd)
+        open(os.path.join(self.root, "src"), "wb").close()
+        with self.assertRaises(ValueError):
+            containment.promote(rfd, "src", rfd, "d/x")
+
+    @_POSIX_ONLY
+    def test_promote_is_fd_contained_not_pathname(self):
+        # Plant a symlink at a *single-component* destination name pointing
+        # outside the dir. A pathname os.replace would clobber the target through
+        # the symlink; the fd-relative os.replace replaces the symlink itself,
+        # inside the dir, and never writes outside.
+        outside = tempfile.mkdtemp()
+        victim = os.path.join(outside, "victim")
+        open(victim, "wb").write(b"KEEP")
+        os.symlink(victim, os.path.join(self.root, "escape"))
+        rfd = os.open(self.root, os.O_RDONLY)
+        self.addCleanup(os.close, rfd)
+        with open(os.path.join(self.root, "src"), "wb") as fh:
+            fh.write(b"NEW")
+        containment.promote(rfd, "src", rfd, "escape")  # single component, fd-relative
+        self.assertEqual(b"KEEP", open(victim, "rb").read())  # symlink target untouched
+        self.assertEqual(
+            b"NEW", open(os.path.join(self.root, "escape"), "rb").read()
+        )  # symlink replaced in-dir
+
     def test_constrained_rmtree(self):
         b = os.path.join(self.root, "bucket-x")
         os.makedirs(os.path.join(b, "audio"))

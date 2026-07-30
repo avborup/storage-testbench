@@ -167,6 +167,68 @@ class FileMedia(Media):
         return cls(read_fd, size, crc, md5.digest())
 
     @classmethod
+    def new_staging(cls, dir_fd, name):
+        append_fd = containment.open_staging(dir_fd, name)
+        read_fd = containment.safe_open(dir_fd, name, os.O_RDONLY)
+        self = cls(read_fd, 0, 0, hashlib.md5())
+        # dup the dir_fd so the staging tuple owns an fd that outlives the
+        # caller's `with ... dfd` context. Released by finalize/seal/close.
+        self._staging = (os.dup(dir_fd), name, append_fd)
+        return self
+
+    # --- staging writes (O_APPEND; rolling crc32c/md5) -------------------
+    def append(self, data):
+        if self._staging is None:
+            raise RuntimeError("append on a non-staging FileMedia")
+        _, _, append_fd = self._staging
+        os.write(append_fd, data)  # O_APPEND -> always at EOF
+        self._size += len(data)
+        self._crc = crc32c.crc32c(data, self._crc)
+        self._md5.update(data)
+
+    def __iadd__(self, data):
+        self.append(data)
+        return self
+
+    def finalize(self, dest):
+        # One-shot promote: (dst_dir_fd, dst_name). Contained os.replace, then
+        # release the staging fds. The inode survives, so _read_fd stays valid.
+        if self._staging is None:
+            return None  # already finalized / read-only
+        sdir, sname, append_fd = self._staging
+        dst_dir_fd, dst_name = dest
+        os.close(append_fd)
+        containment.promote(sdir, sname, dst_dir_fd, dst_name)
+        os.close(sdir)
+        self._md5 = self._md5.digest()
+        self._staging = None
+        return None
+
+    def link_into(self, dest):
+        # Appendable: hardlink staging -> dest, KEEP staging open so appends
+        # keep flowing to the shared inode (now visible at dest). Not finalized.
+        if self._staging is None:
+            raise RuntimeError("link_into on a non-staging FileMedia")
+        sdir, sname, _ = self._staging
+        dst_dir_fd, dst_name = dest
+        containment.hardlink(sdir, sname, dst_dir_fd, dst_name)
+        self._dest = dest
+        return None
+
+    def seal(self):
+        # Appendable terminal: close the append fd, unlink the staging NAME (the
+        # destination hardlink + inode survive), freeze md5, drop staging.
+        if self._staging is None:
+            return None
+        sdir, sname, append_fd = self._staging
+        os.close(append_fd)
+        containment.unlink_at(sdir, sname)
+        os.close(sdir)
+        self._md5 = self._md5.digest()
+        self._staging = None
+        return None
+
+    @classmethod
     def from_existing(cls, dir_fd, name, *, size, crc32c_value, md5_value):
         # Hydration: trust the persisted sidecar checksums; do NOT re-read the
         # whole file at startup (bounded memory on a multi-GB tree).

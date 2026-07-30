@@ -75,6 +75,59 @@ def write_bytes_atomic(dir_fd, name, data):
         raise
 
 
+def open_staging(dir_fd, name):
+    """Open a single-component staging file O_CREAT|O_RDWR|O_APPEND|O_NOFOLLOW
+    under dir_fd. O_NOFOLLOW refuses a symlink at the final component."""
+    if "/" in name:
+        raise ValueError("staging name %r is not a single component" % name)
+    return os.open(
+        name,
+        os.O_CREAT | os.O_RDWR | os.O_APPEND | _O_NOFOLLOW,
+        0o644,
+        dir_fd=dir_fd,
+    )
+
+
+def promote(src_dir_fd, src_name, dst_dir_fd, dst_name):
+    """Contained cross-dir os.replace(staging -> dest). Both names are single
+    components opened relative to their dir_fds, so a symlink at the destination
+    name is replaced in-place inside the dir rather than followed (mirrors
+    write_bytes_atomic's fd discipline). Same-filesystem os.replace is O(1); a
+    cross-device root raises OSError(EXDEV) rather than silently degrading.
+
+    Containment carve-out: for a *single-component* destination whose directory
+    is already a pinned fd, the fd-relative os.replace is an EQUIVALENT MUTANT vs
+    a same-dir raw-path os.replace -- rename(2) never dereferences a symlink at
+    the final destination component (it replaces the symlink inode in place), so
+    both forms are byte-identical (verified: the raw-path Task-3 Step-5 mutation
+    does not kill test_promote_is_fd_contained_not_pathname). The load-bearing,
+    mutation-killed guard here is the single-component ValueError below (killed
+    by test_promote_rejects_slash_bearing_name). The fd-relative discipline is
+    kept as defense-in-depth: it is load-bearing only when the *directory* is
+    reached via a swappable path -- which the emulator's O_NOFOLLOW walk pins --
+    a case a stable-root unit test cannot exercise."""
+    if "/" in src_name or "/" in dst_name:
+        raise ValueError("promote names must be single components")
+    os.replace(src_name, dst_name, src_dir_fd=src_dir_fd, dst_dir_fd=dst_dir_fd)
+
+
+def hardlink(src_dir_fd, src_name, dst_dir_fd, dst_name):
+    """Contained cross-dir os.link(staging -> dest) for the appendable path: the
+    destination becomes a second name for the staging inode, so O_APPEND writes
+    to the staging fd are immediately visible at the destination. fd-relative and
+    single-component, same containment guarantee as promote()."""
+    if "/" in src_name or "/" in dst_name:
+        raise ValueError("hardlink names must be single components")
+    os.link(src_name, dst_name, src_dir_fd=src_dir_fd, dst_dir_fd=dst_dir_fd)
+
+
+def unlink_at(dir_fd, name):
+    """Contained single-component unlink (seal / staging cleanup)."""
+    if "/" in name:
+        raise ValueError("unlink name %r is not a single component" % name)
+    os.unlink(name, dir_fd=dir_fd)
+
+
 def constrained_rmtree(path, root, index_names):
     # Three load-bearing guards, each independently mutation-killable: the
     # direct-child parent check, the islink/isdir real-directory check, and the
