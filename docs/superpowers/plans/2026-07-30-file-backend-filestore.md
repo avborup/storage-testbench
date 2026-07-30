@@ -644,10 +644,15 @@ from hypothesis import given, strategies as st
 
 from testbench import pathing
 
+# Legal GCS object names are valid UTF-8 (1-1024 bytes). codec="utf-8" excludes
+# lone surrogates U+D800..U+DFFF, which are NOT valid UTF-8, cannot arrive as a
+# real object name (proto/JSON string fields enforce UTF-8), and would make
+# .encode("utf-8") raise -- so they are outside classify()'s real domain, not a
+# case to cover. min_codepoint=1 already excludes NUL (codepoint 0).
 _LEGAL_NAME = st.text(
-    alphabet=st.characters(min_codepoint=1, max_codepoint=0x10FFFF),
+    alphabet=st.characters(min_codepoint=1, max_codepoint=0x10FFFF, codec="utf-8"),
     min_size=1, max_size=64,
-).filter(lambda s: "\x00" not in s)
+)
 
 
 class TestEscapeRoundTrip(unittest.TestCase):

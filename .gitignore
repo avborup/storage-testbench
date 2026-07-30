@@ -13,3 +13,6 @@ env/
 .direnv/
 result
 result-*
+
+# hypothesis example database (dev-only)
+.hypothesis/
