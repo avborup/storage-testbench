@@ -3384,6 +3384,134 @@
       "kind": "grpc",
       "label": "delete-folder",
       "type": "google.protobuf.Empty"
+    },
+    {
+      "body": {
+        "acl": [
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-owners-123456789",
+            "entity_alt": "",
+            "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+            "id": "<ID:50>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-editors-123456789",
+            "entity_alt": "",
+            "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+            "etag": "b0f6636a6467106c1c9550f8f503b1d5",
+            "id": "<ID:51>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "editors"
+            },
+            "role": "WRITER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-viewers-123456789",
+            "entity_alt": "",
+            "entity_id": "1af53c4385287cb946b49d191d2520c1",
+            "etag": "b251b29ae33075d18ed4f18ec96cc301",
+            "id": "<ID:52>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "bucket_id": "../../etc/passwd",
+        "cors": [],
+        "create_time": "<TIME:22>",
+        "default_event_based_hold": false,
+        "default_object_acl": [
+          {
+            "domain": "",
+            "email": "object.owners@example.com",
+            "entity": "user-object.owners@example.com",
+            "entity_alt": "",
+            "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+            "etag": "edc9c331cec6ba3544bac46b50ca7666",
+            "id": "<ID:53>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": ""
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-owners-123456789",
+            "entity_alt": "",
+            "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+            "id": "<ID:50>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-editors-123456789",
+            "entity_alt": "",
+            "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+            "etag": "fef2f17b4425221f39306563f46061d7",
+            "id": "<ID:54>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "editors"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-viewers-123456789",
+            "entity_alt": "",
+            "entity_id": "1af53c4385287cb946b49d191d2520c1",
+            "etag": "b251b29ae33075d18ed4f18ec96cc301",
+            "id": "<ID:52>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "labels": {},
+        "location": "",
+        "location_type": "",
+        "metageneration": "1",
+        "name": "projects/_/buckets/../../etc/passwd",
+        "owner": {
+          "entity": "project-owners-123456789",
+          "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc"
+        },
+        "project": "projects/123456789",
+        "rpo": "DEFAULT",
+        "satisfies_pzs": false,
+        "storage_class": "STANDARD",
+        "update_time": "<TIME:22>"
+      },
+      "kind": "grpc",
+      "label": "create-bucket-traversal",
+      "type": "google.storage.v2.Bucket"
     }
   ],
   "name": "grpc"

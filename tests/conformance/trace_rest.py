@@ -456,4 +456,20 @@ def run(emulator):
     )
     api("delete-bucket-success", "DELETE", "/storage/v1/b/" + TO_DELETE)
 
+    # Pins the live bucket-name validation bypass (gcs/bucket.py:62: the `"." in
+    # name` branch checks only length, never the char-class regex) as CURRENT,
+    # ACCEPTED memory-backend behaviour. Phase 4's FileStore.validate_bucket_name
+    # makes the *file* backend reject this; that divergence is the single reviewed
+    # entry in tests/conformance/allowlist.json. Do NOT "fix" the validator -- that
+    # would move A and redden A == B. Appended last (like create-bucket-for-delete
+    # above) so the first-sighted <ID:n>/<TIME:n> renumbering never touches the
+    # 112 pre-existing interactions -- this stays an additions-only golden diff.
+    api(
+        "create-bucket-traversal",
+        "POST",
+        "/storage/v1/b",
+        params={"project": "test-project"},
+        json={"name": "../../etc/passwd"},
+    )
+
     return rec.finish()

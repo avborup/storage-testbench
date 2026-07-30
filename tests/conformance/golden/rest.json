@@ -2545,6 +2545,34 @@
       "kind": "http",
       "label": "delete-bucket-success",
       "status": 200
+    },
+    {
+      "body": {
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "iamConfiguration": {
+          "publicAccessPrevention": "inherited",
+          "uniformBucketLevelAccess": {}
+        },
+        "id": "<ID:58>",
+        "kind": "storage#bucket",
+        "metageneration": "1",
+        "name": "../../etc/passwd",
+        "projectNumber": "123456789",
+        "rpo": "DEFAULT",
+        "storageClass": "STANDARD",
+        "timeCreated": "<TIME:19>",
+        "updated": "<TIME:19>"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "create-bucket-traversal",
+      "status": 200
     }
   ],
   "name": "rest"

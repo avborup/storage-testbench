@@ -716,4 +716,22 @@ def run(emulator):
         ),
     )
 
+    # Pins the live bucket-name validation bypass (gcs/bucket.py:62, shared by
+    # init_grpc: the `"." in name` branch checks only length, never the
+    # char-class regex) as CURRENT, ACCEPTED memory-backend behaviour. The
+    # resulting bucket name is projects/_/buckets/../../etc/passwd. Phase 4's
+    # FileStore.validate_bucket_name makes the *file* backend reject this (a
+    # clean INVALID_ARGUMENT, not an uncaught UNKNOWN); that divergence is the
+    # single reviewed entry in tests/conformance/allowlist.json. Do NOT "fix"
+    # the validator -- that would move A and redden A == B. Appended last so the
+    # canonicalizer's first-sighted symbol numbering never renumbers the 112
+    # pre-existing interactions -- this stays an additions-only golden diff.
+    call(
+        "create-bucket-traversal",
+        storage.CreateBucket,
+        storage_pb2.CreateBucketRequest(
+            parent=PROJECT, bucket_id="../../etc/passwd", bucket=storage_pb2.Bucket()
+        ),
+    )
+
     return rec.finish()
