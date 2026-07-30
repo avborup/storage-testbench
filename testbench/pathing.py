@@ -71,9 +71,19 @@ def unescape(escaped):
     return escaped.replace("%25", "%")
 
 
+def overflow_token(name):
+    """The flat, caller-byte-free on-disk token for a name that cannot be
+    represented as a natural path: the SHA-256 hex of its UTF-8 bytes, which
+    contains no caller bytes and no path separators. Used by classify()'s
+    overflow branch, and directly by callers that must ALWAYS flatten a name
+    (a folder resource name is always a slash-bearing path, never a single
+    safe filename)."""
+    return hashlib.sha256(name.encode("utf-8")).hexdigest()
+
+
 def classify(object_name):
     if _needs_overflow(object_name):
-        return "overflow", hashlib.sha256(object_name.encode("utf-8")).hexdigest()
+        return "overflow", overflow_token(object_name)
     return "natural", escape(object_name)
 
 

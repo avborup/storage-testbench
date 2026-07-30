@@ -149,13 +149,56 @@ class TestFileStore(unittest.TestCase):
         self.fs.cleared()
 
     def test_folder_handlers_do_not_touch_resource_state(self):
+        # The folder name is the FULL proto resource name that Database keys
+        # `_folders` on and forwards to the store -- e.g.
+        # `projects/_/buckets/<bucket>/folders/<id>/` -- exactly as the gRPC
+        # StorageControl CreateFolder path builds it. The bucket short name must
+        # be derived from that resource name, not from its first slash segment
+        # (which would be the literal "projects").
         self._insert_bucket("bucket-name")
-        self.fs.folder_inserted("bucket-name/logs/", object())
+        name = "projects/_/buckets/bucket-name/folders/logs/"
+        self.fs.folder_inserted(name, object())
         self.assertTrue(os.listdir(os.path.join(self._bucket_dir(), ".gcs", "folders")))
-        self.fs.folder_deleted("bucket-name/logs/")
+        self.fs.folder_deleted(name)
         self.assertEqual(
             [], os.listdir(os.path.join(self._bucket_dir(), ".gcs", "folders"))
         )
+
+    def test_folder_without_trailing_slash_flattens_to_one_envelope(self):
+        # gRPC CreateFolder builds `folder.name = f"{parent}/folders/{id}"`, and
+        # `folder_id` need NOT end in "/". Such a name is still a slash-bearing
+        # resource path that must collapse to a single flat envelope file -- not
+        # be split into nested directories (which would make the on-disk write
+        # fail on the embedded slashes).
+        self._insert_bucket("bucket-name")
+        name = "projects/_/buckets/bucket-name/folders/no-slash-id"
+        self.fs.folder_inserted(name, object())
+        folders = os.listdir(os.path.join(self._bucket_dir(), ".gcs", "folders"))
+        self.assertEqual(1, len(folders))
+        self.assertNotIn("/", folders[0])
+        self.assertTrue(folders[0].endswith(".json"))
+
+    def test_folder_renamed_moves_envelope_within_bucket(self):
+        # gRPC RenameFolder forwards a FULL resource name as `src` but only the
+        # bare `destination_folder_id` as `dst` (a documented testbench quirk:
+        # the renamed folder is re-keyed under that bare id). `dst` therefore
+        # carries no bucket, so the bucket must be derived from `src` -- a rename
+        # never leaves its bucket. The handler must not raise on the bare `dst`.
+        self._insert_bucket("bucket-name")
+        src = "projects/_/buckets/bucket-name/folders/old/"
+        dst = "new-folder-id/"
+        self.fs.folder_inserted(src, object())
+        folders_dir = os.path.join(self._bucket_dir(), ".gcs", "folders")
+        before = sorted(os.listdir(folders_dir))
+        self.assertEqual(1, len(before))
+        self.fs.folder_renamed(src, dst, object())
+        after = sorted(os.listdir(folders_dir))
+        # The rename removed the src envelope and wrote the dst envelope inside
+        # the SAME (source) bucket; both are caller-byte-free overflow tokens of
+        # distinct true-names, so the on-disk filename changes but the count
+        # stays at one.
+        self.assertEqual(1, len(after))
+        self.assertNotEqual(before, after)
 
 
 if __name__ == "__main__":

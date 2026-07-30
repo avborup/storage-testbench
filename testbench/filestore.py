@@ -220,18 +220,27 @@ class FileStore(Store):
         self._remove_folder(folder_name)
 
     def folder_renamed(self, src, dst, folder):
-        self._remove_folder(src)
-        self._write_folder(dst)
+        # `src` is a full proto resource name; `dst` is only the bare
+        # `destination_folder_id` the gRPC RenameFolder forwards (a documented
+        # testbench quirk -- the folder is re-keyed under that bare id). A rename
+        # never leaves its bucket, so derive the bucket short ONCE from `src` and
+        # apply it to both sides; `dst` still supplies the destination true-name
+        # for the envelope and its overflow relname.
+        short = self._folder_bucket_short(src)
+        self._remove_folder(src, short=short)
+        self._write_folder(dst, short=short)
 
     def _folder_relname(self, folder_name):
-        # A managed-folder name is fully caller-controlled and always
-        # slash-bearing (it ends in "/"), so it can never be a single safe
-        # filename. Route it through pathing.classify -- exactly as object
-        # names are -- which collapses any such name to a flat, caller-byte-free
-        # SHA-256 overflow token. The true name survives in the envelope below,
-        # so the startup scan can re-derive it. No name/path logic of our own.
-        _, target = pathing.classify(folder_name)
-        return target
+        # A folder resource name is fully caller-controlled and always
+        # slash-bearing (`projects/_/buckets/<bucket>/folders/<id>[/]`), whether
+        # or not it ends in "/", so it can never be a single safe filename.
+        # Flatten it UNCONDITIONALLY to pathing's caller-byte-free SHA-256 token
+        # -- unlike an object name, a folder is stored as one flat envelope, so
+        # classify's natural-nested-path branch (which triggers on a
+        # non-trailing-slash name) must not apply here. The true name survives in
+        # the envelope below, so the startup scan can re-derive it. No name/path
+        # logic of our own.
+        return pathing.overflow_token(folder_name)
 
     def _folder_envelope(self, folder_name):
         return json.dumps(
@@ -243,8 +252,16 @@ class FileStore(Store):
             sort_keys=True,
         )
 
-    def _write_folder(self, folder_name):
-        short, _, _ = folder_name.partition("/")
+    def _folder_bucket_short(self, folder_name):
+        # A folder name is the full proto resource name Database keys `_folders`
+        # on (`projects/_/buckets/<bucket>/folders/<id>/`). Strip the proto
+        # prefix via the same helper `_bucket_name` uses, then take the leading
+        # segment -- the bucket short. No name/path logic of our own.
+        return self._bucket_name(folder_name).partition("/")[0]
+
+    def _write_folder(self, folder_name, short=None):
+        if short is None:
+            short = self._folder_bucket_short(folder_name)
         relname = self._folder_relname(folder_name)
         with self._bucket_dirfd(short) as bfd:
             with self._leaf_dirfd(bfd, [".gcs", "folders"], create=True) as ffd:
@@ -254,8 +271,9 @@ class FileStore(Store):
                     self._folder_envelope(folder_name).encode("utf-8"),
                 )
 
-    def _remove_folder(self, folder_name):
-        short, _, _ = folder_name.partition("/")
+    def _remove_folder(self, folder_name, short=None):
+        if short is None:
+            short = self._folder_bucket_short(folder_name)
         relname = self._folder_relname(folder_name)
         with self._bucket_dirfd(short) as bfd:
             with self._leaf_dirfd(bfd, [".gcs", "folders"], create=False) as ffd:
