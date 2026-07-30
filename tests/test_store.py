@@ -650,6 +650,20 @@ class TestObjectAndBucketNamesAreUnvalidatedCallerInput(unittest.TestCase):
             store.calls,
         )
 
+    def test_filestore_rejects_dotted_traversal_bucket_name(self):
+        # The file backend's own validation is the ONLY check (spec Security
+        # rule 4): FileStore.validate_bucket_name fires pre-commit from
+        # Database.insert_bucket and rejects the traversal-shaped name the
+        # memory backend accepts above. This is the single deliberate B!=C
+        # recorded in tests/conformance/allowlist.json.
+        import tempfile
+
+        from testbench.filestore import FileStore
+
+        db = testbench.database.Database.init(store=FileStore(tempfile.mkdtemp()))
+        with self.assertRaises(Exception):
+            db.insert_bucket(_make_bucket("../../etc/passwd"), None)
+
 
 if __name__ == "__main__":
     unittest.main()

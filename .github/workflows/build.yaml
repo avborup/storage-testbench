@@ -43,6 +43,12 @@ jobs:
           PYTHONPATH: "."
         run: |
           pytest --cov=./ --cov-report=xml
+      - name: Run Unit Tests (file backend, Mechanism 1)
+        env:
+          PYTHONPATH: "."
+          TESTBENCH_TEST_STORE: file
+        run: |
+          pytest -q
   conformance:
     runs-on: ubuntu-22.04
     name: Conformance baseline
@@ -62,6 +68,10 @@ jobs:
         env:
           PYTHONPATH: "."
         run: python -m tests.conformance.harness
+      - name: Verify file backend is byte-identical to memory (B == C, Mechanism 2)
+        env:
+          PYTHONPATH: "."
+        run: python -m tests.conformance.harness --store file
   windows-tests:
     runs-on: windows-2022
     strategy:
