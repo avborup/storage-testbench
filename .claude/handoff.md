@@ -1,4 +1,4 @@
-# Handoff: Phase 5 (FileMedia) complete & CI-green — phase 6 (bootstrap) next
+# Handoff: ALL 7 PHASES COMPLETE & CI-green — file backend done; PR #1 merge is the human's call
 
 ## Objective
 `storage-testbench` is a fake Google Cloud Storage server for testing GCS clients.
@@ -22,10 +22,20 @@ backend and byte-identical B≡C behavior for the file backend.
   cross-worker lock, TESTBENCH_ALLOW_NONLOOPBACK opt-out, docker-compose). The
   media call-site coverage gate now runs as an isolated CI step (was flaky
   inside the full --cov suite). Plan: `docs/superpowers/plans/2026-07-31-file-backend-bootstrap.md`.
-- ⏳ **Phase 7 Verification** — plan being synthesized
-  (`docs/superpowers/plans/2026-07-31-file-backend-verification.md`): durability/crash
-  + concurrency suites; Mechanism 8 (real-GCS) / 9 (downstream client) documented
-  as manual/out-of-scope. 4GB bounded-memory already landed in phase 5.
+- ✅ **Phase 7 Verification** — DONE, **CI-green at commit `dba7f59` (branch HEAD)**.
+  Mechanism 6 durability/crash (`tests/test_durability_restart.py`,
+  `tests/test_sigkill_upload.py`) + Mechanism 7 concurrency
+  (`tests/test_grpc_concurrency.py`, starvation guard mutation-checked to fail at
+  `TESTBENCH_GRPC_THREADS=2`) + `Emulator.kill()`. Mechanism 8 (real-GCS divergence,
+  `tests/conformance/real_gcs_divergence.py`) is a DEFAULT-SKIPPED manual harness
+  (needs `TESTBENCH_REAL_GCS_PROJECT` + creds); Mechanism 9 (downstream client) lives
+  in the app repo. 4GB bounded-memory landed in phase 5. Plan:
+  `docs/superpowers/plans/2026-07-31-file-backend-verification.md`.
+
+**The file backend is complete.** All 7 phases are on `file-backend-design` and every
+CI leg is green (Lint, Docker, Unit Tests on Python 3.8–3.12 + Windows 3.11,
+Conformance on BOTH the memory and `--store file` B≡C legs). The remaining step is a
+human decision: mark PR #1 ready / merge to `main` (see "Blockers").
 
 ## Phase 4 detail (what landed, commits `2a55caa..5924408`)
 New modules (stdlib-only + existing crc32c/protobuf; zero new runtime deps):
@@ -96,17 +106,15 @@ Wiring & gates:
 - Mutation-check every guard clause (documented equivalent-mutant carve-out exists
   for genuinely-subsumed defense-in-depth clauses).
 
-## Phase 6 (bootstrap) — what's next
-Wire the deployment/config surface (spec "Configuration and deployment"):
-`TESTBENCH_BUCKETS` (idempotent startup bucket seeding, superseding the single
-`GOOGLE_CLOUD_CPP_STORAGE_TEST_BUCKET_NAME` auto-create), `TESTBENCH_GRPC_PORT`
-(boot-start gRPC), `TESTBENCH_GRPC_THREADS` (default 32, replaces the hardcoded
-`_GRPC_SERVER_THREAD_COUNT = 2`), `TESTBENCH_FSYNC` (opt-in fsync, OFF by default),
-the single-worker startup assertion for `TESTBENCH_STORE=file`, and docker-compose
-files (gcs-dev named volume + gcs-test tmpfs). **Every new env var UNSET must be
-byte-identical to today** (memory digest `98fa2130…`, file B≡C one entry). Loopback
-bind already landed in phase 4. Plan: `docs/superpowers/plans/2026-07-31-file-backend-bootstrap.md`.
-Phase 7 after that: durability/crash, concurrency, 4GB bounded-memory, optional real-GCS report.
+## What's left
+Nothing in the implementation — all 7 phases are done and CI-green. The only
+remaining actions are human decisions (see "Blockers"): mark PR #1 ready and merge
+to `main`. Optional future follow-ups (NOT required for the file backend to work):
+wire a rewrite-lifecycle expiry sweep (see "Known limitations"); run the manual
+Mechanism-8 real-GCS divergence report (`tests/conformance/real_gcs_divergence.py`
+with `TESTBENCH_REAL_GCS_PROJECT` set); run the downstream app's own smoke suite
+(Mechanism 9). Bless the 7th env var `TESTBENCH_ALLOW_NONLOOPBACK` against the spec's
+env-var table.
 
 ## Environment / toolchain
 Nothing is on the bare PATH. Use the venv directly (`nix develop` provisions it):
@@ -115,14 +123,16 @@ Nothing is on the bare PATH. Use the venv directly (`nix develop` provisions it)
 - `.venv/bin/isort --quiet <f> && .venv/bin/black --quiet <f>` (isort then black)
 - `hypothesis<6.113` is installed in `.venv`.
 
-## How to verify (phases 4-5)
+## How to verify (all phases; branch HEAD = `dba7f59`)
 ```bash
-git log --oneline 2a55caa..aea1cc5          # phase 4+5 commits (HEAD = aea1cc5)
+git log --oneline daacf59..dba7f59          # the full file-backend history (phases 1-7)
 PYTHONPATH=. .venv/bin/python -m tests.conformance.harness --store memory   # OK; digest 98fa2130…
 PYTHONPATH=. .venv/bin/python -m tests.conformance.harness --store file     # OK; diverges only on create-bucket-traversal
 TESTBENCH_TEST_STORE=memory PYTHONPATH=. .venv/bin/python -m pytest -q --ignore=tests/test_testbench_continue_after_fault_injection.py
 TESTBENCH_TEST_STORE=file   PYTHONPATH=. .venv/bin/python -m pytest -q --ignore=tests/test_testbench_continue_after_fault_injection.py
-gh run list --branch file-backend-design --limit 3        # Unit Test / Docker / Lint all success at aea1cc5
+# Phase-7 durability/concurrency suites (POSIX/file-backend):
+PYTHONPATH=. .venv/bin/python -m pytest tests/test_durability_restart.py tests/test_sigkill_upload.py tests/test_grpc_concurrency.py -q
+gh run list --branch file-backend-design --limit 3        # Lint / Docker / Unit Test all success at dba7f59
 ```
 Local note: 3 `tests/test_testbench_startup.py` failures are a pre-existing env
 gap (they Popen the system `python3`, which lacks `waitress`); CI's venv has it.
