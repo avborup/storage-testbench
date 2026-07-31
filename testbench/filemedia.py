@@ -197,8 +197,10 @@ class FileMedia(Media):
             return None  # already finalized / read-only
         sdir, sname, append_fd = self._staging
         dst_dir_fd, dst_name = dest
+        containment.maybe_fsync(append_fd)  # data durable before the rename
         os.close(append_fd)
         containment.promote(sdir, sname, dst_dir_fd, dst_name)
+        containment.maybe_fsync(dst_dir_fd)  # rename durable in the dest dir
         os.close(sdir)
         self._md5 = self._md5.digest()
         self._staging = None
@@ -221,6 +223,7 @@ class FileMedia(Media):
         if self._staging is None:
             return None
         sdir, sname, append_fd = self._staging
+        containment.maybe_fsync(append_fd)  # appended bytes durable pre-close
         os.close(append_fd)
         containment.unlink_at(sdir, sname)
         os.close(sdir)

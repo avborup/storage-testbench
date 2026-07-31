@@ -11,6 +11,19 @@ from testbench import pathing
 _O_NOFOLLOW = getattr(os, "O_NOFOLLOW", 0)
 _O_DIRECTORY = getattr(os, "O_DIRECTORY", 0)
 
+FSYNC = os.environ.get("TESTBENCH_FSYNC") == "1"
+
+
+def maybe_fsync(fd):
+    # No-op unless TESTBENCH_FSYNC=1. fsync changes DURABILITY, not bytes, so the
+    # B==C golden and the memory digest are unaffected; this internal guard is the
+    # SINGLE gate (callers invoke unconditionally) so the default path adds ZERO
+    # syscalls (spec: os.replace ordering is the default durability guarantee).
+    # Referenced as a module attribute at call time so a test can flip
+    # `containment.FSYNC` without re-import.
+    if FSYNC:
+        os.fsync(fd)
+
 
 def assert_posix_support():
     if os.open not in os.supports_dir_fd or not hasattr(os, "O_NOFOLLOW"):
@@ -66,7 +79,10 @@ def write_bytes_atomic(dir_fd, name, data):
     try:
         with os.fdopen(fd, "wb") as handle:
             handle.write(data)
+            handle.flush()  # ensure the userspace buffer is on the fd
+            maybe_fsync(handle.fileno())  # UNCONDITIONAL; no-op unless FSYNC
         os.replace(tmp, name, src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
+        maybe_fsync(dir_fd)  # UNCONDITIONAL; durably link the new name in
     except BaseException:
         try:
             os.unlink(tmp, dir_fd=dir_fd)
