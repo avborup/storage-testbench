@@ -59,7 +59,17 @@ class FileStore(Store):
         return testbench.common.bucket_name_from_proto(proto_name)
 
     def _index_names(self):
-        return set(os.listdir(self._root))
+        # Directory entries only -- bucket dirs. Skips sibling FILES (the
+        # single-worker lock .gcs-worker.lock, transient .tmp-* files), matching
+        # rebuild_index's isdir discipline (:389). constrained_rmtree raises on a
+        # non-directory, so a non-dir sibling must never enter this set (consumed
+        # by cleared() and bucket_deleted). Real bucket names are dirs, so the set
+        # is unchanged for them and B==C is unmoved.
+        return {
+            name
+            for name in os.listdir(self._root)
+            if os.path.isdir(os.path.join(self._root, name))
+        }
 
     @contextlib.contextmanager
     def _bucket_dirfd(self, short, create=False):

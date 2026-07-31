@@ -41,8 +41,10 @@ def _init_db_from_env():
         root = os.environ.get("TESTBENCH_ROOT")
         if not root:
             raise RuntimeError("TESTBENCH_STORE=file requires TESTBENCH_ROOT")
+        from testbench import containment
         from testbench.filestore import FileStore
 
+        containment.claim_worker_lock(root)  # loud on a 2nd worker; earliest anchor
         return testbench.database.Database.init(store=FileStore(root))
     return testbench.database.Database.init()
 

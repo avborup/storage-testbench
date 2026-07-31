@@ -67,6 +67,7 @@ if os.name == "nt":
         "tests/test_filemedia*.py",  # all FileMedia read/staging/upload/download/... suites
         "tests/test_appendable_filemedia.py",
         "tests/test_file_backend_wiring.py",
+        "tests/test_worker_lock.py",  # os.fork/os.kill/O_EXCL + FileStore, POSIX-only
     ]
 
 

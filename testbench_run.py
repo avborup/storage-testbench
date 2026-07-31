@@ -20,7 +20,6 @@ import sys
 
 import waitress
 
-import testbench
 from testbench_waitress import testbench_create_server
 
 logger = logging.getLogger("waitress")
@@ -45,6 +44,16 @@ def start_server():
 
         if platform.system().lower() == "windows":
             print("Starting waitress server")
+            # Imported lazily HERE (not at module top) so the POSIX launcher does
+            # NOT import `testbench`. Importing it runs rest_server's module body
+            # (`db = _init_db_from_env()`), which under TESTBENCH_STORE=file claims
+            # the single-worker lock. On POSIX the launcher then spawns gunicorn,
+            # whose worker imports `testbench` afresh and must be the ONE process
+            # to claim the lock; a launcher-side claim would collide with its own
+            # (grand)child worker. Windows serves in this same process, so the
+            # import (and its single lock claim) belongs right here.
+            import testbench
+
             waitress.serve(
                 testbench.run(),
                 _server=testbench_create_server,
@@ -58,6 +67,7 @@ def start_server():
                 [
                     "gunicorn",
                     f"--bind={sock_host}:{sock_port}",
+                    "--workers=1",  # file backend: one index per root
                     "--worker-class=sync",
                     f"--threads={num_of_threads}",
                     "--reload",

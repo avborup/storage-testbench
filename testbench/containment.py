@@ -3,6 +3,7 @@ has a bug or a symlink is swapped in between a check and an open (spec Security
 rules 1, 3, 5). Every path component is opened via openat with O_NOFOLLOW, so
 no symlink at any component can redirect a write outside the bucket root."""
 
+import atexit
 import os
 import shutil
 
@@ -142,6 +143,73 @@ def unlink_at(dir_fd, name):
     if "/" in name:
         raise ValueError("unlink name %r is not a single component" % name)
     os.unlink(name, dir_fd=dir_fd)
+
+
+_WORKER_LOCK_NAME = ".gcs-worker.lock"
+
+
+def _pid_alive(pid):
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True  # exists, owned by another user
+    return True
+
+
+def _release_worker_lock(path, owner_pid):
+    try:
+        with open(path) as fh:
+            if fh.read().strip() == str(owner_pid):
+                os.unlink(path)  # only remove OUR lock, never one reclaimed by another
+    except OSError:
+        pass
+
+
+def claim_worker_lock(root):
+    """N gunicorn workers over one TESTBENCH_ROOT means N divergent in-memory
+    indexes -> silent corruption. The file backend claims an exclusive marker at
+    startup; a second worker fails LOUDLY. O_CREAT|O_EXCL makes near-simultaneous
+    forks safe (exactly one wins). A stale lock from a prior crash carries a
+    readable pid -> reclaimed via PID-liveness. An UNREADABLE/empty marker cannot
+    be proven stale (an empty read means a second worker raced the creator between
+    O_CREAT|O_EXCL and the pid write -- exactly the misconfiguration we detect), so
+    we FAIL SAFE and refuse rather than reclaim a possibly-live nascent lock. The
+    marker is a sibling FILE of the bucket dirs, skipped by rebuild_index (isdir,
+    :389) AND excluded from _index_names' directory-only filter (:61-62), so it
+    never reaches constrained_rmtree via cleared()/bucket_deleted and never
+    surfaces as a bucket."""
+    os.makedirs(root, exist_ok=True)
+    path = os.path.join(root, _WORKER_LOCK_NAME)
+    while True:
+        try:
+            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+        except FileExistsError:
+            try:
+                with open(path) as fh:
+                    pid = int(fh.read().strip())
+            except (OSError, ValueError):
+                # Unreadable / empty / garbage -> cannot prove stale. Fail safe.
+                raise RuntimeError(
+                    "file backend single-worker lock at %s is unreadable/nascent; "
+                    "refusing (a second worker likely raced the first)" % path
+                )
+            if _pid_alive(pid):
+                raise RuntimeError(
+                    "file backend requires a single gunicorn worker; "
+                    "lock held by live pid %d at %s" % (pid, path)
+                )
+            try:
+                os.unlink(path)  # readable dead pid -> stale -> reclaim
+            except FileNotFoundError:
+                pass
+            continue
+        else:
+            os.write(fd, str(os.getpid()).encode("ascii"))
+            os.close(fd)
+            atexit.register(_release_worker_lock, path, os.getpid())
+            return path
 
 
 def constrained_rmtree(path, root, index_names):
