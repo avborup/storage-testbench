@@ -68,6 +68,7 @@ if os.name == "nt":
         "tests/test_appendable_filemedia.py",
         "tests/test_file_backend_wiring.py",
         "tests/test_worker_lock.py",  # os.fork/os.kill/O_EXCL + FileStore, POSIX-only
+        "tests/test_fsync.py",  # TESTBENCH_FSYNC over containment dir_fd/O_NOFOLLOW writes, POSIX-only
     ]
 
 
