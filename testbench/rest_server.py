@@ -47,12 +47,37 @@ def _init_db_from_env():
     return testbench.database.Database.init()
 
 
+def _start_grpc(port, echo_metadata=False):
+    # Shared by the /start_grpc route and TESTBENCH_GRPC_PORT boot-start. Sets the
+    # MODULE globals so a later /start_grpc sees grpc_port != 0 and is a no-op --
+    # if this set locals instead, a second server would start on a random port.
+    global grpc_port, grpc_service
+    if grpc_port == 0:
+        grpc_port, grpc_service = testbench.grpc_server.run(
+            int(port), db, echo_metadata=echo_metadata
+        )
+
+
+def _bootstrap_from_env():
+    # Runs once per gunicorn worker, at import, AFTER db is built and (for the file
+    # backend) its index is hydrated and the single-worker lock is held. Every step
+    # is env-gated so that with all new vars UNSET this is a complete no-op and the
+    # import path is byte-identical to today.
+    buckets = os.environ.get("TESTBENCH_BUCKETS")
+    if buckets:  # "" and unset both -> no seeding
+        db.seed_buckets([n for n in buckets.split(",") if n])
+    port = os.environ.get("TESTBENCH_GRPC_PORT")
+    if port:
+        _start_grpc(port)
+
+
 db = _init_db_from_env()
 # retry_test decorates a routing function to handle the Retry Test API, with
 # method names based on the JSON API
 retry_test = testbench.common.gen_retry_test_decorator(db)
 grpc_port = 0
 grpc_service = None
+_bootstrap_from_env()  # LAST -- db, grpc_port, grpc_service now all bound
 
 
 # === DEFAULT ENTRY FOR REST SERVER === #
@@ -180,22 +205,14 @@ def delete_retry_test(test_id):
 
 @root.route("/start_grpc")
 def start_grpc():
-    # We need to do this because `gunicorn` will spawn a new subprocess ( a worker )
-    # when running `Flask` server. If we start `gRPC` server before the spawn of
-    # the subprocess, it's nearly impossible to share the `database` with the new
-    # subprocess because Python will copy everything in the memory from the parent
-    # process to the subprocess ( So we have 2 separate instance of `database` ).
-    # The endpoint will start the `gRPC` server in the same subprocess so there is
-    # only one instance of `database`.
-    global grpc_port
-    global grpc_service
-    global db
-    if grpc_port == 0:
-        port = flask.request.args.get("port", "0")
-        echo_metadata = flask.request.args.get("echo-metadata", False)
-        grpc_port, grpc_service = testbench.grpc_server.run(
-            int(port), db, echo_metadata=echo_metadata
-        )
+    # gRPC must start inside the gunicorn worker so it shares this process's single
+    # Database (a pre-fork server would get a copied, divergent index). Delegates to
+    # the shared _start_grpc helper (also used by TESTBENCH_GRPC_PORT boot-start), so
+    # a boot-started server makes this route a no-op.
+    _start_grpc(
+        flask.request.args.get("port", "0"),
+        echo_metadata=flask.request.args.get("echo-metadata", False),
+    )
     return str(grpc_port)
 
 
