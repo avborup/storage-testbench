@@ -43,7 +43,12 @@ from google.iam.v1 import iam_policy_pb2
 from google.storage.control.v2 import storage_control_pb2, storage_control_pb2_grpc
 from google.storage.v2 import storage_pb2, storage_pb2_grpc
 
-_GRPC_SERVER_THREAD_COUNT = 2
+
+def _grpc_thread_count():
+    # Two long-lived streaming RPCs (ReadObject/BidiRead/BidiWrite) each hold a
+    # thread for a whole transfer; a shared container + parallel suite starves
+    # every other gRPC call at 2 threads. Default 32 (spec gRPC-concurrency).
+    return int(os.environ.get("TESTBENCH_GRPC_THREADS", "32"))
 
 
 def _trimmed_content(content):
@@ -1391,9 +1396,7 @@ def _bind_host():
 
 
 def run(port, database, echo_metadata=False):
-    server = grpc.server(
-        futures.ThreadPoolExecutor(max_workers=_GRPC_SERVER_THREAD_COUNT)
-    )
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=_grpc_thread_count()))
     storage_pb2_grpc.add_StorageServicer_to_server(
         StorageServicer(database, echo_metadata), server
     )
