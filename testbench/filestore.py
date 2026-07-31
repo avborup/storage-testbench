@@ -170,7 +170,12 @@ class FileStore(Store):
         stages its accumulating windows under .gcs/uploads/<token> and only
         finalizes (os.replace, which consumes the staging name) on the terminal
         `done`; a dropped/expired rewrite otherwise leaves the staging file and
-        an open O_APPEND fd behind. Mirrors delete_upload."""
+        an open O_APPEND fd behind. Mirrors delete_upload -- but note that,
+        unlike delete_upload (wired to CancelResumableWrite), this has NO
+        server-invoked trigger yet: the testbench has no rewrite-abort RPC or
+        expiry sweep, so an abandoned rewrite's staging currently persists
+        (matching the pre-existing in-memory `_rewrites` leak). See
+        Database.delete_rewrite; wiring a sweep is a phase-6/7 follow-up."""
         with self._uploads_dfd(bucket_name) as ufd:
             _unlink_quiet(ufd, token)
 

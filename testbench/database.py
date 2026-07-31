@@ -717,11 +717,24 @@ class Database:
             self._rewrites[rewrite.token] = rewrite
 
     def delete_rewrite(self, token, context):
+        # Drop a multi-call rewrite's in-memory state and reclaim its staging
+        # bytes (FileStore unlinks .gcs/uploads/<token>; no-op on memory).
+        #
+        # KNOWN LIMITATION / reachability: this has NO server-invoked caller
+        # today. GCS exposes no CancelRewrite RPC, and the testbench has no
+        # rewrite-expiry sweep, so an abandoned multi-call rewrite already leaks
+        # its `_rewrites` entry forever on BOTH backends (pre-existing); the file
+        # backend additionally leaves the `.gcs/uploads/<token>` staging file +
+        # an open O_APPEND fd. The completed-rewrite happy path does NOT leak
+        # (the terminal `done` finalizes, consuming the staging name). This
+        # method is the correct cleanup primitive (symmetric with the wired
+        # `delete_upload`) kept + unit-tested for the day a rewrite-lifecycle
+        # sweep is added (a phase-6/7 follow-up); wiring one now would add
+        # cleanup the memory backend lacks and break B == C parity. External
+        # behaviour is identical with or without this call.
         with self._rewrites_lock:
             rewrite = self.get_rewrite(token, context)
             del self._rewrites[token]
-        # Reclaim the rewrite's staging bytes (FileStore unlinks
-        # .gcs/uploads/<token>; no-op on the memory backend). Outside the lock.
         if rewrite is not None:
             self._store.delete_rewrite(rewrite.dst_bucket_name, token)
 
