@@ -309,6 +309,42 @@ class Emulator:
 
             shutil.rmtree(self._root, ignore_errors=True)
 
+    def kill(self):
+        """SIGKILL the whole emulator process group and reap it.
+
+        Mirrors the SIGKILL-fallback in _terminate (:293): start_new_session=True
+        (:241) put this Popen plus gunicorn's master and worker into one group, so
+        killing only self._process would leave gunicorn's worker alive and holding
+        the single-worker root lock (.gcs-worker.lock) -- the exact leaked-worker
+        failure this harness guards against. os.killpg of the group makes them die
+        together, so the lock the dead worker left behind is stale and a relaunch
+        over the same root reclaims it. Snapshots logs so logs() keeps working
+        after the kill, exactly as _terminate does."""
+        proc = self._process
+        if proc is None:
+            return
+        try:
+            pgid = os.getpgid(proc.pid)
+        except ProcessLookupError:
+            pgid = None
+        if pgid is not None:
+            try:
+                os.killpg(pgid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            pass
+        if self._stdout_file is not None:
+            try:
+                self._stdout_file.seek(0)
+                self._logs_cache = self._stdout_file.read().decode("utf-8", "replace")
+                self._stdout_file.close()
+            except ValueError:
+                pass
+        self._process = None  # so a later __exit__ / _terminate is a clean no-op
+
     def logs(self):
         if self._stdout_file is None:
             return self._logs_cache

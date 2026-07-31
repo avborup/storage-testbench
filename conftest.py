@@ -69,6 +69,9 @@ if os.name == "nt":
         "tests/test_file_backend_wiring.py",
         "tests/test_worker_lock.py",  # os.fork/os.kill/O_EXCL + FileStore, POSIX-only
         "tests/test_fsync.py",  # TESTBENCH_FSYNC over containment dir_fd/O_NOFOLLOW writes, POSIX-only
+        "tests/test_durability_restart.py",  # SIGKILL/killpg group teardown + FileStore restart, POSIX-only
+        "tests/test_sigkill_upload.py",  # SIGKILL-mid-upload restart, POSIX-only
+        "tests/test_grpc_concurrency.py",  # grpc_server.run() pool + FileStore, POSIX-only
     ]
 
 
