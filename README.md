@@ -409,6 +409,27 @@ Note it runs the host's Docker architecture, which on Apple Silicon is
 architecture-independent, so this catches the OS- and interpreter-dependent
 class of difference, but it is not literally CI's environment.
 
+## Verification: manual/external jobs
+
+Two verification mechanisms from the design are intentionally NOT run in CI:
+
+- **Mechanism 8 — real-GCS divergence (manual).** `tests/conformance/real_gcs_divergence.py`
+  is the opt-in harness for running the conformance trace against a real GCS
+  bucket and reporting divergences. It needs a project, credentials, and money,
+  so it is operator-run, not per-commit; the trace-driving body is left
+  unimplemented on purpose and the module is a no-op skip in CI. Known
+  divergences (the testbench performs no ACL/IAM enforcement and no signed-URL
+  verification) are recorded as KNOWN gaps, not failures.
+  Run: `TESTBENCH_REAL_GCS_PROJECT=<proj> GOOGLE_APPLICATION_CREDENTIALS=<key> \
+        PYTHONPATH=. python -m tests.conformance.real_gcs_divergence`.
+  With the env var unset it skips and exits 0.
+
+- **Mechanism 9 — downstream client (external).** The final acceptance check is
+  the downstream application's own Rust-client smoke suite run against the
+  emulator in both memory and file configurations. That suite lives in the
+  application repository, not here; it is the last gate before adopting the file
+  backend for local development.
+
 ## Releasing the testbench
 
 The repository currently uses [Github Tags](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository#creating-a-release)

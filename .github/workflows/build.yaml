@@ -43,6 +43,13 @@ jobs:
           PYTHONPATH: "."
         run: |
           pytest --cov=./ --cov-report=xml --ignore=tests/test_media_call_sites.py
+      # The durability (test_durability_restart.py, test_sigkill_upload.py) and
+      # concurrency (test_grpc_concurrency.py) suites (Mechanisms 6 and 7) build
+      # their own FileStore/Emulator, so they run automatically under both this
+      # file-backend leg and the memory-backed coverage leg above. Mechanism 8
+      # (real-GCS divergence, tests/conformance/real_gcs_divergence.py) is
+      # DELIBERATELY not a CI job -- it is a manual/operator-run job needing a
+      # real project + credentials; here it is only a credential-less no-op skip.
       - name: Run Unit Tests (file backend, Mechanism 1)
         env:
           PYTHONPATH: "."

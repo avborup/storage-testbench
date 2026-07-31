@@ -212,3 +212,17 @@ class TestDurabilityRestart(unittest.TestCase):
         self.assertIn("collision", str(ctx.exception))
         # Loud, not silent: a dropped guard would instead boot clean and serve
         # both objects off the shared inode -- which this assertRaises forbids.
+
+    def test_real_gcs_harness_skips_without_credentials(self):
+        # Mechanism 8 is a manual/external job (see README "Verification:
+        # manual/external jobs"). Its module must stay importable and CI-safe:
+        # with TESTBENCH_REAL_GCS_PROJECT unset the ONLY executed path is a clean
+        # SKIP that returns 0 (never contacts real GCS, never fails CI).
+        saved = os.environ.pop("TESTBENCH_REAL_GCS_PROJECT", None)
+        try:
+            from tests.conformance import real_gcs_divergence
+
+            self.assertEqual(0, real_gcs_divergence.main())
+        finally:
+            if saved is not None:
+                os.environ["TESTBENCH_REAL_GCS_PROJECT"] = saved
