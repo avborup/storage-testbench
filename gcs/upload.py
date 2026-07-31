@@ -32,6 +32,7 @@ from grpc_status import rpc_status
 import gcs
 import testbench
 from google.storage.v2 import storage_pb2
+from testbench.media import BytesMedia, Media
 
 
 class Upload(types.SimpleNamespace):
@@ -55,7 +56,7 @@ class Upload(types.SimpleNamespace):
             bucket=bucket,
             location=location,
             upload_id=upload_id,
-            media=b"",
+            media=BytesMedia(b""),
             complete=False,
             transfer=set(),
         )
@@ -185,6 +186,12 @@ class Upload(types.SimpleNamespace):
                     request.write_object_spec.resource.bucket, context
                 ).metadata
                 upload = cls.__init_first_write_grpc(request, bucket, context)
+                # Stream this upload into a store-provided staging Media (a
+                # FileMedia O_APPEND file on the FILE backend, BytesMedia on
+                # memory). WriteObject is never appendable, so it always stages.
+                upload.media = db.store.new_upload_media(
+                    upload.bucket.name, upload.upload_id
+                )
             elif upload is None:
                 testbench.error.invalid("Upload missing a first_message field", context)
                 return None, False
@@ -301,6 +308,14 @@ class Upload(types.SimpleNamespace):
         blob, _ = gcs.object.Object.init(
             upload.request,
             upload.metadata,
+            # Pass the empty staging Media THROUGH (no to_bytes()): Object.init's
+            # widened isinstance(media, Media) guard keeps it by identity, so
+            # blob.media aliases the one O_APPEND staging FileMedia. On the FILE
+            # backend object_inserted then link_into's this inode into the
+            # destination and leaves the append fd open for the growth path;
+            # to_bytes() here would have snapshotted an empty BytesMedia and
+            # stranded every later append.  # UNCOVERED (no appendable upload in
+            # the conformance trace)
             upload.media,
             upload.bucket,
             False,
@@ -389,12 +404,27 @@ class Upload(types.SimpleNamespace):
             if first_msg.write_object_spec.appendable:
                 is_appendable = True
                 appendable_metadata_in_first_response = True
+                # Stream the appendable growth into a store-provided staging
+                # Media (a single O_APPEND FileMedia on the FILE backend,
+                # BytesMedia on memory). This ONE media is aliased into the empty
+                # insert below and across every checkpoint/finalize, so the
+                # object flows to a single inode -- object_inserted link_into's
+                # it, object_updated seals it (see filestore.object_updated).
+                upload.media = db.store.new_upload_media(
+                    upload.bucket.name, upload.upload_id
+                )
                 blob = cls._insert_empty_appendable_object(
                     db, upload, first_msg.write_object_spec, context
                 )
                 upload.blob = blob
                 db.insert_upload(upload)
                 handle = str(1).encode("utf-8")
+            else:
+                # Non-appendable new object: stream into a store-provided
+                # staging Media (FileMedia on FILE, BytesMedia on memory).
+                upload.media = db.store.new_upload_media(
+                    upload.bucket.name, upload.upload_id
+                )
         elif write_type == "append_object_spec":
             is_appendable = True
             preconditions = testbench.common.make_grpc_preconditions(
@@ -587,7 +617,7 @@ class Upload(types.SimpleNamespace):
                 # TODO(#592): Refactor testbench checkpointing to more closely follow GCS server behavior.
                 upload.media += content
 
-            persisted_crc32c = crc32c.crc32c(upload.media)
+            persisted_crc32c = upload.media.crc32c()
 
             if data == "checksummed_data":
                 # Update appendable blob size and media here, as part of #720.
@@ -598,7 +628,22 @@ class Upload(types.SimpleNamespace):
                     update_upload_checksums(upload.metadata, object_checksums)
 
                     def update_appendable_blob(blob, unused_generation):
-                        blob.media = upload.media
+                        # blob.media ALIASES the one staging Media as upload.media
+                        # (whether BytesMedia on memory or the single O_APPEND
+                        # FileMedia on the FILE backend) -- never a defensive copy,
+                        # which on a multi-GB appendable object would itself blow
+                        # the memory budget. The isinstance guard is Media (not
+                        # BytesMedia) so a FileMedia passes through by identity
+                        # instead of being materialised back into bytes. This is
+                        # an intermediate checkpoint (blob.upload is still set), so
+                        # the FILE-backend object_updated leaves the shared inode
+                        # open and only rewrites the sidecar; the media bytes are
+                        # already live at the destination via link_into.
+                        blob.media = (
+                            upload.media
+                            if isinstance(upload.media, Media)
+                            else BytesMedia(upload.media)
+                        )
                         blob.metadata.size = len(upload.media)
                         blob.metadata.checksums.crc32c = persisted_crc32c
                         return blob
@@ -638,7 +683,19 @@ class Upload(types.SimpleNamespace):
             if is_appendable:
 
                 def finalize_blob(blob, unused_generation):
-                    blob.media = upload.media
+                    # Same aliasing (isinstance Media, not a copy) as
+                    # update_appendable_blob. This is the FINALIZE checkpoint: it
+                    # clears blob.upload, which is the single signal the FILE
+                    # backend's object_updated seals on -- blob.upload is None AND
+                    # the FileMedia is not yet finalized -> seal() closes the
+                    # append fd, unlinks the staging name, freezes md5. Every
+                    # intermediate checkpoint kept blob.upload set, so seal runs
+                    # exactly once, here.
+                    blob.media = (
+                        upload.media
+                        if isinstance(upload.media, Media)
+                        else BytesMedia(upload.media)
+                    )
                     blob.metadata.finalize_time.FromDatetime(
                         datetime.datetime.now(datetime.timezone.utc)
                     )

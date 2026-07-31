@@ -1,0 +1,2579 @@
+{
+  "interactions": [
+    {
+      "body": {
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "iamConfiguration": {
+          "publicAccessPrevention": "inherited",
+          "uniformBucketLevelAccess": {}
+        },
+        "id": "<ID:1>",
+        "kind": "storage#bucket",
+        "metageneration": "1",
+        "name": "conformance-bucket",
+        "projectNumber": "123456789",
+        "rpo": "DEFAULT",
+        "storageClass": "STANDARD",
+        "timeCreated": "<TIME:1>",
+        "updated": "<TIME:1>"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "create-bucket",
+      "status": 200
+    },
+    {
+      "body": {
+        "error": {
+          "code": 409,
+          "message": "{\"error\": {\"errors\": [{\"domain\": \"global\", \"message\": \"resource already exists\"}]}}"
+        }
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "create-bucket-duplicate",
+      "status": 409
+    },
+    {
+      "body": {
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "iamConfiguration": {
+          "publicAccessPrevention": "inherited",
+          "uniformBucketLevelAccess": {}
+        },
+        "id": "<ID:1>",
+        "kind": "storage#bucket",
+        "metageneration": "1",
+        "name": "conformance-bucket",
+        "projectNumber": "123456789",
+        "rpo": "DEFAULT",
+        "storageClass": "STANDARD",
+        "timeCreated": "<TIME:1>",
+        "updated": "<TIME:1>"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "get-bucket",
+      "status": 200
+    },
+    {
+      "body": {
+        "items": [
+          {
+            "acl": [
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-owners-123456789",
+                "entityId": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "id": "<ID:2>",
+                "kind": "storage#bucketAccessControl",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-editors-123456789",
+                "entityId": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "b0f6636a6467106c1c9550f8f503b1d5",
+                "id": "<ID:3>",
+                "kind": "storage#bucketAccessControl",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "editors"
+                },
+                "role": "WRITER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-viewers-123456789",
+                "entityId": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "id": "<ID:4>",
+                "kind": "storage#bucketAccessControl",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "defaultObjectAcl": [
+              {
+                "bucket": "conformance-bucket",
+                "email": "object.owners@example.com",
+                "entity": "user-object.owners@example.com",
+                "entityId": "eae1b38342abd983cbc68ce650bc410c",
+                "etag": "edc9c331cec6ba3544bac46b50ca7666",
+                "id": "<ID:5>",
+                "kind": "storage#objectAccessControl",
+                "projectTeam": {
+                  "projectNumber": "123456789"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-owners-123456789",
+                "entityId": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "id": "<ID:2>",
+                "kind": "storage#objectAccessControl",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-editors-123456789",
+                "entityId": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "fef2f17b4425221f39306563f46061d7",
+                "id": "<ID:6>",
+                "kind": "storage#objectAccessControl",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "editors"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-viewers-123456789",
+                "entityId": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "id": "<ID:4>",
+                "kind": "storage#objectAccessControl",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "iamConfiguration": {
+              "publicAccessPrevention": "inherited",
+              "uniformBucketLevelAccess": {}
+            },
+            "id": "<ID:1>",
+            "kind": "storage#bucket",
+            "metageneration": "1",
+            "name": "conformance-bucket",
+            "owner": {
+              "entity": "project-owners-123456789",
+              "entityId": "22a875f6ac2cbd060a2e594fe5aa6fcc"
+            },
+            "projectNumber": "123456789",
+            "rpo": "DEFAULT",
+            "storageClass": "STANDARD",
+            "timeCreated": "<TIME:1>",
+            "updated": "<TIME:1>"
+          }
+        ],
+        "kind": "storage#buckets"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "list-buckets",
+      "status": 200
+    },
+    {
+      "body": {
+        "acl": [
+          {
+            "bucket": "conformance-bucket",
+            "entity": "project-owners-123456789",
+            "entityId": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "id": "<ID:2>",
+            "kind": "storage#bucketAccessControl",
+            "projectTeam": {
+              "projectNumber": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "bucket": "conformance-bucket",
+            "entity": "project-editors-123456789",
+            "entityId": "32b6a918db9f75d2ff648c02b754520f",
+            "id": "<ID:3>",
+            "kind": "storage#bucketAccessControl",
+            "projectTeam": {
+              "projectNumber": "123456789",
+              "team": "editors"
+            },
+            "role": "WRITER"
+          },
+          {
+            "bucket": "conformance-bucket",
+            "entity": "project-viewers-123456789",
+            "entityId": "1af53c4385287cb946b49d191d2520c1",
+            "id": "<ID:4>",
+            "kind": "storage#bucketAccessControl",
+            "projectTeam": {
+              "projectNumber": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "defaultObjectAcl": [
+          {
+            "bucket": "conformance-bucket",
+            "email": "object.owners@example.com",
+            "entity": "user-object.owners@example.com",
+            "entityId": "eae1b38342abd983cbc68ce650bc410c",
+            "id": "<ID:5>",
+            "kind": "storage#objectAccessControl",
+            "projectTeam": {
+              "projectNumber": "123456789"
+            },
+            "role": "OWNER"
+          },
+          {
+            "bucket": "conformance-bucket",
+            "entity": "project-owners-123456789",
+            "entityId": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "id": "<ID:2>",
+            "kind": "storage#objectAccessControl",
+            "projectTeam": {
+              "projectNumber": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "bucket": "conformance-bucket",
+            "entity": "project-editors-123456789",
+            "entityId": "32b6a918db9f75d2ff648c02b754520f",
+            "id": "<ID:6>",
+            "kind": "storage#objectAccessControl",
+            "projectTeam": {
+              "projectNumber": "123456789",
+              "team": "editors"
+            },
+            "role": "OWNER"
+          },
+          {
+            "bucket": "conformance-bucket",
+            "entity": "project-viewers-123456789",
+            "entityId": "1af53c4385287cb946b49d191d2520c1",
+            "id": "<ID:4>",
+            "kind": "storage#objectAccessControl",
+            "projectTeam": {
+              "projectNumber": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "etag": "c81e728d9d4c2f636f067f89cc14862c",
+        "iamConfiguration": {
+          "publicAccessPrevention": "inherited",
+          "uniformBucketLevelAccess": {}
+        },
+        "id": "<ID:1>",
+        "kind": "storage#bucket",
+        "labels": {
+          "env": "conformance"
+        },
+        "metageneration": "2",
+        "name": "conformance-bucket",
+        "owner": {
+          "entity": "project-owners-123456789",
+          "entityId": "22a875f6ac2cbd060a2e594fe5aa6fcc"
+        },
+        "projectNumber": "123456789",
+        "rpo": "DEFAULT",
+        "storageClass": "STANDARD",
+        "timeCreated": "<TIME:1>",
+        "updated": "<TIME:2>"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "patch-bucket-labels",
+      "status": 200
+    },
+    {
+      "body": {
+        "bindings": [
+          {
+            "members": [
+              "project-owners-123456789"
+            ],
+            "role": "roles/storage.legacyBucketOwner"
+          },
+          {
+            "members": [
+              "project-editors-123456789"
+            ],
+            "role": "roles/storage.legacyBucketWriter"
+          },
+          {
+            "members": [
+              "project-viewers-123456789"
+            ],
+            "role": "roles/storage.legacyBucketReader"
+          }
+        ],
+        "etag": "<ETAG:1>",
+        "kind": "storage#policy",
+        "version": 1
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "get-bucket-iam",
+      "status": 200
+    },
+    {
+      "body": {
+        "kind": "storage#testIamPermissionsResponse",
+        "permissions": [
+          "storage.objects.get"
+        ]
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "test-bucket-iam-permissions",
+      "status": 200
+    },
+    {
+      "body": {
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "iamConfiguration": {
+          "publicAccessPrevention": "inherited",
+          "uniformBucketLevelAccess": {}
+        },
+        "id": "<ID:7>",
+        "kind": "storage#bucket",
+        "metageneration": "1",
+        "name": "conformance-versioned",
+        "projectNumber": "123456789",
+        "rpo": "DEFAULT",
+        "storageClass": "STANDARD",
+        "timeCreated": "<TIME:3>",
+        "updated": "<TIME:3>",
+        "versioning": {
+          "enabled": true
+        }
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "create-versioned-bucket",
+      "status": 200
+    },
+    {
+      "body": {
+        "bucket": "conformance-bucket",
+        "crc32c": "ImIEBA==",
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "generation": "<GEN:1>",
+        "id": "<ID:8>",
+        "kind": "storage#object",
+        "md5Hash": "nhB9nTcrtoJr2B01QqQZ1g==",
+        "metadata": {
+          "x_emulator_upload": "simple",
+          "x_testbench_upload": "simple"
+        },
+        "metageneration": "1",
+        "name": "01-simple.txt",
+        "size": "43",
+        "timeCreated": "<TIME:4>",
+        "timeFinalized": "<TIME:4>",
+        "updated": "<TIME:4>"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "upload-simple",
+      "status": 200
+    },
+    {
+      "body": {
+        "bucket": "conformance-bucket",
+        "contentType": "text/plain",
+        "crc32c": "ImIEBA==",
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "generation": "<GEN:2>",
+        "id": "<ID:9>",
+        "kind": "storage#object",
+        "md5Hash": "nhB9nTcrtoJr2B01QqQZ1g==",
+        "metadata": {
+          "x_emulator_upload": "multipart",
+          "x_testbench_upload": "multipart"
+        },
+        "metageneration": "1",
+        "name": "02-multipart.txt",
+        "size": "43",
+        "timeCreated": "<TIME:5>",
+        "timeFinalized": "<TIME:5>",
+        "updated": "<TIME:5>"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "upload-multipart",
+      "status": 200
+    },
+    {
+      "body": null,
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-goog-hash": "None"
+      },
+      "kind": "http",
+      "label": "upload-xml",
+      "status": 200
+    },
+    {
+      "body": {
+        "length": 43,
+        "sha256": "d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-range": "bytes 0-42/43",
+        "content-type": "text/plain",
+        "x-goog-generation": "<GEN:3>",
+        "x-goog-hash": "crc32c=ImIEBA==,md5=nhB9nTcrtoJr2B01QqQZ1g==",
+        "x-goog-metageneration": "1",
+        "x-goog-storage-class": "",
+        "x-goog-stored-content-encoding": "identity",
+        "x-goog-stored-content-length": "43"
+      },
+      "kind": "http",
+      "label": "download-xml",
+      "status": 200
+    },
+    {
+      "body": null,
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "location": "<ORIGIN:1>/upload/storage/v1/b/<ID:1>/o?uploadType=resumable&upload_id=<UPLOAD:1>"
+      },
+      "kind": "http",
+      "label": "start-resumable",
+      "status": 200
+    },
+    {
+      "body": null,
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "range": "bytes=0-19"
+      },
+      "kind": "http",
+      "label": "resumable-chunk-1",
+      "status": 308
+    },
+    {
+      "body": null,
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "range": "bytes=0-19"
+      },
+      "kind": "http",
+      "label": "resumable-query-status",
+      "status": 308
+    },
+    {
+      "body": {
+        "bucket": "conformance-bucket",
+        "contentType": "application/octet-stream",
+        "crc32c": "ImIEBA==",
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "generation": "<GEN:4>",
+        "id": "<ID:10>",
+        "kind": "storage#object",
+        "md5Hash": "nhB9nTcrtoJr2B01QqQZ1g==",
+        "metadata": {
+          "x_emulator_custom_header": "None",
+          "x_emulator_no_crc32c": "true",
+          "x_emulator_no_md5": "true",
+          "x_emulator_transfer_encoding": "",
+          "x_emulator_upload": "resumable",
+          "x_testbench_custom_header": "None",
+          "x_testbench_no_crc32c": "true",
+          "x_testbench_no_md5": "true",
+          "x_testbench_transfer_encoding": "",
+          "x_testbench_upload": "resumable"
+        },
+        "metageneration": "1",
+        "name": "04-resumable.txt",
+        "size": "43",
+        "timeCreated": "<TIME:6>",
+        "timeFinalized": "<TIME:6>",
+        "updated": "<TIME:6>"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "resumable-chunk-2",
+      "status": 200
+    },
+    {
+      "body": {
+        "bucket": "conformance-bucket",
+        "crc32c": "ImIEBA==",
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "generation": "<GEN:1>",
+        "id": "<ID:8>",
+        "kind": "storage#object",
+        "md5Hash": "nhB9nTcrtoJr2B01QqQZ1g==",
+        "metadata": {
+          "x_emulator_upload": "simple",
+          "x_testbench_upload": "simple"
+        },
+        "metageneration": "1",
+        "name": "01-simple.txt",
+        "size": "43",
+        "timeCreated": "<TIME:4>",
+        "timeFinalized": "<TIME:4>",
+        "updated": "<TIME:4>"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "get-object-metadata",
+      "status": 200
+    },
+    {
+      "body": {
+        "length": 43,
+        "sha256": "d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-range": "bytes 0-42/43",
+        "content-type": "application/octet-stream",
+        "x-goog-generation": "<GEN:1>",
+        "x-goog-hash": "crc32c=ImIEBA==,md5=nhB9nTcrtoJr2B01QqQZ1g==",
+        "x-goog-metageneration": "1",
+        "x-goog-storage-class": "",
+        "x-goog-stored-content-length": "43"
+      },
+      "kind": "http",
+      "label": "download-full",
+      "status": 200
+    },
+    {
+      "body": {
+        "length": 10,
+        "sha256": "3d2bc99cb41649a88d11891d09921321a6aad86d053081ea67253974ed38176a"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-range": "bytes 10-19/43",
+        "content-type": "application/octet-stream",
+        "x-goog-generation": "<GEN:1>",
+        "x-goog-hash": "crc32c=ImIEBA==,md5=nhB9nTcrtoJr2B01QqQZ1g==",
+        "x-goog-metageneration": "1",
+        "x-goog-storage-class": "",
+        "x-goog-stored-content-length": "43"
+      },
+      "kind": "http",
+      "label": "download-range-middle",
+      "status": 206
+    },
+    {
+      "body": {
+        "length": 33,
+        "sha256": "3cccbcfa62ad92be1c2ff9da675f4ded60a0966390758e104c1e4d1d00f9be93"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-range": "bytes 10-42/43",
+        "content-type": "application/octet-stream",
+        "x-goog-generation": "<GEN:1>",
+        "x-goog-hash": "crc32c=ImIEBA==,md5=nhB9nTcrtoJr2B01QqQZ1g==",
+        "x-goog-metageneration": "1",
+        "x-goog-storage-class": "",
+        "x-goog-stored-content-length": "43"
+      },
+      "kind": "http",
+      "label": "download-range-open-ended",
+      "status": 206
+    },
+    {
+      "body": {
+        "length": 10,
+        "sha256": "5fe3ec7b3d3ad186f291bdb02b0747259d7e672e5e03e5cb260d29895e59f9e5"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-range": "bytes 33-42/43",
+        "content-type": "application/octet-stream",
+        "x-goog-generation": "<GEN:1>",
+        "x-goog-hash": "crc32c=ImIEBA==,md5=nhB9nTcrtoJr2B01QqQZ1g==",
+        "x-goog-metageneration": "1",
+        "x-goog-storage-class": "",
+        "x-goog-stored-content-length": "43"
+      },
+      "kind": "http",
+      "label": "download-range-suffix",
+      "status": 206
+    },
+    {
+      "body": {
+        "error": {
+          "code": 416,
+          "message": "{\"error\": {\"errors\": [{\"domain\": \"global\", \"message\": \"request range not satisfiable\"}]}}"
+        }
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "download-range-unsatisfiable",
+      "status": 416
+    },
+    {
+      "body": {
+        "bucket": "conformance-bucket",
+        "crc32c": "ImIEBA==",
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "generation": "<GEN:5>",
+        "id": "<ID:11>",
+        "kind": "storage#object",
+        "md5Hash": "nhB9nTcrtoJr2B01QqQZ1g==",
+        "metadata": {
+          "x_emulator_upload": "simple",
+          "x_testbench_upload": "simple"
+        },
+        "metageneration": "1",
+        "name": "05-dir/nested.txt",
+        "size": "43",
+        "timeCreated": "<TIME:7>",
+        "timeFinalized": "<TIME:7>",
+        "updated": "<TIME:7>"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "upload-nested",
+      "status": 200
+    },
+    {
+      "body": {
+        "items": [
+          {
+            "acl": [
+              {
+                "bucket": "conformance-bucket",
+                "email": "object.owners@example.com",
+                "entity": "user-object.owners@example.com",
+                "entityId": "eae1b38342abd983cbc68ce650bc410c",
+                "etag": "edc9c331cec6ba3544bac46b50ca7666",
+                "generation": "<GEN:1>",
+                "id": "<ID:12>",
+                "kind": "storage#objectAccessControl",
+                "object": "01-simple.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-owners-123456789",
+                "entityId": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "generation": "<GEN:1>",
+                "id": "<ID:13>",
+                "kind": "storage#objectAccessControl",
+                "object": "01-simple.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-editors-123456789",
+                "entityId": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "fef2f17b4425221f39306563f46061d7",
+                "generation": "<GEN:1>",
+                "id": "<ID:14>",
+                "kind": "storage#objectAccessControl",
+                "object": "01-simple.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "editors"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-viewers-123456789",
+                "entityId": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "generation": "<GEN:1>",
+                "id": "<ID:15>",
+                "kind": "storage#objectAccessControl",
+                "object": "01-simple.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "bucket": "conformance-bucket",
+            "crc32c": "ImIEBA==",
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "generation": "<GEN:1>",
+            "id": "<ID:8>",
+            "kind": "storage#object",
+            "md5Hash": "nhB9nTcrtoJr2B01QqQZ1g==",
+            "metadata": {
+              "x_emulator_upload": "simple",
+              "x_testbench_upload": "simple"
+            },
+            "metageneration": "1",
+            "name": "01-simple.txt",
+            "owner": {
+              "entity": "user-object.owners@example.com"
+            },
+            "size": "43",
+            "timeCreated": "<TIME:4>",
+            "timeFinalized": "<TIME:4>",
+            "updated": "<TIME:4>"
+          },
+          {
+            "acl": [
+              {
+                "bucket": "conformance-bucket",
+                "email": "object.owners@example.com",
+                "entity": "user-object.owners@example.com",
+                "entityId": "eae1b38342abd983cbc68ce650bc410c",
+                "etag": "edc9c331cec6ba3544bac46b50ca7666",
+                "generation": "<GEN:2>",
+                "id": "<ID:16>",
+                "kind": "storage#objectAccessControl",
+                "object": "02-multipart.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-owners-123456789",
+                "entityId": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "generation": "<GEN:2>",
+                "id": "<ID:17>",
+                "kind": "storage#objectAccessControl",
+                "object": "02-multipart.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-editors-123456789",
+                "entityId": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "fef2f17b4425221f39306563f46061d7",
+                "generation": "<GEN:2>",
+                "id": "<ID:18>",
+                "kind": "storage#objectAccessControl",
+                "object": "02-multipart.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "editors"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-viewers-123456789",
+                "entityId": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "generation": "<GEN:2>",
+                "id": "<ID:19>",
+                "kind": "storage#objectAccessControl",
+                "object": "02-multipart.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "bucket": "conformance-bucket",
+            "contentType": "text/plain",
+            "crc32c": "ImIEBA==",
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "generation": "<GEN:2>",
+            "id": "<ID:9>",
+            "kind": "storage#object",
+            "md5Hash": "nhB9nTcrtoJr2B01QqQZ1g==",
+            "metadata": {
+              "x_emulator_upload": "multipart",
+              "x_testbench_upload": "multipart"
+            },
+            "metageneration": "1",
+            "name": "02-multipart.txt",
+            "owner": {
+              "entity": "user-object.owners@example.com"
+            },
+            "size": "43",
+            "timeCreated": "<TIME:5>",
+            "timeFinalized": "<TIME:5>",
+            "updated": "<TIME:5>"
+          },
+          {
+            "acl": [
+              {
+                "bucket": "conformance-bucket",
+                "email": "object.owners@example.com",
+                "entity": "user-object.owners@example.com",
+                "entityId": "eae1b38342abd983cbc68ce650bc410c",
+                "etag": "edc9c331cec6ba3544bac46b50ca7666",
+                "generation": "<GEN:3>",
+                "id": "<ID:20>",
+                "kind": "storage#objectAccessControl",
+                "object": "03-xml.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-owners-123456789",
+                "entityId": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "generation": "<GEN:3>",
+                "id": "<ID:21>",
+                "kind": "storage#objectAccessControl",
+                "object": "03-xml.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-editors-123456789",
+                "entityId": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "fef2f17b4425221f39306563f46061d7",
+                "generation": "<GEN:3>",
+                "id": "<ID:22>",
+                "kind": "storage#objectAccessControl",
+                "object": "03-xml.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "editors"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-viewers-123456789",
+                "entityId": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "generation": "<GEN:3>",
+                "id": "<ID:23>",
+                "kind": "storage#objectAccessControl",
+                "object": "03-xml.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "bucket": "conformance-bucket",
+            "contentType": "text/plain",
+            "crc32c": "ImIEBA==",
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "generation": "<GEN:3>",
+            "id": "<ID:24>",
+            "kind": "storage#object",
+            "md5Hash": "nhB9nTcrtoJr2B01QqQZ1g==",
+            "metadata": {
+              "x_emulator_upload": "xml",
+              "x_testbench_upload": "xml"
+            },
+            "metageneration": "1",
+            "name": "03-xml.txt",
+            "owner": {
+              "entity": "user-object.owners@example.com"
+            },
+            "size": "43",
+            "timeCreated": "<TIME:8>",
+            "timeFinalized": "<TIME:8>",
+            "updated": "<TIME:8>"
+          },
+          {
+            "acl": [
+              {
+                "bucket": "conformance-bucket",
+                "email": "object.owners@example.com",
+                "entity": "user-object.owners@example.com",
+                "entityId": "eae1b38342abd983cbc68ce650bc410c",
+                "etag": "edc9c331cec6ba3544bac46b50ca7666",
+                "generation": "<GEN:4>",
+                "id": "<ID:25>",
+                "kind": "storage#objectAccessControl",
+                "object": "04-resumable.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-owners-123456789",
+                "entityId": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "generation": "<GEN:4>",
+                "id": "<ID:26>",
+                "kind": "storage#objectAccessControl",
+                "object": "04-resumable.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-editors-123456789",
+                "entityId": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "fef2f17b4425221f39306563f46061d7",
+                "generation": "<GEN:4>",
+                "id": "<ID:27>",
+                "kind": "storage#objectAccessControl",
+                "object": "04-resumable.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "editors"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-viewers-123456789",
+                "entityId": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "generation": "<GEN:4>",
+                "id": "<ID:28>",
+                "kind": "storage#objectAccessControl",
+                "object": "04-resumable.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "bucket": "conformance-bucket",
+            "contentType": "application/octet-stream",
+            "crc32c": "ImIEBA==",
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "generation": "<GEN:4>",
+            "id": "<ID:10>",
+            "kind": "storage#object",
+            "md5Hash": "nhB9nTcrtoJr2B01QqQZ1g==",
+            "metadata": {
+              "x_emulator_custom_header": "None",
+              "x_emulator_no_crc32c": "true",
+              "x_emulator_no_md5": "true",
+              "x_emulator_transfer_encoding": "",
+              "x_emulator_upload": "resumable",
+              "x_testbench_custom_header": "None",
+              "x_testbench_no_crc32c": "true",
+              "x_testbench_no_md5": "true",
+              "x_testbench_transfer_encoding": "",
+              "x_testbench_upload": "resumable"
+            },
+            "metageneration": "1",
+            "name": "04-resumable.txt",
+            "owner": {
+              "entity": "user-object.owners@example.com"
+            },
+            "size": "43",
+            "timeCreated": "<TIME:6>",
+            "timeFinalized": "<TIME:6>",
+            "updated": "<TIME:6>"
+          },
+          {
+            "acl": [
+              {
+                "bucket": "conformance-bucket",
+                "email": "object.owners@example.com",
+                "entity": "user-object.owners@example.com",
+                "entityId": "eae1b38342abd983cbc68ce650bc410c",
+                "etag": "edc9c331cec6ba3544bac46b50ca7666",
+                "generation": "<GEN:5>",
+                "id": "<ID:29>",
+                "kind": "storage#objectAccessControl",
+                "object": "05-dir/nested.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-owners-123456789",
+                "entityId": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "generation": "<GEN:5>",
+                "id": "<ID:30>",
+                "kind": "storage#objectAccessControl",
+                "object": "05-dir/nested.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-editors-123456789",
+                "entityId": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "fef2f17b4425221f39306563f46061d7",
+                "generation": "<GEN:5>",
+                "id": "<ID:31>",
+                "kind": "storage#objectAccessControl",
+                "object": "05-dir/nested.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "editors"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-viewers-123456789",
+                "entityId": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "generation": "<GEN:5>",
+                "id": "<ID:32>",
+                "kind": "storage#objectAccessControl",
+                "object": "05-dir/nested.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "bucket": "conformance-bucket",
+            "crc32c": "ImIEBA==",
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "generation": "<GEN:5>",
+            "id": "<ID:11>",
+            "kind": "storage#object",
+            "md5Hash": "nhB9nTcrtoJr2B01QqQZ1g==",
+            "metadata": {
+              "x_emulator_upload": "simple",
+              "x_testbench_upload": "simple"
+            },
+            "metageneration": "1",
+            "name": "05-dir/nested.txt",
+            "owner": {
+              "entity": "user-object.owners@example.com"
+            },
+            "size": "43",
+            "timeCreated": "<TIME:7>",
+            "timeFinalized": "<TIME:7>",
+            "updated": "<TIME:7>"
+          }
+        ],
+        "kind": "storage#objects",
+        "prefixes": []
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "list-objects",
+      "status": 200
+    },
+    {
+      "body": {
+        "items": [
+          {
+            "acl": [
+              {
+                "bucket": "conformance-bucket",
+                "email": "object.owners@example.com",
+                "entity": "user-object.owners@example.com",
+                "entityId": "eae1b38342abd983cbc68ce650bc410c",
+                "etag": "edc9c331cec6ba3544bac46b50ca7666",
+                "generation": "<GEN:1>",
+                "id": "<ID:12>",
+                "kind": "storage#objectAccessControl",
+                "object": "01-simple.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-owners-123456789",
+                "entityId": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "generation": "<GEN:1>",
+                "id": "<ID:13>",
+                "kind": "storage#objectAccessControl",
+                "object": "01-simple.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-editors-123456789",
+                "entityId": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "fef2f17b4425221f39306563f46061d7",
+                "generation": "<GEN:1>",
+                "id": "<ID:14>",
+                "kind": "storage#objectAccessControl",
+                "object": "01-simple.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "editors"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-viewers-123456789",
+                "entityId": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "generation": "<GEN:1>",
+                "id": "<ID:15>",
+                "kind": "storage#objectAccessControl",
+                "object": "01-simple.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "bucket": "conformance-bucket",
+            "crc32c": "ImIEBA==",
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "generation": "<GEN:1>",
+            "id": "<ID:8>",
+            "kind": "storage#object",
+            "md5Hash": "nhB9nTcrtoJr2B01QqQZ1g==",
+            "metadata": {
+              "x_emulator_upload": "simple",
+              "x_testbench_upload": "simple"
+            },
+            "metageneration": "1",
+            "name": "01-simple.txt",
+            "owner": {
+              "entity": "user-object.owners@example.com"
+            },
+            "size": "43",
+            "timeCreated": "<TIME:4>",
+            "timeFinalized": "<TIME:4>",
+            "updated": "<TIME:4>"
+          },
+          {
+            "acl": [
+              {
+                "bucket": "conformance-bucket",
+                "email": "object.owners@example.com",
+                "entity": "user-object.owners@example.com",
+                "entityId": "eae1b38342abd983cbc68ce650bc410c",
+                "etag": "edc9c331cec6ba3544bac46b50ca7666",
+                "generation": "<GEN:2>",
+                "id": "<ID:16>",
+                "kind": "storage#objectAccessControl",
+                "object": "02-multipart.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-owners-123456789",
+                "entityId": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "generation": "<GEN:2>",
+                "id": "<ID:17>",
+                "kind": "storage#objectAccessControl",
+                "object": "02-multipart.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-editors-123456789",
+                "entityId": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "fef2f17b4425221f39306563f46061d7",
+                "generation": "<GEN:2>",
+                "id": "<ID:18>",
+                "kind": "storage#objectAccessControl",
+                "object": "02-multipart.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "editors"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-viewers-123456789",
+                "entityId": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "generation": "<GEN:2>",
+                "id": "<ID:19>",
+                "kind": "storage#objectAccessControl",
+                "object": "02-multipart.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "bucket": "conformance-bucket",
+            "contentType": "text/plain",
+            "crc32c": "ImIEBA==",
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "generation": "<GEN:2>",
+            "id": "<ID:9>",
+            "kind": "storage#object",
+            "md5Hash": "nhB9nTcrtoJr2B01QqQZ1g==",
+            "metadata": {
+              "x_emulator_upload": "multipart",
+              "x_testbench_upload": "multipart"
+            },
+            "metageneration": "1",
+            "name": "02-multipart.txt",
+            "owner": {
+              "entity": "user-object.owners@example.com"
+            },
+            "size": "43",
+            "timeCreated": "<TIME:5>",
+            "timeFinalized": "<TIME:5>",
+            "updated": "<TIME:5>"
+          },
+          {
+            "acl": [
+              {
+                "bucket": "conformance-bucket",
+                "email": "object.owners@example.com",
+                "entity": "user-object.owners@example.com",
+                "entityId": "eae1b38342abd983cbc68ce650bc410c",
+                "etag": "edc9c331cec6ba3544bac46b50ca7666",
+                "generation": "<GEN:3>",
+                "id": "<ID:20>",
+                "kind": "storage#objectAccessControl",
+                "object": "03-xml.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-owners-123456789",
+                "entityId": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "generation": "<GEN:3>",
+                "id": "<ID:21>",
+                "kind": "storage#objectAccessControl",
+                "object": "03-xml.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-editors-123456789",
+                "entityId": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "fef2f17b4425221f39306563f46061d7",
+                "generation": "<GEN:3>",
+                "id": "<ID:22>",
+                "kind": "storage#objectAccessControl",
+                "object": "03-xml.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "editors"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-viewers-123456789",
+                "entityId": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "generation": "<GEN:3>",
+                "id": "<ID:23>",
+                "kind": "storage#objectAccessControl",
+                "object": "03-xml.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "bucket": "conformance-bucket",
+            "contentType": "text/plain",
+            "crc32c": "ImIEBA==",
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "generation": "<GEN:3>",
+            "id": "<ID:24>",
+            "kind": "storage#object",
+            "md5Hash": "nhB9nTcrtoJr2B01QqQZ1g==",
+            "metadata": {
+              "x_emulator_upload": "xml",
+              "x_testbench_upload": "xml"
+            },
+            "metageneration": "1",
+            "name": "03-xml.txt",
+            "owner": {
+              "entity": "user-object.owners@example.com"
+            },
+            "size": "43",
+            "timeCreated": "<TIME:8>",
+            "timeFinalized": "<TIME:8>",
+            "updated": "<TIME:8>"
+          },
+          {
+            "acl": [
+              {
+                "bucket": "conformance-bucket",
+                "email": "object.owners@example.com",
+                "entity": "user-object.owners@example.com",
+                "entityId": "eae1b38342abd983cbc68ce650bc410c",
+                "etag": "edc9c331cec6ba3544bac46b50ca7666",
+                "generation": "<GEN:4>",
+                "id": "<ID:25>",
+                "kind": "storage#objectAccessControl",
+                "object": "04-resumable.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-owners-123456789",
+                "entityId": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "generation": "<GEN:4>",
+                "id": "<ID:26>",
+                "kind": "storage#objectAccessControl",
+                "object": "04-resumable.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-editors-123456789",
+                "entityId": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "fef2f17b4425221f39306563f46061d7",
+                "generation": "<GEN:4>",
+                "id": "<ID:27>",
+                "kind": "storage#objectAccessControl",
+                "object": "04-resumable.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "editors"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-bucket",
+                "entity": "project-viewers-123456789",
+                "entityId": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "generation": "<GEN:4>",
+                "id": "<ID:28>",
+                "kind": "storage#objectAccessControl",
+                "object": "04-resumable.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "bucket": "conformance-bucket",
+            "contentType": "application/octet-stream",
+            "crc32c": "ImIEBA==",
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "generation": "<GEN:4>",
+            "id": "<ID:10>",
+            "kind": "storage#object",
+            "md5Hash": "nhB9nTcrtoJr2B01QqQZ1g==",
+            "metadata": {
+              "x_emulator_custom_header": "None",
+              "x_emulator_no_crc32c": "true",
+              "x_emulator_no_md5": "true",
+              "x_emulator_transfer_encoding": "",
+              "x_emulator_upload": "resumable",
+              "x_testbench_custom_header": "None",
+              "x_testbench_no_crc32c": "true",
+              "x_testbench_no_md5": "true",
+              "x_testbench_transfer_encoding": "",
+              "x_testbench_upload": "resumable"
+            },
+            "metageneration": "1",
+            "name": "04-resumable.txt",
+            "owner": {
+              "entity": "user-object.owners@example.com"
+            },
+            "size": "43",
+            "timeCreated": "<TIME:6>",
+            "timeFinalized": "<TIME:6>",
+            "updated": "<TIME:6>"
+          }
+        ],
+        "kind": "storage#objects",
+        "prefixes": [
+          "05-dir/"
+        ]
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "list-objects-with-delimiter",
+      "status": 200
+    },
+    {
+      "body": {
+        "bucket": "conformance-bucket",
+        "contentEncoding": "gzip",
+        "crc32c": "N0KQIQ==",
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "generation": "<GEN:6>",
+        "id": "<ID:33>",
+        "kind": "storage#object",
+        "md5Hash": "oASG9uRmz2SJcGuRohRAUw==",
+        "metadata": {
+          "x_emulator_upload": "simple",
+          "x_testbench_upload": "simple"
+        },
+        "metageneration": "1",
+        "name": "gz.txt",
+        "size": "62",
+        "timeCreated": "<TIME:9>",
+        "timeFinalized": "<TIME:9>",
+        "updated": "<TIME:9>"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "upload-gzipped",
+      "status": 200
+    },
+    {
+      "body": {
+        "length": 43,
+        "sha256": "d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-range": "bytes 0-42/43",
+        "content-type": "application/octet-stream",
+        "x-goog-generation": "<GEN:6>",
+        "x-goog-hash": "crc32c=N0KQIQ==,md5=oASG9uRmz2SJcGuRohRAUw==",
+        "x-goog-metageneration": "1",
+        "x-goog-storage-class": "",
+        "x-goog-stored-content-encoding": "gzip",
+        "x-goog-stored-content-length": "62",
+        "x-guploader-response-body-transformations": "gunzipped"
+      },
+      "kind": "http",
+      "label": "download-transcoded",
+      "status": 200
+    },
+    {
+      "body": {
+        "length": 62,
+        "sha256": "dc7e41af3fc864bd94334aa5d5c05b81189f5c36faf289883975c3e88a901655"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-encoding": "gzip",
+        "content-range": "bytes 0-61/62",
+        "content-type": "application/octet-stream",
+        "x-goog-generation": "<GEN:6>",
+        "x-goog-hash": "crc32c=N0KQIQ==,md5=oASG9uRmz2SJcGuRohRAUw==",
+        "x-goog-metageneration": "1",
+        "x-goog-storage-class": "",
+        "x-goog-stored-content-encoding": "gzip",
+        "x-goog-stored-content-length": "62"
+      },
+      "kind": "http",
+      "label": "download-not-transcoded",
+      "status": 200
+    },
+    {
+      "body": {
+        "acl": [
+          {
+            "bucket": "conformance-bucket",
+            "email": "object.owners@example.com",
+            "entity": "user-object.owners@example.com",
+            "entityId": "eae1b38342abd983cbc68ce650bc410c",
+            "generation": "<GEN:1>",
+            "id": "<ID:12>",
+            "kind": "storage#objectAccessControl",
+            "object": "01-simple.txt",
+            "projectTeam": {
+              "projectNumber": "123456789"
+            },
+            "role": "OWNER"
+          },
+          {
+            "bucket": "conformance-bucket",
+            "entity": "project-owners-123456789",
+            "entityId": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "generation": "<GEN:1>",
+            "id": "<ID:13>",
+            "kind": "storage#objectAccessControl",
+            "object": "01-simple.txt",
+            "projectTeam": {
+              "projectNumber": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "bucket": "conformance-bucket",
+            "entity": "project-editors-123456789",
+            "entityId": "32b6a918db9f75d2ff648c02b754520f",
+            "generation": "<GEN:1>",
+            "id": "<ID:14>",
+            "kind": "storage#objectAccessControl",
+            "object": "01-simple.txt",
+            "projectTeam": {
+              "projectNumber": "123456789",
+              "team": "editors"
+            },
+            "role": "OWNER"
+          },
+          {
+            "bucket": "conformance-bucket",
+            "entity": "project-viewers-123456789",
+            "entityId": "1af53c4385287cb946b49d191d2520c1",
+            "generation": "<GEN:1>",
+            "id": "<ID:15>",
+            "kind": "storage#objectAccessControl",
+            "object": "01-simple.txt",
+            "projectTeam": {
+              "projectNumber": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "bucket": "conformance-bucket",
+        "crc32c": "ImIEBA==",
+        "etag": "c81e728d9d4c2f636f067f89cc14862c",
+        "eventBasedHold": false,
+        "generation": "<GEN:1>",
+        "id": "<ID:8>",
+        "kind": "storage#object",
+        "md5Hash": "nhB9nTcrtoJr2B01QqQZ1g==",
+        "metadata": {
+          "colour": "blue",
+          "x_emulator_upload": "simple",
+          "x_testbench_upload": "simple"
+        },
+        "metageneration": "2",
+        "name": "01-simple.txt",
+        "owner": {
+          "entity": "user-object.owners@example.com"
+        },
+        "size": "43",
+        "timeCreated": "<TIME:4>",
+        "timeFinalized": "<TIME:4>",
+        "updated": "<TIME:10>"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "patch-object",
+      "status": 200
+    },
+    {
+      "body": {
+        "bucket": "conformance-bucket",
+        "contentType": "text/plain",
+        "crc32c": "ImIEBA==",
+        "etag": "eccbc87e4b5ce2fe28308fd9f2a7baf3",
+        "eventBasedHold": false,
+        "generation": "<GEN:1>",
+        "id": "<ID:8>",
+        "kind": "storage#object",
+        "md5Hash": "nhB9nTcrtoJr2B01QqQZ1g==",
+        "metadata": {
+          "colour": "green"
+        },
+        "metageneration": "3",
+        "name": "01-simple.txt",
+        "owner": {
+          "entity": "user-object.owners@example.com"
+        },
+        "size": "43",
+        "timeCreated": "<TIME:4>",
+        "timeFinalized": "<TIME:4>",
+        "updated": "<TIME:11>"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "update-object",
+      "status": 200
+    },
+    {
+      "body": {
+        "items": [],
+        "kind": "storage#objectAccessControls"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "list-object-acl",
+      "status": 200
+    },
+    {
+      "body": {
+        "bucket": "conformance-bucket",
+        "entity": "allUsers",
+        "entityId": "e3a4b8dddfb88e4b40ba1c499996bfa1",
+        "etag": "d36ba2b194c859ba55be211a631b7c6d",
+        "generation": "<GEN:1>",
+        "id": "<ID:34>",
+        "kind": "storage#objectAccessControl",
+        "object": "01-simple.txt",
+        "projectTeam": {
+          "projectNumber": "123456789"
+        },
+        "role": "READER"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "insert-object-acl",
+      "status": 200
+    },
+    {
+      "body": {
+        "error": {
+          "code": 412,
+          "message": "{\"error\": {\"errors\": [{\"domain\": \"global\", \"message\": \"ifGenerationMatch validation failed. Expected = 1 vs Actual = <GEN:1>.\"}]}}"
+        }
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "precondition-generation-mismatch",
+      "status": 412
+    },
+    {
+      "body": {
+        "error": {
+          "code": 404,
+          "message": "{\"error\": {\"errors\": [{\"domain\": \"global\", \"message\": \"Live version of object <ID:1>/absent.txt does not exist.\"}]}}"
+        }
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "get-missing-object",
+      "status": 404
+    },
+    {
+      "body": {
+        "error": {
+          "code": 404,
+          "message": "{\"error\": {\"errors\": [{\"domain\": \"global\", \"message\": \"Bucket absent-bucket does not exist.\"}]}}"
+        }
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "get-missing-bucket",
+      "status": 404
+    },
+    {
+      "body": {
+        "bucket": "conformance-bucket",
+        "crc32c": "ImIEBA==",
+        "customerEncryption": {
+          "encryptionAlgorithm": "AES256",
+          "keySha256": "Yw3NKWbEM2aRElRIu7JbT/QSpJxzLbLIq8G4WBvXEN0="
+        },
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "generation": "<GEN:7>",
+        "id": "<ID:35>",
+        "kind": "storage#object",
+        "md5Hash": "nhB9nTcrtoJr2B01QqQZ1g==",
+        "metadata": {
+          "x_emulator_upload": "simple",
+          "x_testbench_upload": "simple"
+        },
+        "metageneration": "1",
+        "name": "csek.txt",
+        "size": "43",
+        "timeCreated": "<TIME:12>",
+        "timeFinalized": "<TIME:12>",
+        "updated": "<TIME:12>"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "upload-csek",
+      "status": 200
+    },
+    {
+      "body": {
+        "length": 43,
+        "sha256": "d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-range": "bytes 0-42/43",
+        "content-type": "application/octet-stream",
+        "x-goog-generation": "<GEN:7>",
+        "x-goog-hash": "crc32c=ImIEBA==,md5=nhB9nTcrtoJr2B01QqQZ1g==",
+        "x-goog-metageneration": "1",
+        "x-goog-storage-class": "",
+        "x-goog-stored-content-length": "43"
+      },
+      "kind": "http",
+      "label": "download-csek",
+      "status": 200
+    },
+    {
+      "body": {
+        "error": {
+          "code": 400,
+          "message": "{\"error\": {\"errors\": [{\"domain\": \"global\", \"message\": \"Algorithm  for CSEK is invalid.\"}]}}"
+        }
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "download-csek-without-key",
+      "status": 400
+    },
+    {
+      "body": {
+        "acl": [
+          {
+            "bucket": "conformance-bucket",
+            "email": "object.owners@example.com",
+            "entity": "user-object.owners@example.com",
+            "entityId": "eae1b38342abd983cbc68ce650bc410c",
+            "etag": "edc9c331cec6ba3544bac46b50ca7666",
+            "generation": "<GEN:8>",
+            "id": "<ID:36>",
+            "kind": "storage#objectAccessControl",
+            "object": "composed.txt",
+            "projectTeam": {
+              "projectNumber": "123456789"
+            },
+            "role": "OWNER"
+          },
+          {
+            "bucket": "conformance-bucket",
+            "entity": "project-owners-123456789",
+            "entityId": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+            "generation": "<GEN:8>",
+            "id": "<ID:37>",
+            "kind": "storage#objectAccessControl",
+            "object": "composed.txt",
+            "projectTeam": {
+              "projectNumber": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "bucket": "conformance-bucket",
+            "entity": "project-editors-123456789",
+            "entityId": "32b6a918db9f75d2ff648c02b754520f",
+            "etag": "fef2f17b4425221f39306563f46061d7",
+            "generation": "<GEN:8>",
+            "id": "<ID:38>",
+            "kind": "storage#objectAccessControl",
+            "object": "composed.txt",
+            "projectTeam": {
+              "projectNumber": "123456789",
+              "team": "editors"
+            },
+            "role": "OWNER"
+          },
+          {
+            "bucket": "conformance-bucket",
+            "entity": "project-viewers-123456789",
+            "entityId": "1af53c4385287cb946b49d191d2520c1",
+            "etag": "b251b29ae33075d18ed4f18ec96cc301",
+            "generation": "<GEN:8>",
+            "id": "<ID:39>",
+            "kind": "storage#objectAccessControl",
+            "object": "composed.txt",
+            "projectTeam": {
+              "projectNumber": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "bucket": "conformance-bucket",
+        "contentType": "text/plain",
+        "crc32c": "IP5z5Q==",
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "generation": "<GEN:8>",
+        "id": "<ID:40>",
+        "kind": "storage#object",
+        "md5Hash": "0nxti8qmleN30yOH4RV2PA==",
+        "metageneration": "1",
+        "name": "composed.txt",
+        "owner": {
+          "entity": "user-object.owners@example.com"
+        },
+        "size": "86",
+        "timeCreated": "<TIME:13>",
+        "timeFinalized": "<TIME:13>",
+        "updated": "<TIME:13>"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "compose",
+      "status": 200
+    },
+    {
+      "body": {
+        "done": true,
+        "kind": "storage#rewriteResponse",
+        "objectSize": "43",
+        "resource": {
+          "acl": [
+            {
+              "bucket": "conformance-bucket",
+              "entity": "allUsers",
+              "entityId": "e3a4b8dddfb88e4b40ba1c499996bfa1",
+              "etag": "d36ba2b194c859ba55be211a631b7c6d",
+              "generation": "<GEN:9>",
+              "id": "<ID:34>",
+              "kind": "storage#objectAccessControl",
+              "object": "rewritten.txt",
+              "projectTeam": {
+                "projectNumber": "123456789"
+              },
+              "role": "READER"
+            }
+          ],
+          "bucket": "conformance-bucket",
+          "contentType": "text/plain",
+          "crc32c": "ImIEBA==",
+          "etag": "c4ca4238a0b923820dcc509a6f75849b",
+          "eventBasedHold": false,
+          "generation": "<GEN:9>",
+          "id": "<ID:41>",
+          "kind": "storage#object",
+          "md5Hash": "nhB9nTcrtoJr2B01QqQZ1g==",
+          "metadata": {
+            "colour": "green"
+          },
+          "metageneration": "1",
+          "name": "rewritten.txt",
+          "owner": {
+            "entity": "user-object.owners@example.com"
+          },
+          "size": "43",
+          "timeCreated": "<TIME:14>",
+          "timeFinalized": "<TIME:14>",
+          "updated": "<TIME:14>"
+        },
+        "totalBytesRewritten": "43"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "rewrite-single-call",
+      "status": 200
+    },
+    {
+      "body": {
+        "acl": [
+          {
+            "bucket": "conformance-bucket",
+            "email": "object.owners@example.com",
+            "entity": "user-object.owners@example.com",
+            "entityId": "eae1b38342abd983cbc68ce650bc410c",
+            "etag": "edc9c331cec6ba3544bac46b50ca7666",
+            "generation": "<GEN:10>",
+            "id": "<ID:42>",
+            "kind": "storage#objectAccessControl",
+            "object": "moved.txt",
+            "projectTeam": {
+              "projectNumber": "123456789"
+            },
+            "role": "OWNER"
+          },
+          {
+            "bucket": "conformance-bucket",
+            "entity": "project-owners-123456789",
+            "entityId": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+            "generation": "<GEN:10>",
+            "id": "<ID:43>",
+            "kind": "storage#objectAccessControl",
+            "object": "moved.txt",
+            "projectTeam": {
+              "projectNumber": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "bucket": "conformance-bucket",
+            "entity": "project-editors-123456789",
+            "entityId": "32b6a918db9f75d2ff648c02b754520f",
+            "etag": "fef2f17b4425221f39306563f46061d7",
+            "generation": "<GEN:10>",
+            "id": "<ID:44>",
+            "kind": "storage#objectAccessControl",
+            "object": "moved.txt",
+            "projectTeam": {
+              "projectNumber": "123456789",
+              "team": "editors"
+            },
+            "role": "OWNER"
+          },
+          {
+            "bucket": "conformance-bucket",
+            "entity": "project-viewers-123456789",
+            "entityId": "1af53c4385287cb946b49d191d2520c1",
+            "etag": "b251b29ae33075d18ed4f18ec96cc301",
+            "generation": "<GEN:10>",
+            "id": "<ID:45>",
+            "kind": "storage#objectAccessControl",
+            "object": "moved.txt",
+            "projectTeam": {
+              "projectNumber": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "bucket": "conformance-bucket",
+        "contentType": "text/plain",
+        "crc32c": "ImIEBA==",
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "eventBasedHold": false,
+        "generation": "<GEN:10>",
+        "id": "<ID:46>",
+        "kind": "storage#object",
+        "md5Hash": "nhB9nTcrtoJr2B01QqQZ1g==",
+        "metadata": {
+          "colour": "green"
+        },
+        "metageneration": "1",
+        "name": "moved.txt",
+        "owner": {
+          "entity": "user-object.owners@example.com"
+        },
+        "size": "43",
+        "timeCreated": "<TIME:15>",
+        "timeFinalized": "<TIME:15>",
+        "updated": "<TIME:15>"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "move-object",
+      "status": 200
+    },
+    {
+      "body": {
+        "bucket": "conformance-versioned",
+        "crc32c": "5X841Q==",
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "generation": "<GEN:11>",
+        "id": "<ID:47>",
+        "kind": "storage#object",
+        "md5Hash": "ZlTHNMyrj0QP8IJetEPcfw==",
+        "metadata": {
+          "x_emulator_upload": "simple",
+          "x_testbench_upload": "simple"
+        },
+        "metageneration": "1",
+        "name": "v.txt",
+        "size": "2",
+        "timeCreated": "<TIME:16>",
+        "timeFinalized": "<TIME:16>",
+        "updated": "<TIME:16>"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "versioned-upload-v1",
+      "status": 200
+    },
+    {
+      "body": {
+        "bucket": "conformance-versioned",
+        "crc32c": "9i/LIQ==",
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "generation": "<GEN:12>",
+        "id": "<ID:48>",
+        "kind": "storage#object",
+        "md5Hash": "GyZ2GcSBLMRu4oF0eITKUA==",
+        "metadata": {
+          "x_emulator_upload": "simple",
+          "x_testbench_upload": "simple"
+        },
+        "metageneration": "1",
+        "name": "v.txt",
+        "size": "2",
+        "timeCreated": "<TIME:17>",
+        "timeFinalized": "<TIME:17>",
+        "updated": "<TIME:17>"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "versioned-upload-v2",
+      "status": 200
+    },
+    {
+      "body": {
+        "items": [
+          {
+            "acl": [
+              {
+                "bucket": "conformance-versioned",
+                "email": "object.owners@example.com",
+                "entity": "user-object.owners@example.com",
+                "entityId": "eae1b38342abd983cbc68ce650bc410c",
+                "etag": "edc9c331cec6ba3544bac46b50ca7666",
+                "generation": "<GEN:11>",
+                "id": "<ID:49>",
+                "kind": "storage#objectAccessControl",
+                "object": "v.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-versioned",
+                "entity": "project-owners-123456789",
+                "entityId": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "generation": "<GEN:11>",
+                "id": "<ID:50>",
+                "kind": "storage#objectAccessControl",
+                "object": "v.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-versioned",
+                "entity": "project-editors-123456789",
+                "entityId": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "fef2f17b4425221f39306563f46061d7",
+                "generation": "<GEN:11>",
+                "id": "<ID:51>",
+                "kind": "storage#objectAccessControl",
+                "object": "v.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "editors"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-versioned",
+                "entity": "project-viewers-123456789",
+                "entityId": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "generation": "<GEN:11>",
+                "id": "<ID:52>",
+                "kind": "storage#objectAccessControl",
+                "object": "v.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "bucket": "conformance-versioned",
+            "crc32c": "5X841Q==",
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "generation": "<GEN:11>",
+            "id": "<ID:47>",
+            "kind": "storage#object",
+            "md5Hash": "ZlTHNMyrj0QP8IJetEPcfw==",
+            "metadata": {
+              "x_emulator_upload": "simple",
+              "x_testbench_upload": "simple"
+            },
+            "metageneration": "1",
+            "name": "v.txt",
+            "owner": {
+              "entity": "user-object.owners@example.com"
+            },
+            "size": "2",
+            "timeCreated": "<TIME:16>",
+            "timeFinalized": "<TIME:16>",
+            "updated": "<TIME:16>"
+          },
+          {
+            "acl": [
+              {
+                "bucket": "conformance-versioned",
+                "email": "object.owners@example.com",
+                "entity": "user-object.owners@example.com",
+                "entityId": "eae1b38342abd983cbc68ce650bc410c",
+                "etag": "edc9c331cec6ba3544bac46b50ca7666",
+                "generation": "<GEN:12>",
+                "id": "<ID:53>",
+                "kind": "storage#objectAccessControl",
+                "object": "v.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-versioned",
+                "entity": "project-owners-123456789",
+                "entityId": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "generation": "<GEN:12>",
+                "id": "<ID:54>",
+                "kind": "storage#objectAccessControl",
+                "object": "v.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-versioned",
+                "entity": "project-editors-123456789",
+                "entityId": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "fef2f17b4425221f39306563f46061d7",
+                "generation": "<GEN:12>",
+                "id": "<ID:55>",
+                "kind": "storage#objectAccessControl",
+                "object": "v.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "editors"
+                },
+                "role": "OWNER"
+              },
+              {
+                "bucket": "conformance-versioned",
+                "entity": "project-viewers-123456789",
+                "entityId": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "generation": "<GEN:12>",
+                "id": "<ID:56>",
+                "kind": "storage#objectAccessControl",
+                "object": "v.txt",
+                "projectTeam": {
+                  "projectNumber": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "bucket": "conformance-versioned",
+            "crc32c": "9i/LIQ==",
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "generation": "<GEN:12>",
+            "id": "<ID:48>",
+            "kind": "storage#object",
+            "md5Hash": "GyZ2GcSBLMRu4oF0eITKUA==",
+            "metadata": {
+              "x_emulator_upload": "simple",
+              "x_testbench_upload": "simple"
+            },
+            "metageneration": "1",
+            "name": "v.txt",
+            "owner": {
+              "entity": "user-object.owners@example.com"
+            },
+            "size": "2",
+            "timeCreated": "<TIME:17>",
+            "timeFinalized": "<TIME:17>",
+            "updated": "<TIME:17>"
+          }
+        ],
+        "kind": "storage#objects",
+        "prefixes": []
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "versioned-list-all",
+      "status": 200
+    },
+    {
+      "body": null,
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "text/html; charset=utf-8"
+      },
+      "kind": "http",
+      "label": "delete-object",
+      "status": 200
+    },
+    {
+      "body": {
+        "error": {
+          "code": 404,
+          "message": "{\"error\": {\"errors\": [{\"domain\": \"global\", \"message\": \"Live version of object <ID:1>/moved.txt does not exist.\"}]}}"
+        }
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "delete-missing-object",
+      "status": 404
+    },
+    {
+      "body": {
+        "error": {
+          "code": 400,
+          "message": "{\"error\": {\"errors\": [{\"domain\": \"global\", \"message\": \"Deleting non-empty bucket projects/_/buckets/<ID:1> {'01-simple.txt': <GEN:1>, '02-multipart.txt': <GEN:2>, '03-xml.txt': <GEN:3>, '04-resumable.txt': <GEN:4>, '05-dir/nested.txt': <GEN:5>, 'gz.txt': <GEN:6>, 'csek.txt': <GEN:7>, 'composed.txt': <GEN:8>} is invalid.\"}]}}"
+        }
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "delete-non-empty-bucket",
+      "status": 400
+    },
+    {
+      "body": {
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "iamConfiguration": {
+          "publicAccessPrevention": "inherited",
+          "uniformBucketLevelAccess": {}
+        },
+        "id": "<ID:57>",
+        "kind": "storage#bucket",
+        "metageneration": "1",
+        "name": "conformance-bucket-to-delete",
+        "projectNumber": "123456789",
+        "rpo": "DEFAULT",
+        "storageClass": "STANDARD",
+        "timeCreated": "<TIME:18>",
+        "updated": "<TIME:18>"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "create-bucket-for-delete",
+      "status": 200
+    },
+    {
+      "body": null,
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "text/html; charset=utf-8"
+      },
+      "kind": "http",
+      "label": "delete-bucket-success",
+      "status": 200
+    },
+    {
+      "body": {
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "iamConfiguration": {
+          "publicAccessPrevention": "inherited",
+          "uniformBucketLevelAccess": {}
+        },
+        "id": "<ID:58>",
+        "kind": "storage#bucket",
+        "metageneration": "1",
+        "name": "../../etc/passwd",
+        "projectNumber": "123456789",
+        "rpo": "DEFAULT",
+        "storageClass": "STANDARD",
+        "timeCreated": "<TIME:19>",
+        "updated": "<TIME:19>"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "create-bucket-traversal",
+      "status": 200
+    }
+  ],
+  "name": "rest"
+}

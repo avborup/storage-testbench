@@ -1,0 +1,3518 @@
+{
+  "interactions": [
+    {
+      "body": {
+        "acl": [
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-owners-123456789",
+            "entity_alt": "",
+            "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+            "id": "<ID:1>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-editors-123456789",
+            "entity_alt": "",
+            "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+            "etag": "b0f6636a6467106c1c9550f8f503b1d5",
+            "id": "<ID:2>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "editors"
+            },
+            "role": "WRITER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-viewers-123456789",
+            "entity_alt": "",
+            "entity_id": "1af53c4385287cb946b49d191d2520c1",
+            "etag": "b251b29ae33075d18ed4f18ec96cc301",
+            "id": "<ID:3>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "bucket_id": "grpc-bucket",
+        "cors": [],
+        "create_time": "<TIME:1>",
+        "default_event_based_hold": false,
+        "default_object_acl": [
+          {
+            "domain": "",
+            "email": "object.owners@example.com",
+            "entity": "user-object.owners@example.com",
+            "entity_alt": "",
+            "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+            "etag": "edc9c331cec6ba3544bac46b50ca7666",
+            "id": "<ID:4>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": ""
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-owners-123456789",
+            "entity_alt": "",
+            "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+            "id": "<ID:1>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-editors-123456789",
+            "entity_alt": "",
+            "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+            "etag": "fef2f17b4425221f39306563f46061d7",
+            "id": "<ID:5>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "editors"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-viewers-123456789",
+            "entity_alt": "",
+            "entity_id": "1af53c4385287cb946b49d191d2520c1",
+            "etag": "b251b29ae33075d18ed4f18ec96cc301",
+            "id": "<ID:3>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "labels": {},
+        "location": "",
+        "location_type": "",
+        "metageneration": "1",
+        "name": "projects/_/buckets/grpc-bucket",
+        "owner": {
+          "entity": "project-owners-123456789",
+          "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc"
+        },
+        "project": "projects/123456789",
+        "rpo": "DEFAULT",
+        "satisfies_pzs": false,
+        "storage_class": "STANDARD",
+        "update_time": "<TIME:1>"
+      },
+      "kind": "grpc",
+      "label": "create-bucket",
+      "type": "google.storage.v2.Bucket"
+    },
+    {
+      "grpc_code": "ALREADY_EXISTS",
+      "has_details": true,
+      "kind": "error",
+      "label": "create-bucket-duplicate",
+      "type": "<GRPC_ERROR>"
+    },
+    {
+      "body": {
+        "acl": [
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-owners-123456789",
+            "entity_alt": "",
+            "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+            "id": "<ID:1>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-editors-123456789",
+            "entity_alt": "",
+            "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+            "etag": "b0f6636a6467106c1c9550f8f503b1d5",
+            "id": "<ID:2>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "editors"
+            },
+            "role": "WRITER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-viewers-123456789",
+            "entity_alt": "",
+            "entity_id": "1af53c4385287cb946b49d191d2520c1",
+            "etag": "b251b29ae33075d18ed4f18ec96cc301",
+            "id": "<ID:3>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "bucket_id": "grpc-bucket",
+        "cors": [],
+        "create_time": "<TIME:1>",
+        "default_event_based_hold": false,
+        "default_object_acl": [
+          {
+            "domain": "",
+            "email": "object.owners@example.com",
+            "entity": "user-object.owners@example.com",
+            "entity_alt": "",
+            "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+            "etag": "edc9c331cec6ba3544bac46b50ca7666",
+            "id": "<ID:4>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": ""
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-owners-123456789",
+            "entity_alt": "",
+            "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+            "id": "<ID:1>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-editors-123456789",
+            "entity_alt": "",
+            "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+            "etag": "fef2f17b4425221f39306563f46061d7",
+            "id": "<ID:5>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "editors"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-viewers-123456789",
+            "entity_alt": "",
+            "entity_id": "1af53c4385287cb946b49d191d2520c1",
+            "etag": "b251b29ae33075d18ed4f18ec96cc301",
+            "id": "<ID:3>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "labels": {},
+        "location": "",
+        "location_type": "",
+        "metageneration": "1",
+        "name": "projects/_/buckets/grpc-bucket",
+        "owner": {
+          "entity": "project-owners-123456789",
+          "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc"
+        },
+        "project": "projects/123456789",
+        "rpo": "DEFAULT",
+        "satisfies_pzs": false,
+        "storage_class": "STANDARD",
+        "update_time": "<TIME:1>"
+      },
+      "kind": "grpc",
+      "label": "get-bucket",
+      "type": "google.storage.v2.Bucket"
+    },
+    {
+      "grpc_code": "NOT_FOUND",
+      "has_details": true,
+      "kind": "error",
+      "label": "get-missing-bucket",
+      "type": "<GRPC_ERROR>"
+    },
+    {
+      "body": {
+        "buckets": [
+          {
+            "acl": [],
+            "bucket_id": "grpc-bucket",
+            "cors": [],
+            "create_time": "<TIME:1>",
+            "default_event_based_hold": false,
+            "default_object_acl": [],
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "labels": {},
+            "location": "",
+            "location_type": "",
+            "metageneration": "1",
+            "name": "projects/_/buckets/grpc-bucket",
+            "project": "projects/123456789",
+            "rpo": "DEFAULT",
+            "satisfies_pzs": false,
+            "storage_class": "STANDARD",
+            "update_time": "<TIME:1>"
+          }
+        ],
+        "next_page_token": "",
+        "unreachable": []
+      },
+      "kind": "grpc",
+      "label": "list-buckets",
+      "type": "google.storage.v2.ListBucketsResponse"
+    },
+    {
+      "body": {
+        "audit_configs": [],
+        "bindings": [
+          {
+            "members": [
+              "project-owners-123456789"
+            ],
+            "role": "roles/storage.legacyBucketOwner"
+          },
+          {
+            "members": [
+              "project-editors-123456789"
+            ],
+            "role": "roles/storage.legacyBucketWriter"
+          },
+          {
+            "members": [
+              "project-viewers-123456789"
+            ],
+            "role": "roles/storage.legacyBucketReader"
+          }
+        ],
+        "etag": "<ETAG:1>",
+        "version": 1
+      },
+      "kind": "grpc",
+      "label": "get-iam-policy",
+      "type": "google.iam.v1.Policy"
+    },
+    {
+      "body": {
+        "acl": [
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-owners-123456789",
+            "entity_alt": "",
+            "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+            "id": "<ID:1>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-editors-123456789",
+            "entity_alt": "",
+            "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+            "etag": "b0f6636a6467106c1c9550f8f503b1d5",
+            "id": "<ID:2>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "editors"
+            },
+            "role": "WRITER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-viewers-123456789",
+            "entity_alt": "",
+            "entity_id": "1af53c4385287cb946b49d191d2520c1",
+            "etag": "b251b29ae33075d18ed4f18ec96cc301",
+            "id": "<ID:3>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "bucket_id": "grpc-bucket",
+        "cors": [],
+        "create_time": "<TIME:1>",
+        "default_event_based_hold": false,
+        "default_object_acl": [
+          {
+            "domain": "",
+            "email": "object.owners@example.com",
+            "entity": "user-object.owners@example.com",
+            "entity_alt": "",
+            "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+            "etag": "edc9c331cec6ba3544bac46b50ca7666",
+            "id": "<ID:4>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": ""
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-owners-123456789",
+            "entity_alt": "",
+            "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+            "id": "<ID:1>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-editors-123456789",
+            "entity_alt": "",
+            "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+            "etag": "fef2f17b4425221f39306563f46061d7",
+            "id": "<ID:5>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "editors"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-viewers-123456789",
+            "entity_alt": "",
+            "entity_id": "1af53c4385287cb946b49d191d2520c1",
+            "etag": "b251b29ae33075d18ed4f18ec96cc301",
+            "id": "<ID:3>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "labels": {
+          "env": "conformance"
+        },
+        "location": "",
+        "location_type": "",
+        "metageneration": "2",
+        "name": "projects/_/buckets/grpc-bucket",
+        "owner": {
+          "entity": "project-owners-123456789",
+          "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc"
+        },
+        "project": "projects/123456789",
+        "rpo": "DEFAULT",
+        "satisfies_pzs": false,
+        "storage_class": "STANDARD",
+        "update_time": "<TIME:2>"
+      },
+      "kind": "grpc",
+      "label": "update-bucket",
+      "type": "google.storage.v2.Bucket"
+    },
+    {
+      "body": {
+        "resource": {
+          "acl": [
+            {
+              "domain": "",
+              "email": "object.owners@example.com",
+              "entity": "user-object.owners@example.com",
+              "entity_alt": "",
+              "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+              "etag": "edc9c331cec6ba3544bac46b50ca7666",
+              "id": "<ID:6>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": ""
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-owners-123456789",
+              "entity_alt": "",
+              "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+              "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+              "id": "<ID:7>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "owners"
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-editors-123456789",
+              "entity_alt": "",
+              "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+              "etag": "fef2f17b4425221f39306563f46061d7",
+              "id": "<ID:8>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "editors"
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-viewers-123456789",
+              "entity_alt": "",
+              "entity_id": "1af53c4385287cb946b49d191d2520c1",
+              "etag": "b251b29ae33075d18ed4f18ec96cc301",
+              "id": "<ID:9>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "viewers"
+              },
+              "role": "READER"
+            }
+          ],
+          "bucket": "projects/_/buckets/grpc-bucket",
+          "cache_control": "",
+          "checksums": {
+            "crc32c": 576848900,
+            "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+          },
+          "component_count": 0,
+          "content_disposition": "",
+          "content_encoding": "",
+          "content_language": "",
+          "content_type": "",
+          "create_time": "<TIME:3>",
+          "etag": "c4ca4238a0b923820dcc509a6f75849b",
+          "finalize_time": "<TIME:3>",
+          "generation": "<GEN:1>",
+          "kms_key": "",
+          "metadata": {
+            "x_emulator_no_crc32c": "true",
+            "x_emulator_no_md5": "true",
+            "x_emulator_upload": "grpc"
+          },
+          "metageneration": "1",
+          "name": "01-single.txt",
+          "owner": {
+            "entity": "user-object.owners@example.com",
+            "entity_id": ""
+          },
+          "size": "43",
+          "storage_class": "",
+          "temporary_hold": false,
+          "update_time": "<TIME:3>"
+        }
+      },
+      "kind": "grpc",
+      "label": "write-object-single",
+      "type": "google.storage.v2.WriteObjectResponse"
+    },
+    {
+      "body": {
+        "resource": {
+          "acl": [
+            {
+              "domain": "",
+              "email": "object.owners@example.com",
+              "entity": "user-object.owners@example.com",
+              "entity_alt": "",
+              "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+              "etag": "edc9c331cec6ba3544bac46b50ca7666",
+              "id": "<ID:10>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": ""
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-owners-123456789",
+              "entity_alt": "",
+              "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+              "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+              "id": "<ID:11>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "owners"
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-editors-123456789",
+              "entity_alt": "",
+              "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+              "etag": "fef2f17b4425221f39306563f46061d7",
+              "id": "<ID:12>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "editors"
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-viewers-123456789",
+              "entity_alt": "",
+              "entity_id": "1af53c4385287cb946b49d191d2520c1",
+              "etag": "b251b29ae33075d18ed4f18ec96cc301",
+              "id": "<ID:13>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "viewers"
+              },
+              "role": "READER"
+            }
+          ],
+          "bucket": "projects/_/buckets/grpc-bucket",
+          "cache_control": "",
+          "checksums": {
+            "crc32c": 576848900,
+            "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+          },
+          "component_count": 0,
+          "content_disposition": "",
+          "content_encoding": "",
+          "content_language": "",
+          "content_type": "",
+          "create_time": "<TIME:4>",
+          "etag": "c4ca4238a0b923820dcc509a6f75849b",
+          "finalize_time": "<TIME:4>",
+          "generation": "<GEN:2>",
+          "kms_key": "",
+          "metadata": {
+            "x_emulator_no_crc32c": "true",
+            "x_emulator_no_md5": "true",
+            "x_emulator_upload": "grpc"
+          },
+          "metageneration": "1",
+          "name": "02-multi.txt",
+          "owner": {
+            "entity": "user-object.owners@example.com",
+            "entity_id": ""
+          },
+          "size": "43",
+          "storage_class": "",
+          "temporary_hold": false,
+          "update_time": "<TIME:4>"
+        }
+      },
+      "kind": "grpc",
+      "label": "write-object-multi",
+      "type": "google.storage.v2.WriteObjectResponse"
+    },
+    {
+      "body": {
+        "persisted_data_checksums": {
+          "crc32c": 2461541973,
+          "md5_hash": ""
+        },
+        "persisted_size": "21"
+      },
+      "kind": "grpc",
+      "label": "bidi-write-response-0",
+      "type": "google.storage.v2.BidiWriteObjectResponse"
+    },
+    {
+      "body": {
+        "resource": {
+          "acl": [
+            {
+              "domain": "",
+              "email": "object.owners@example.com",
+              "entity": "user-object.owners@example.com",
+              "entity_alt": "",
+              "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+              "etag": "edc9c331cec6ba3544bac46b50ca7666",
+              "id": "<ID:14>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": ""
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-owners-123456789",
+              "entity_alt": "",
+              "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+              "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+              "id": "<ID:15>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "owners"
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-editors-123456789",
+              "entity_alt": "",
+              "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+              "etag": "fef2f17b4425221f39306563f46061d7",
+              "id": "<ID:16>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "editors"
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-viewers-123456789",
+              "entity_alt": "",
+              "entity_id": "1af53c4385287cb946b49d191d2520c1",
+              "etag": "b251b29ae33075d18ed4f18ec96cc301",
+              "id": "<ID:17>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "viewers"
+              },
+              "role": "READER"
+            }
+          ],
+          "bucket": "projects/_/buckets/grpc-bucket",
+          "cache_control": "",
+          "checksums": {
+            "crc32c": 576848900,
+            "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+          },
+          "component_count": 0,
+          "content_disposition": "",
+          "content_encoding": "",
+          "content_language": "",
+          "content_type": "",
+          "create_time": "<TIME:5>",
+          "etag": "c4ca4238a0b923820dcc509a6f75849b",
+          "finalize_time": "<TIME:5>",
+          "generation": "<GEN:3>",
+          "kms_key": "",
+          "metadata": {
+            "x_emulator_no_crc32c": "true",
+            "x_emulator_no_md5": "true",
+            "x_emulator_upload": "grpc"
+          },
+          "metageneration": "1",
+          "name": "03-bidi.txt",
+          "owner": {
+            "entity": "user-object.owners@example.com",
+            "entity_id": ""
+          },
+          "size": "43",
+          "storage_class": "",
+          "temporary_hold": false,
+          "update_time": "<TIME:5>"
+        }
+      },
+      "kind": "grpc",
+      "label": "bidi-write-response-1",
+      "type": "google.storage.v2.BidiWriteObjectResponse"
+    },
+    {
+      "body": {
+        "upload_id": "<UPLOAD:1>"
+      },
+      "kind": "grpc",
+      "label": "start-resumable-write",
+      "type": "google.storage.v2.StartResumableWriteResponse"
+    },
+    {
+      "body": {
+        "persisted_size": "0"
+      },
+      "kind": "grpc",
+      "label": "query-write-status-empty",
+      "type": "google.storage.v2.QueryWriteStatusResponse"
+    },
+    {
+      "body": {
+        "resource": {
+          "acl": [
+            {
+              "domain": "",
+              "email": "object.owners@example.com",
+              "entity": "user-object.owners@example.com",
+              "entity_alt": "",
+              "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+              "etag": "edc9c331cec6ba3544bac46b50ca7666",
+              "id": "<ID:18>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": ""
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-owners-123456789",
+              "entity_alt": "",
+              "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+              "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+              "id": "<ID:19>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "owners"
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-editors-123456789",
+              "entity_alt": "",
+              "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+              "etag": "fef2f17b4425221f39306563f46061d7",
+              "id": "<ID:20>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "editors"
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-viewers-123456789",
+              "entity_alt": "",
+              "entity_id": "1af53c4385287cb946b49d191d2520c1",
+              "etag": "b251b29ae33075d18ed4f18ec96cc301",
+              "id": "<ID:21>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "viewers"
+              },
+              "role": "READER"
+            }
+          ],
+          "bucket": "projects/_/buckets/grpc-bucket",
+          "cache_control": "",
+          "checksums": {
+            "crc32c": 576848900,
+            "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+          },
+          "component_count": 0,
+          "content_disposition": "",
+          "content_encoding": "",
+          "content_language": "",
+          "content_type": "",
+          "create_time": "<TIME:6>",
+          "etag": "c4ca4238a0b923820dcc509a6f75849b",
+          "finalize_time": "<TIME:6>",
+          "generation": "<GEN:4>",
+          "kms_key": "",
+          "metadata": {
+            "x_emulator_no_crc32c": "true",
+            "x_emulator_no_md5": "true",
+            "x_emulator_upload": "resumable"
+          },
+          "metageneration": "1",
+          "name": "04-resumable.txt",
+          "owner": {
+            "entity": "user-object.owners@example.com",
+            "entity_id": ""
+          },
+          "size": "43",
+          "storage_class": "",
+          "temporary_hold": false,
+          "update_time": "<TIME:6>"
+        }
+      },
+      "kind": "grpc",
+      "label": "resume-write",
+      "type": "google.storage.v2.WriteObjectResponse"
+    },
+    {
+      "body": {
+        "acl": [
+          {
+            "domain": "",
+            "email": "object.owners@example.com",
+            "entity": "user-object.owners@example.com",
+            "entity_alt": "",
+            "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+            "etag": "edc9c331cec6ba3544bac46b50ca7666",
+            "id": "<ID:6>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": ""
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-owners-123456789",
+            "entity_alt": "",
+            "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+            "id": "<ID:7>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-editors-123456789",
+            "entity_alt": "",
+            "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+            "etag": "fef2f17b4425221f39306563f46061d7",
+            "id": "<ID:8>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "editors"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-viewers-123456789",
+            "entity_alt": "",
+            "entity_id": "1af53c4385287cb946b49d191d2520c1",
+            "etag": "b251b29ae33075d18ed4f18ec96cc301",
+            "id": "<ID:9>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "bucket": "projects/_/buckets/grpc-bucket",
+        "cache_control": "",
+        "checksums": {
+          "crc32c": 576848900,
+          "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+        },
+        "component_count": 0,
+        "content_disposition": "",
+        "content_encoding": "",
+        "content_language": "",
+        "content_type": "",
+        "create_time": "<TIME:3>",
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "finalize_time": "<TIME:3>",
+        "generation": "<GEN:1>",
+        "kms_key": "",
+        "metadata": {
+          "x_emulator_no_crc32c": "true",
+          "x_emulator_no_md5": "true",
+          "x_emulator_upload": "grpc"
+        },
+        "metageneration": "1",
+        "name": "01-single.txt",
+        "owner": {
+          "entity": "user-object.owners@example.com",
+          "entity_id": ""
+        },
+        "size": "43",
+        "storage_class": "",
+        "temporary_hold": false,
+        "update_time": "<TIME:3>"
+      },
+      "kind": "grpc",
+      "label": "get-object",
+      "type": "google.storage.v2.Object"
+    },
+    {
+      "grpc_code": "NOT_FOUND",
+      "has_details": true,
+      "kind": "error",
+      "label": "get-missing-object",
+      "type": "<GRPC_ERROR>"
+    },
+    {
+      "grpc_code": "FAILED_PRECONDITION",
+      "has_details": true,
+      "kind": "error",
+      "label": "get-object-precondition-mismatch",
+      "type": "<GRPC_ERROR>"
+    },
+    {
+      "kind": "stream",
+      "label": "read-object-full",
+      "length": 43,
+      "offsets": [
+        0
+      ],
+      "sha256": "d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592"
+    },
+    {
+      "kind": "stream",
+      "label": "read-object-ranged",
+      "length": 10,
+      "offsets": [
+        0
+      ],
+      "sha256": "3d2bc99cb41649a88d11891d09921321a6aad86d053081ea67253974ed38176a"
+    },
+    {
+      "kind": "stream",
+      "label": "read-object-negative-offset",
+      "length": 10,
+      "offsets": [
+        0
+      ],
+      "sha256": "5fe3ec7b3d3ad186f291bdb02b0747259d7e672e5e03e5cb260d29895e59f9e5"
+    },
+    {
+      "grpc_code": "OUT_OF_RANGE",
+      "has_details": true,
+      "kind": "error",
+      "label": "read-object-offset-past-end",
+      "type": "<GRPC_ERROR>"
+    },
+    {
+      "kind": "stream",
+      "label": "bidi-read-two-ranges",
+      "length": 20,
+      "offsets": [
+        0,
+        10,
+        20,
+        20
+      ],
+      "sha256": "c48429b8e52d208a5050d716a6c7600c7475d4fb67f9c6a8c14bb828bbf12ac9"
+    },
+    {
+      "body": {
+        "resource": {
+          "acl": [
+            {
+              "domain": "",
+              "email": "object.owners@example.com",
+              "entity": "user-object.owners@example.com",
+              "entity_alt": "",
+              "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+              "etag": "edc9c331cec6ba3544bac46b50ca7666",
+              "id": "<ID:22>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": ""
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-owners-123456789",
+              "entity_alt": "",
+              "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+              "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+              "id": "<ID:23>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "owners"
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-editors-123456789",
+              "entity_alt": "",
+              "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+              "etag": "fef2f17b4425221f39306563f46061d7",
+              "id": "<ID:24>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "editors"
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-viewers-123456789",
+              "entity_alt": "",
+              "entity_id": "1af53c4385287cb946b49d191d2520c1",
+              "etag": "b251b29ae33075d18ed4f18ec96cc301",
+              "id": "<ID:25>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "viewers"
+              },
+              "role": "READER"
+            }
+          ],
+          "bucket": "projects/_/buckets/grpc-bucket",
+          "cache_control": "",
+          "checksums": {
+            "crc32c": 576848900,
+            "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+          },
+          "component_count": 0,
+          "content_disposition": "",
+          "content_encoding": "",
+          "content_language": "",
+          "content_type": "",
+          "create_time": "<TIME:7>",
+          "etag": "c4ca4238a0b923820dcc509a6f75849b",
+          "finalize_time": "<TIME:7>",
+          "generation": "<GEN:5>",
+          "kms_key": "",
+          "metadata": {
+            "x_emulator_no_crc32c": "true",
+            "x_emulator_no_md5": "true",
+            "x_emulator_upload": "grpc"
+          },
+          "metageneration": "1",
+          "name": "05-dir/nested.txt",
+          "owner": {
+            "entity": "user-object.owners@example.com",
+            "entity_id": ""
+          },
+          "size": "43",
+          "storage_class": "",
+          "temporary_hold": false,
+          "update_time": "<TIME:7>"
+        }
+      },
+      "kind": "grpc",
+      "label": "write-object-nested",
+      "type": "google.storage.v2.WriteObjectResponse"
+    },
+    {
+      "body": {
+        "next_page_token": "",
+        "objects": [
+          {
+            "acl": [
+              {
+                "domain": "",
+                "email": "object.owners@example.com",
+                "entity": "user-object.owners@example.com",
+                "entity_alt": "",
+                "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+                "etag": "edc9c331cec6ba3544bac46b50ca7666",
+                "id": "<ID:6>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": ""
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-owners-123456789",
+                "entity_alt": "",
+                "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "id": "<ID:7>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-editors-123456789",
+                "entity_alt": "",
+                "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "fef2f17b4425221f39306563f46061d7",
+                "id": "<ID:8>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "editors"
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-viewers-123456789",
+                "entity_alt": "",
+                "entity_id": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "id": "<ID:9>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "bucket": "projects/_/buckets/grpc-bucket",
+            "cache_control": "",
+            "checksums": {
+              "crc32c": 576848900,
+              "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+            },
+            "component_count": 0,
+            "content_disposition": "",
+            "content_encoding": "",
+            "content_language": "",
+            "content_type": "",
+            "create_time": "<TIME:3>",
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "finalize_time": "<TIME:3>",
+            "generation": "<GEN:1>",
+            "kms_key": "",
+            "metadata": {
+              "x_emulator_no_crc32c": "true",
+              "x_emulator_no_md5": "true",
+              "x_emulator_upload": "grpc"
+            },
+            "metageneration": "1",
+            "name": "01-single.txt",
+            "owner": {
+              "entity": "user-object.owners@example.com",
+              "entity_id": ""
+            },
+            "size": "43",
+            "storage_class": "",
+            "temporary_hold": false,
+            "update_time": "<TIME:3>"
+          },
+          {
+            "acl": [
+              {
+                "domain": "",
+                "email": "object.owners@example.com",
+                "entity": "user-object.owners@example.com",
+                "entity_alt": "",
+                "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+                "etag": "edc9c331cec6ba3544bac46b50ca7666",
+                "id": "<ID:10>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": ""
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-owners-123456789",
+                "entity_alt": "",
+                "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "id": "<ID:11>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-editors-123456789",
+                "entity_alt": "",
+                "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "fef2f17b4425221f39306563f46061d7",
+                "id": "<ID:12>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "editors"
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-viewers-123456789",
+                "entity_alt": "",
+                "entity_id": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "id": "<ID:13>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "bucket": "projects/_/buckets/grpc-bucket",
+            "cache_control": "",
+            "checksums": {
+              "crc32c": 576848900,
+              "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+            },
+            "component_count": 0,
+            "content_disposition": "",
+            "content_encoding": "",
+            "content_language": "",
+            "content_type": "",
+            "create_time": "<TIME:4>",
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "finalize_time": "<TIME:4>",
+            "generation": "<GEN:2>",
+            "kms_key": "",
+            "metadata": {
+              "x_emulator_no_crc32c": "true",
+              "x_emulator_no_md5": "true",
+              "x_emulator_upload": "grpc"
+            },
+            "metageneration": "1",
+            "name": "02-multi.txt",
+            "owner": {
+              "entity": "user-object.owners@example.com",
+              "entity_id": ""
+            },
+            "size": "43",
+            "storage_class": "",
+            "temporary_hold": false,
+            "update_time": "<TIME:4>"
+          },
+          {
+            "acl": [
+              {
+                "domain": "",
+                "email": "object.owners@example.com",
+                "entity": "user-object.owners@example.com",
+                "entity_alt": "",
+                "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+                "etag": "edc9c331cec6ba3544bac46b50ca7666",
+                "id": "<ID:14>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": ""
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-owners-123456789",
+                "entity_alt": "",
+                "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "id": "<ID:15>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-editors-123456789",
+                "entity_alt": "",
+                "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "fef2f17b4425221f39306563f46061d7",
+                "id": "<ID:16>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "editors"
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-viewers-123456789",
+                "entity_alt": "",
+                "entity_id": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "id": "<ID:17>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "bucket": "projects/_/buckets/grpc-bucket",
+            "cache_control": "",
+            "checksums": {
+              "crc32c": 576848900,
+              "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+            },
+            "component_count": 0,
+            "content_disposition": "",
+            "content_encoding": "",
+            "content_language": "",
+            "content_type": "",
+            "create_time": "<TIME:5>",
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "finalize_time": "<TIME:5>",
+            "generation": "<GEN:3>",
+            "kms_key": "",
+            "metadata": {
+              "x_emulator_no_crc32c": "true",
+              "x_emulator_no_md5": "true",
+              "x_emulator_upload": "grpc"
+            },
+            "metageneration": "1",
+            "name": "03-bidi.txt",
+            "owner": {
+              "entity": "user-object.owners@example.com",
+              "entity_id": ""
+            },
+            "size": "43",
+            "storage_class": "",
+            "temporary_hold": false,
+            "update_time": "<TIME:5>"
+          },
+          {
+            "acl": [
+              {
+                "domain": "",
+                "email": "object.owners@example.com",
+                "entity": "user-object.owners@example.com",
+                "entity_alt": "",
+                "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+                "etag": "edc9c331cec6ba3544bac46b50ca7666",
+                "id": "<ID:18>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": ""
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-owners-123456789",
+                "entity_alt": "",
+                "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "id": "<ID:19>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-editors-123456789",
+                "entity_alt": "",
+                "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "fef2f17b4425221f39306563f46061d7",
+                "id": "<ID:20>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "editors"
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-viewers-123456789",
+                "entity_alt": "",
+                "entity_id": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "id": "<ID:21>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "bucket": "projects/_/buckets/grpc-bucket",
+            "cache_control": "",
+            "checksums": {
+              "crc32c": 576848900,
+              "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+            },
+            "component_count": 0,
+            "content_disposition": "",
+            "content_encoding": "",
+            "content_language": "",
+            "content_type": "",
+            "create_time": "<TIME:6>",
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "finalize_time": "<TIME:6>",
+            "generation": "<GEN:4>",
+            "kms_key": "",
+            "metadata": {
+              "x_emulator_no_crc32c": "true",
+              "x_emulator_no_md5": "true",
+              "x_emulator_upload": "resumable"
+            },
+            "metageneration": "1",
+            "name": "04-resumable.txt",
+            "owner": {
+              "entity": "user-object.owners@example.com",
+              "entity_id": ""
+            },
+            "size": "43",
+            "storage_class": "",
+            "temporary_hold": false,
+            "update_time": "<TIME:6>"
+          },
+          {
+            "acl": [
+              {
+                "domain": "",
+                "email": "object.owners@example.com",
+                "entity": "user-object.owners@example.com",
+                "entity_alt": "",
+                "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+                "etag": "edc9c331cec6ba3544bac46b50ca7666",
+                "id": "<ID:22>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": ""
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-owners-123456789",
+                "entity_alt": "",
+                "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "id": "<ID:23>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-editors-123456789",
+                "entity_alt": "",
+                "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "fef2f17b4425221f39306563f46061d7",
+                "id": "<ID:24>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "editors"
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-viewers-123456789",
+                "entity_alt": "",
+                "entity_id": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "id": "<ID:25>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "bucket": "projects/_/buckets/grpc-bucket",
+            "cache_control": "",
+            "checksums": {
+              "crc32c": 576848900,
+              "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+            },
+            "component_count": 0,
+            "content_disposition": "",
+            "content_encoding": "",
+            "content_language": "",
+            "content_type": "",
+            "create_time": "<TIME:7>",
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "finalize_time": "<TIME:7>",
+            "generation": "<GEN:5>",
+            "kms_key": "",
+            "metadata": {
+              "x_emulator_no_crc32c": "true",
+              "x_emulator_no_md5": "true",
+              "x_emulator_upload": "grpc"
+            },
+            "metageneration": "1",
+            "name": "05-dir/nested.txt",
+            "owner": {
+              "entity": "user-object.owners@example.com",
+              "entity_id": ""
+            },
+            "size": "43",
+            "storage_class": "",
+            "temporary_hold": false,
+            "update_time": "<TIME:7>"
+          }
+        ],
+        "prefixes": []
+      },
+      "kind": "grpc",
+      "label": "list-objects",
+      "type": "google.storage.v2.ListObjectsResponse"
+    },
+    {
+      "body": {
+        "next_page_token": "",
+        "objects": [
+          {
+            "acl": [
+              {
+                "domain": "",
+                "email": "object.owners@example.com",
+                "entity": "user-object.owners@example.com",
+                "entity_alt": "",
+                "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+                "etag": "edc9c331cec6ba3544bac46b50ca7666",
+                "id": "<ID:10>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": ""
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-owners-123456789",
+                "entity_alt": "",
+                "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "id": "<ID:11>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-editors-123456789",
+                "entity_alt": "",
+                "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "fef2f17b4425221f39306563f46061d7",
+                "id": "<ID:12>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "editors"
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-viewers-123456789",
+                "entity_alt": "",
+                "entity_id": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "id": "<ID:13>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "bucket": "projects/_/buckets/grpc-bucket",
+            "cache_control": "",
+            "checksums": {
+              "crc32c": 576848900,
+              "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+            },
+            "component_count": 0,
+            "content_disposition": "",
+            "content_encoding": "",
+            "content_language": "",
+            "content_type": "",
+            "create_time": "<TIME:4>",
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "finalize_time": "<TIME:4>",
+            "generation": "<GEN:2>",
+            "kms_key": "",
+            "metadata": {
+              "x_emulator_no_crc32c": "true",
+              "x_emulator_no_md5": "true",
+              "x_emulator_upload": "grpc"
+            },
+            "metageneration": "1",
+            "name": "02-multi.txt",
+            "owner": {
+              "entity": "user-object.owners@example.com",
+              "entity_id": ""
+            },
+            "size": "43",
+            "storage_class": "",
+            "temporary_hold": false,
+            "update_time": "<TIME:4>"
+          }
+        ],
+        "prefixes": []
+      },
+      "kind": "grpc",
+      "label": "list-objects-prefix",
+      "type": "google.storage.v2.ListObjectsResponse"
+    },
+    {
+      "body": {
+        "next_page_token": "",
+        "objects": [
+          {
+            "acl": [
+              {
+                "domain": "",
+                "email": "object.owners@example.com",
+                "entity": "user-object.owners@example.com",
+                "entity_alt": "",
+                "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+                "etag": "edc9c331cec6ba3544bac46b50ca7666",
+                "id": "<ID:6>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": ""
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-owners-123456789",
+                "entity_alt": "",
+                "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "id": "<ID:7>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-editors-123456789",
+                "entity_alt": "",
+                "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "fef2f17b4425221f39306563f46061d7",
+                "id": "<ID:8>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "editors"
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-viewers-123456789",
+                "entity_alt": "",
+                "entity_id": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "id": "<ID:9>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "bucket": "projects/_/buckets/grpc-bucket",
+            "cache_control": "",
+            "checksums": {
+              "crc32c": 576848900,
+              "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+            },
+            "component_count": 0,
+            "content_disposition": "",
+            "content_encoding": "",
+            "content_language": "",
+            "content_type": "",
+            "create_time": "<TIME:3>",
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "finalize_time": "<TIME:3>",
+            "generation": "<GEN:1>",
+            "kms_key": "",
+            "metadata": {
+              "x_emulator_no_crc32c": "true",
+              "x_emulator_no_md5": "true",
+              "x_emulator_upload": "grpc"
+            },
+            "metageneration": "1",
+            "name": "01-single.txt",
+            "owner": {
+              "entity": "user-object.owners@example.com",
+              "entity_id": ""
+            },
+            "size": "43",
+            "storage_class": "",
+            "temporary_hold": false,
+            "update_time": "<TIME:3>"
+          },
+          {
+            "acl": [
+              {
+                "domain": "",
+                "email": "object.owners@example.com",
+                "entity": "user-object.owners@example.com",
+                "entity_alt": "",
+                "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+                "etag": "edc9c331cec6ba3544bac46b50ca7666",
+                "id": "<ID:10>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": ""
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-owners-123456789",
+                "entity_alt": "",
+                "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "id": "<ID:11>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-editors-123456789",
+                "entity_alt": "",
+                "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "fef2f17b4425221f39306563f46061d7",
+                "id": "<ID:12>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "editors"
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-viewers-123456789",
+                "entity_alt": "",
+                "entity_id": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "id": "<ID:13>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "bucket": "projects/_/buckets/grpc-bucket",
+            "cache_control": "",
+            "checksums": {
+              "crc32c": 576848900,
+              "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+            },
+            "component_count": 0,
+            "content_disposition": "",
+            "content_encoding": "",
+            "content_language": "",
+            "content_type": "",
+            "create_time": "<TIME:4>",
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "finalize_time": "<TIME:4>",
+            "generation": "<GEN:2>",
+            "kms_key": "",
+            "metadata": {
+              "x_emulator_no_crc32c": "true",
+              "x_emulator_no_md5": "true",
+              "x_emulator_upload": "grpc"
+            },
+            "metageneration": "1",
+            "name": "02-multi.txt",
+            "owner": {
+              "entity": "user-object.owners@example.com",
+              "entity_id": ""
+            },
+            "size": "43",
+            "storage_class": "",
+            "temporary_hold": false,
+            "update_time": "<TIME:4>"
+          },
+          {
+            "acl": [
+              {
+                "domain": "",
+                "email": "object.owners@example.com",
+                "entity": "user-object.owners@example.com",
+                "entity_alt": "",
+                "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+                "etag": "edc9c331cec6ba3544bac46b50ca7666",
+                "id": "<ID:14>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": ""
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-owners-123456789",
+                "entity_alt": "",
+                "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "id": "<ID:15>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-editors-123456789",
+                "entity_alt": "",
+                "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "fef2f17b4425221f39306563f46061d7",
+                "id": "<ID:16>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "editors"
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-viewers-123456789",
+                "entity_alt": "",
+                "entity_id": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "id": "<ID:17>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "bucket": "projects/_/buckets/grpc-bucket",
+            "cache_control": "",
+            "checksums": {
+              "crc32c": 576848900,
+              "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+            },
+            "component_count": 0,
+            "content_disposition": "",
+            "content_encoding": "",
+            "content_language": "",
+            "content_type": "",
+            "create_time": "<TIME:5>",
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "finalize_time": "<TIME:5>",
+            "generation": "<GEN:3>",
+            "kms_key": "",
+            "metadata": {
+              "x_emulator_no_crc32c": "true",
+              "x_emulator_no_md5": "true",
+              "x_emulator_upload": "grpc"
+            },
+            "metageneration": "1",
+            "name": "03-bidi.txt",
+            "owner": {
+              "entity": "user-object.owners@example.com",
+              "entity_id": ""
+            },
+            "size": "43",
+            "storage_class": "",
+            "temporary_hold": false,
+            "update_time": "<TIME:5>"
+          },
+          {
+            "acl": [
+              {
+                "domain": "",
+                "email": "object.owners@example.com",
+                "entity": "user-object.owners@example.com",
+                "entity_alt": "",
+                "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+                "etag": "edc9c331cec6ba3544bac46b50ca7666",
+                "id": "<ID:18>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": ""
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-owners-123456789",
+                "entity_alt": "",
+                "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "id": "<ID:19>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-editors-123456789",
+                "entity_alt": "",
+                "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "fef2f17b4425221f39306563f46061d7",
+                "id": "<ID:20>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "editors"
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-viewers-123456789",
+                "entity_alt": "",
+                "entity_id": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "id": "<ID:21>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "bucket": "projects/_/buckets/grpc-bucket",
+            "cache_control": "",
+            "checksums": {
+              "crc32c": 576848900,
+              "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+            },
+            "component_count": 0,
+            "content_disposition": "",
+            "content_encoding": "",
+            "content_language": "",
+            "content_type": "",
+            "create_time": "<TIME:6>",
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "finalize_time": "<TIME:6>",
+            "generation": "<GEN:4>",
+            "kms_key": "",
+            "metadata": {
+              "x_emulator_no_crc32c": "true",
+              "x_emulator_no_md5": "true",
+              "x_emulator_upload": "resumable"
+            },
+            "metageneration": "1",
+            "name": "04-resumable.txt",
+            "owner": {
+              "entity": "user-object.owners@example.com",
+              "entity_id": ""
+            },
+            "size": "43",
+            "storage_class": "",
+            "temporary_hold": false,
+            "update_time": "<TIME:6>"
+          }
+        ],
+        "prefixes": [
+          "05-dir/"
+        ]
+      },
+      "kind": "grpc",
+      "label": "list-objects-delimiter",
+      "type": "google.storage.v2.ListObjectsResponse"
+    },
+    {
+      "body": {
+        "resource": {
+          "acl": [
+            {
+              "domain": "",
+              "email": "object.owners@example.com",
+              "entity": "user-object.owners@example.com",
+              "entity_alt": "",
+              "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+              "etag": "edc9c331cec6ba3544bac46b50ca7666",
+              "id": "<ID:26>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": ""
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-owners-123456789",
+              "entity_alt": "",
+              "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+              "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+              "id": "<ID:27>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "owners"
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-editors-123456789",
+              "entity_alt": "",
+              "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+              "etag": "fef2f17b4425221f39306563f46061d7",
+              "id": "<ID:28>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "editors"
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-viewers-123456789",
+              "entity_alt": "",
+              "entity_id": "1af53c4385287cb946b49d191d2520c1",
+              "etag": "b251b29ae33075d18ed4f18ec96cc301",
+              "id": "<ID:29>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "viewers"
+              },
+              "role": "READER"
+            }
+          ],
+          "bucket": "projects/_/buckets/grpc-bucket",
+          "cache_control": "",
+          "checksums": {
+            "crc32c": 576848900,
+            "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+          },
+          "component_count": 0,
+          "content_disposition": "",
+          "content_encoding": "",
+          "content_language": "",
+          "content_type": "",
+          "create_time": "<TIME:8>",
+          "etag": "c4ca4238a0b923820dcc509a6f75849b",
+          "finalize_time": "<TIME:8>",
+          "generation": "<GEN:6>",
+          "kms_key": "",
+          "metadata": {
+            "x_emulator_no_crc32c": "true",
+            "x_emulator_no_md5": "true",
+            "x_emulator_upload": "grpc"
+          },
+          "metageneration": "1",
+          "name": "06-update.txt",
+          "owner": {
+            "entity": "user-object.owners@example.com",
+            "entity_id": ""
+          },
+          "size": "43",
+          "storage_class": "",
+          "temporary_hold": false,
+          "update_time": "<TIME:8>"
+        }
+      },
+      "kind": "grpc",
+      "label": "write-update-target",
+      "type": "google.storage.v2.WriteObjectResponse"
+    },
+    {
+      "body": {
+        "acl": [
+          {
+            "domain": "",
+            "email": "object.owners@example.com",
+            "entity": "user-object.owners@example.com",
+            "entity_alt": "",
+            "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+            "etag": "edc9c331cec6ba3544bac46b50ca7666",
+            "id": "<ID:26>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": ""
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-owners-123456789",
+            "entity_alt": "",
+            "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+            "id": "<ID:27>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-editors-123456789",
+            "entity_alt": "",
+            "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+            "etag": "fef2f17b4425221f39306563f46061d7",
+            "id": "<ID:28>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "editors"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-viewers-123456789",
+            "entity_alt": "",
+            "entity_id": "1af53c4385287cb946b49d191d2520c1",
+            "etag": "b251b29ae33075d18ed4f18ec96cc301",
+            "id": "<ID:29>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "bucket": "projects/_/buckets/grpc-bucket",
+        "cache_control": "",
+        "checksums": {
+          "crc32c": 576848900,
+          "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+        },
+        "component_count": 0,
+        "content_disposition": "",
+        "content_encoding": "",
+        "content_language": "",
+        "content_type": "text/plain",
+        "create_time": "<TIME:8>",
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "finalize_time": "<TIME:8>",
+        "generation": "<GEN:6>",
+        "kms_key": "",
+        "metadata": {
+          "reviewed": "yes"
+        },
+        "metageneration": "2",
+        "name": "06-update.txt",
+        "owner": {
+          "entity": "user-object.owners@example.com",
+          "entity_id": ""
+        },
+        "size": "43",
+        "storage_class": "",
+        "temporary_hold": false,
+        "update_time": "<TIME:9>"
+      },
+      "kind": "grpc",
+      "label": "update-object",
+      "type": "google.storage.v2.Object"
+    },
+    {
+      "body": {
+        "completed": false,
+        "id": "<ID:30>",
+        "instructions": {
+          "storage.objects.insert": [
+            "redirect-send-token-t"
+          ]
+        },
+        "transport": "GRPC"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "create-retry-test-redirect-send-token",
+      "status": 200
+    },
+    {
+      "grpc_code": "ABORTED",
+      "has_details": true,
+      "kind": "error",
+      "label": "redirect-send-token",
+      "type": "<GRPC_ERROR>"
+    },
+    {
+      "body": {
+        "completed": false,
+        "id": "<ID:31>",
+        "instructions": {
+          "storage.objects.get": [
+            "redirect-send-handle-and-token-t"
+          ]
+        },
+        "transport": "GRPC"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "create-retry-test-redirect-send-handle-and-token",
+      "status": 200
+    },
+    {
+      "grpc_code": "ABORTED",
+      "has_details": true,
+      "kind": "error",
+      "label": "redirect-send-handle-and-token",
+      "type": "<GRPC_ERROR>"
+    },
+    {
+      "body": {
+        "completed": false,
+        "id": "<ID:32>",
+        "instructions": {
+          "storage.objects.insert": [
+            "redirect-expect-token-t"
+          ]
+        },
+        "transport": "GRPC"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "create-retry-test-redirect-expect-token",
+      "status": 200
+    },
+    {
+      "body": {
+        "resource": {
+          "acl": [
+            {
+              "domain": "",
+              "email": "object.owners@example.com",
+              "entity": "user-object.owners@example.com",
+              "entity_alt": "",
+              "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+              "etag": "edc9c331cec6ba3544bac46b50ca7666",
+              "id": "<ID:33>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": ""
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-owners-123456789",
+              "entity_alt": "",
+              "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+              "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+              "id": "<ID:34>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "owners"
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-editors-123456789",
+              "entity_alt": "",
+              "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+              "etag": "fef2f17b4425221f39306563f46061d7",
+              "id": "<ID:35>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "editors"
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-viewers-123456789",
+              "entity_alt": "",
+              "entity_id": "1af53c4385287cb946b49d191d2520c1",
+              "etag": "b251b29ae33075d18ed4f18ec96cc301",
+              "id": "<ID:36>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "viewers"
+              },
+              "role": "READER"
+            }
+          ],
+          "bucket": "projects/_/buckets/grpc-bucket",
+          "cache_control": "",
+          "checksums": {
+            "crc32c": 576848900,
+            "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+          },
+          "component_count": 0,
+          "content_disposition": "",
+          "content_encoding": "",
+          "content_language": "",
+          "content_type": "",
+          "create_time": "<TIME:10>",
+          "etag": "c4ca4238a0b923820dcc509a6f75849b",
+          "finalize_time": "<TIME:10>",
+          "generation": "<GEN:7>",
+          "kms_key": "",
+          "metadata": {
+            "x_emulator_no_crc32c": "true",
+            "x_emulator_no_md5": "true",
+            "x_emulator_upload": "grpc"
+          },
+          "metageneration": "1",
+          "name": "redirect-expect.txt",
+          "owner": {
+            "entity": "user-object.owners@example.com",
+            "entity_id": ""
+          },
+          "size": "43",
+          "storage_class": "",
+          "temporary_hold": false,
+          "update_time": "<TIME:10>"
+        }
+      },
+      "kind": "grpc",
+      "label": "redirect-expect-token",
+      "type": "google.storage.v2.BidiWriteObjectResponse"
+    },
+    {
+      "body": {
+        "completed": true,
+        "id": "<ID:32>",
+        "instructions": {
+          "storage.objects.insert": []
+        },
+        "transport": "GRPC"
+      },
+      "framing": {
+        "content_length_matches_body": true,
+        "mode": "content-length"
+      },
+      "headers": {
+        "content-type": "application/json"
+      },
+      "kind": "http",
+      "label": "retry-test-status-redirect-expect-token",
+      "status": 200
+    },
+    {
+      "body": {
+        "acl": [
+          {
+            "domain": "",
+            "email": "object.owners@example.com",
+            "entity": "user-object.owners@example.com",
+            "entity_alt": "",
+            "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+            "etag": "edc9c331cec6ba3544bac46b50ca7666",
+            "id": "<ID:37>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": ""
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-owners-123456789",
+            "entity_alt": "",
+            "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+            "id": "<ID:38>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-editors-123456789",
+            "entity_alt": "",
+            "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+            "etag": "fef2f17b4425221f39306563f46061d7",
+            "id": "<ID:39>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "editors"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-viewers-123456789",
+            "entity_alt": "",
+            "entity_id": "1af53c4385287cb946b49d191d2520c1",
+            "etag": "b251b29ae33075d18ed4f18ec96cc301",
+            "id": "<ID:40>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "bucket": "projects/_/buckets/grpc-bucket",
+        "cache_control": "",
+        "checksums": {
+          "crc32c": 553546725,
+          "md5_hash": "0nxti8qmleN30yOH4RV2PA=="
+        },
+        "component_count": 0,
+        "content_disposition": "",
+        "content_encoding": "",
+        "content_language": "",
+        "content_type": "",
+        "create_time": "<TIME:11>",
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "finalize_time": "<TIME:11>",
+        "generation": "<GEN:8>",
+        "kms_key": "",
+        "metadata": {},
+        "metageneration": "1",
+        "name": "composed.txt",
+        "owner": {
+          "entity": "user-object.owners@example.com",
+          "entity_id": ""
+        },
+        "size": "86",
+        "storage_class": "",
+        "temporary_hold": false,
+        "update_time": "<TIME:11>"
+      },
+      "kind": "grpc",
+      "label": "compose-object",
+      "type": "google.storage.v2.Object"
+    },
+    {
+      "body": {
+        "done": true,
+        "object_size": "43",
+        "resource": {
+          "acl": [
+            {
+              "domain": "",
+              "email": "object.owners@example.com",
+              "entity": "user-object.owners@example.com",
+              "entity_alt": "",
+              "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+              "etag": "edc9c331cec6ba3544bac46b50ca7666",
+              "id": "<ID:6>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": ""
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-owners-123456789",
+              "entity_alt": "",
+              "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+              "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+              "id": "<ID:7>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "owners"
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-editors-123456789",
+              "entity_alt": "",
+              "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+              "etag": "fef2f17b4425221f39306563f46061d7",
+              "id": "<ID:8>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "editors"
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-viewers-123456789",
+              "entity_alt": "",
+              "entity_id": "1af53c4385287cb946b49d191d2520c1",
+              "etag": "b251b29ae33075d18ed4f18ec96cc301",
+              "id": "<ID:9>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "viewers"
+              },
+              "role": "READER"
+            }
+          ],
+          "bucket": "projects/_/buckets/grpc-bucket",
+          "cache_control": "",
+          "checksums": {
+            "crc32c": 576848900,
+            "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+          },
+          "component_count": 0,
+          "content_disposition": "",
+          "content_encoding": "",
+          "content_language": "",
+          "content_type": "",
+          "create_time": "<TIME:12>",
+          "etag": "c4ca4238a0b923820dcc509a6f75849b",
+          "finalize_time": "<TIME:12>",
+          "generation": "<GEN:9>",
+          "kms_key": "",
+          "metadata": {
+            "x_emulator_no_crc32c": "true",
+            "x_emulator_no_md5": "true",
+            "x_emulator_upload": "grpc"
+          },
+          "metageneration": "1",
+          "name": "rewritten.txt",
+          "owner": {
+            "entity": "user-object.owners@example.com",
+            "entity_id": ""
+          },
+          "size": "43",
+          "storage_class": "",
+          "temporary_hold": false,
+          "update_time": "<TIME:12>"
+        },
+        "rewrite_token": "<REWRITE:1>",
+        "total_bytes_rewritten": "43"
+      },
+      "kind": "grpc",
+      "label": "rewrite-step-0",
+      "type": "google.storage.v2.RewriteResponse"
+    },
+    {
+      "body": {
+        "acl": [
+          {
+            "domain": "",
+            "email": "object.owners@example.com",
+            "entity": "user-object.owners@example.com",
+            "entity_alt": "",
+            "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+            "etag": "edc9c331cec6ba3544bac46b50ca7666",
+            "id": "<ID:6>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": ""
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-owners-123456789",
+            "entity_alt": "",
+            "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+            "id": "<ID:7>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-editors-123456789",
+            "entity_alt": "",
+            "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+            "etag": "fef2f17b4425221f39306563f46061d7",
+            "id": "<ID:8>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "editors"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-viewers-123456789",
+            "entity_alt": "",
+            "entity_id": "1af53c4385287cb946b49d191d2520c1",
+            "etag": "b251b29ae33075d18ed4f18ec96cc301",
+            "id": "<ID:9>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "bucket": "projects/_/buckets/grpc-bucket",
+        "cache_control": "",
+        "checksums": {
+          "crc32c": 576848900,
+          "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+        },
+        "component_count": 0,
+        "content_disposition": "",
+        "content_encoding": "",
+        "content_language": "",
+        "content_type": "",
+        "create_time": "<TIME:13>",
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "finalize_time": "<TIME:13>",
+        "generation": "<GEN:10>",
+        "kms_key": "",
+        "metadata": {
+          "x_emulator_no_crc32c": "true",
+          "x_emulator_no_md5": "true",
+          "x_emulator_upload": "grpc"
+        },
+        "metageneration": "1",
+        "name": "moved.txt",
+        "owner": {
+          "entity": "user-object.owners@example.com",
+          "entity_id": ""
+        },
+        "size": "43",
+        "storage_class": "",
+        "temporary_hold": false,
+        "update_time": "<TIME:13>"
+      },
+      "kind": "grpc",
+      "label": "move-object",
+      "type": "google.storage.v2.Object"
+    },
+    {
+      "body": {},
+      "kind": "grpc",
+      "label": "delete-object",
+      "type": "google.protobuf.Empty"
+    },
+    {
+      "grpc_code": "NOT_FOUND",
+      "has_details": true,
+      "kind": "error",
+      "label": "delete-missing-object",
+      "type": "<GRPC_ERROR>"
+    },
+    {
+      "body": {
+        "acl": [
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-owners-123456789",
+            "entity_alt": "",
+            "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+            "id": "<ID:41>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-editors-123456789",
+            "entity_alt": "",
+            "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+            "etag": "b0f6636a6467106c1c9550f8f503b1d5",
+            "id": "<ID:42>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "editors"
+            },
+            "role": "WRITER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-viewers-123456789",
+            "entity_alt": "",
+            "entity_id": "1af53c4385287cb946b49d191d2520c1",
+            "etag": "b251b29ae33075d18ed4f18ec96cc301",
+            "id": "<ID:43>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "bucket_id": "grpc-soft-delete",
+        "cors": [],
+        "create_time": "<TIME:14>",
+        "default_event_based_hold": false,
+        "default_object_acl": [
+          {
+            "domain": "",
+            "email": "object.owners@example.com",
+            "entity": "user-object.owners@example.com",
+            "entity_alt": "",
+            "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+            "etag": "edc9c331cec6ba3544bac46b50ca7666",
+            "id": "<ID:44>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": ""
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-owners-123456789",
+            "entity_alt": "",
+            "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+            "id": "<ID:41>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-editors-123456789",
+            "entity_alt": "",
+            "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+            "etag": "fef2f17b4425221f39306563f46061d7",
+            "id": "<ID:45>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "editors"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-viewers-123456789",
+            "entity_alt": "",
+            "entity_id": "1af53c4385287cb946b49d191d2520c1",
+            "etag": "b251b29ae33075d18ed4f18ec96cc301",
+            "id": "<ID:43>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "labels": {},
+        "location": "",
+        "location_type": "",
+        "metageneration": "1",
+        "name": "projects/_/buckets/grpc-soft-delete",
+        "owner": {
+          "entity": "project-owners-123456789",
+          "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc"
+        },
+        "project": "projects/123456789",
+        "rpo": "DEFAULT",
+        "satisfies_pzs": false,
+        "soft_delete_policy": {
+          "effective_time": "<TIME:15>",
+          "retention_duration": "604800s"
+        },
+        "storage_class": "STANDARD",
+        "update_time": "<TIME:14>"
+      },
+      "kind": "grpc",
+      "label": "create-soft-delete-bucket",
+      "type": "google.storage.v2.Bucket"
+    },
+    {
+      "body": {
+        "resource": {
+          "acl": [
+            {
+              "domain": "",
+              "email": "object.owners@example.com",
+              "entity": "user-object.owners@example.com",
+              "entity_alt": "",
+              "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+              "etag": "edc9c331cec6ba3544bac46b50ca7666",
+              "id": "<ID:46>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": ""
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-owners-123456789",
+              "entity_alt": "",
+              "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+              "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+              "id": "<ID:47>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "owners"
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-editors-123456789",
+              "entity_alt": "",
+              "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+              "etag": "fef2f17b4425221f39306563f46061d7",
+              "id": "<ID:48>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "editors"
+              },
+              "role": "OWNER"
+            },
+            {
+              "domain": "",
+              "email": "",
+              "entity": "project-viewers-123456789",
+              "entity_alt": "",
+              "entity_id": "1af53c4385287cb946b49d191d2520c1",
+              "etag": "b251b29ae33075d18ed4f18ec96cc301",
+              "id": "<ID:49>",
+              "project_team": {
+                "project_number": "123456789",
+                "team": "viewers"
+              },
+              "role": "READER"
+            }
+          ],
+          "bucket": "projects/_/buckets/grpc-soft-delete",
+          "cache_control": "",
+          "checksums": {
+            "crc32c": 576848900,
+            "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+          },
+          "component_count": 0,
+          "content_disposition": "",
+          "content_encoding": "",
+          "content_language": "",
+          "content_type": "",
+          "create_time": "<TIME:16>",
+          "etag": "c4ca4238a0b923820dcc509a6f75849b",
+          "finalize_time": "<TIME:16>",
+          "generation": "<GEN:11>",
+          "kms_key": "",
+          "metadata": {
+            "x_emulator_no_crc32c": "true",
+            "x_emulator_no_md5": "true",
+            "x_emulator_upload": "grpc"
+          },
+          "metageneration": "1",
+          "name": "sd.txt",
+          "owner": {
+            "entity": "user-object.owners@example.com",
+            "entity_id": ""
+          },
+          "size": "43",
+          "storage_class": "",
+          "temporary_hold": false,
+          "update_time": "<TIME:16>"
+        }
+      },
+      "kind": "grpc",
+      "label": "soft-delete-write",
+      "type": "google.storage.v2.WriteObjectResponse"
+    },
+    {
+      "body": {},
+      "kind": "grpc",
+      "label": "soft-delete-object",
+      "type": "google.protobuf.Empty"
+    },
+    {
+      "body": {
+        "acl": [
+          {
+            "domain": "",
+            "email": "object.owners@example.com",
+            "entity": "user-object.owners@example.com",
+            "entity_alt": "",
+            "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+            "etag": "edc9c331cec6ba3544bac46b50ca7666",
+            "id": "<ID:46>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": ""
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-owners-123456789",
+            "entity_alt": "",
+            "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+            "id": "<ID:47>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-editors-123456789",
+            "entity_alt": "",
+            "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+            "etag": "fef2f17b4425221f39306563f46061d7",
+            "id": "<ID:48>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "editors"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-viewers-123456789",
+            "entity_alt": "",
+            "entity_id": "1af53c4385287cb946b49d191d2520c1",
+            "etag": "b251b29ae33075d18ed4f18ec96cc301",
+            "id": "<ID:49>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "bucket": "projects/_/buckets/grpc-soft-delete",
+        "cache_control": "",
+        "checksums": {
+          "crc32c": 576848900,
+          "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+        },
+        "component_count": 0,
+        "content_disposition": "",
+        "content_encoding": "",
+        "content_language": "",
+        "content_type": "",
+        "create_time": "<TIME:16>",
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "finalize_time": "<TIME:16>",
+        "generation": "<GEN:11>",
+        "hard_delete_time": "<TIME:18>",
+        "kms_key": "",
+        "metadata": {
+          "x_emulator_no_crc32c": "true",
+          "x_emulator_no_md5": "true",
+          "x_emulator_upload": "grpc"
+        },
+        "metageneration": "1",
+        "name": "sd.txt",
+        "owner": {
+          "entity": "user-object.owners@example.com",
+          "entity_id": ""
+        },
+        "size": "43",
+        "soft_delete_time": "<TIME:17>",
+        "storage_class": "",
+        "temporary_hold": false,
+        "update_time": "<TIME:16>"
+      },
+      "kind": "grpc",
+      "label": "get-object-soft-deleted",
+      "type": "google.storage.v2.Object"
+    },
+    {
+      "body": {
+        "next_page_token": "",
+        "objects": [
+          {
+            "acl": [
+              {
+                "domain": "",
+                "email": "object.owners@example.com",
+                "entity": "user-object.owners@example.com",
+                "entity_alt": "",
+                "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+                "etag": "edc9c331cec6ba3544bac46b50ca7666",
+                "id": "<ID:46>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": ""
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-owners-123456789",
+                "entity_alt": "",
+                "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+                "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+                "id": "<ID:47>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "owners"
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-editors-123456789",
+                "entity_alt": "",
+                "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+                "etag": "fef2f17b4425221f39306563f46061d7",
+                "id": "<ID:48>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "editors"
+                },
+                "role": "OWNER"
+              },
+              {
+                "domain": "",
+                "email": "",
+                "entity": "project-viewers-123456789",
+                "entity_alt": "",
+                "entity_id": "1af53c4385287cb946b49d191d2520c1",
+                "etag": "b251b29ae33075d18ed4f18ec96cc301",
+                "id": "<ID:49>",
+                "project_team": {
+                  "project_number": "123456789",
+                  "team": "viewers"
+                },
+                "role": "READER"
+              }
+            ],
+            "bucket": "projects/_/buckets/grpc-soft-delete",
+            "cache_control": "",
+            "checksums": {
+              "crc32c": 576848900,
+              "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+            },
+            "component_count": 0,
+            "content_disposition": "",
+            "content_encoding": "",
+            "content_language": "",
+            "content_type": "",
+            "create_time": "<TIME:16>",
+            "etag": "c4ca4238a0b923820dcc509a6f75849b",
+            "finalize_time": "<TIME:16>",
+            "generation": "<GEN:11>",
+            "hard_delete_time": "<TIME:18>",
+            "kms_key": "",
+            "metadata": {
+              "x_emulator_no_crc32c": "true",
+              "x_emulator_no_md5": "true",
+              "x_emulator_upload": "grpc"
+            },
+            "metageneration": "1",
+            "name": "sd.txt",
+            "owner": {
+              "entity": "user-object.owners@example.com",
+              "entity_id": ""
+            },
+            "size": "43",
+            "soft_delete_time": "<TIME:17>",
+            "storage_class": "",
+            "temporary_hold": false,
+            "update_time": "<TIME:16>"
+          }
+        ],
+        "prefixes": []
+      },
+      "kind": "grpc",
+      "label": "list-objects-soft-deleted",
+      "type": "google.storage.v2.ListObjectsResponse"
+    },
+    {
+      "body": {
+        "acl": [
+          {
+            "domain": "",
+            "email": "object.owners@example.com",
+            "entity": "user-object.owners@example.com",
+            "entity_alt": "",
+            "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+            "etag": "edc9c331cec6ba3544bac46b50ca7666",
+            "id": "<ID:46>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": ""
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-owners-123456789",
+            "entity_alt": "",
+            "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+            "id": "<ID:47>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-editors-123456789",
+            "entity_alt": "",
+            "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+            "etag": "fef2f17b4425221f39306563f46061d7",
+            "id": "<ID:48>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "editors"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-viewers-123456789",
+            "entity_alt": "",
+            "entity_id": "1af53c4385287cb946b49d191d2520c1",
+            "etag": "b251b29ae33075d18ed4f18ec96cc301",
+            "id": "<ID:49>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "bucket": "projects/_/buckets/grpc-soft-delete",
+        "cache_control": "",
+        "checksums": {
+          "crc32c": 576848900,
+          "md5_hash": "nhB9nTcrtoJr2B01QqQZ1g=="
+        },
+        "component_count": 0,
+        "content_disposition": "",
+        "content_encoding": "",
+        "content_language": "",
+        "content_type": "",
+        "create_time": "<TIME:19>",
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "finalize_time": "<TIME:16>",
+        "generation": "<GEN:12>",
+        "hard_delete_time": "<TIME:18>",
+        "kms_key": "",
+        "metadata": {
+          "x_emulator_no_crc32c": "true",
+          "x_emulator_no_md5": "true",
+          "x_emulator_upload": "grpc"
+        },
+        "metageneration": "1",
+        "name": "sd.txt",
+        "owner": {
+          "entity": "user-object.owners@example.com",
+          "entity_id": ""
+        },
+        "size": "43",
+        "storage_class": "",
+        "temporary_hold": false,
+        "update_time": "<TIME:16>"
+      },
+      "kind": "grpc",
+      "label": "restore-object",
+      "type": "google.storage.v2.Object"
+    },
+    {
+      "body": {
+        "hierarchical_namespace": {
+          "enabled": false
+        },
+        "location": "US",
+        "location_type": "multi-region",
+        "name": "projects/_/buckets/grpc-bucket/storageLayout"
+      },
+      "kind": "grpc",
+      "label": "get-storage-layout",
+      "type": "google.storage.control.v2.StorageLayout"
+    },
+    {
+      "body": {
+        "create_time": "<TIME:20>",
+        "metageneration": "1",
+        "name": "projects/_/buckets/grpc-bucket/folders/folder-a/",
+        "update_time": "<TIME:20>"
+      },
+      "kind": "grpc",
+      "label": "create-folder",
+      "type": "google.storage.control.v2.Folder"
+    },
+    {
+      "body": {
+        "create_time": "<TIME:20>",
+        "metageneration": "1",
+        "name": "projects/_/buckets/grpc-bucket/folders/folder-a/",
+        "update_time": "<TIME:20>"
+      },
+      "kind": "grpc",
+      "label": "get-folder",
+      "type": "google.storage.control.v2.Folder"
+    },
+    {
+      "body": {
+        "folders": [
+          {
+            "create_time": "<TIME:20>",
+            "metageneration": "1",
+            "name": "projects/_/buckets/grpc-bucket/folders/folder-a/",
+            "update_time": "<TIME:20>"
+          }
+        ],
+        "next_page_token": ""
+      },
+      "kind": "grpc",
+      "label": "list-folders",
+      "type": "google.storage.control.v2.ListFoldersResponse"
+    },
+    {
+      "body": {
+        "done": true,
+        "name": "projects/_/buckets/grpc-bucket/folders/folder-a/",
+        "response": {}
+      },
+      "kind": "grpc",
+      "label": "rename-folder",
+      "type": "google.longrunning.Operation"
+    },
+    {
+      "body": {
+        "create_time": "<TIME:21>",
+        "metageneration": "1",
+        "name": "projects/_/buckets/grpc-bucket/folders/folder-c/",
+        "update_time": "<TIME:21>"
+      },
+      "kind": "grpc",
+      "label": "create-folder-for-delete",
+      "type": "google.storage.control.v2.Folder"
+    },
+    {
+      "body": {},
+      "kind": "grpc",
+      "label": "delete-folder",
+      "type": "google.protobuf.Empty"
+    },
+    {
+      "body": {
+        "acl": [
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-owners-123456789",
+            "entity_alt": "",
+            "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+            "id": "<ID:50>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-editors-123456789",
+            "entity_alt": "",
+            "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+            "etag": "b0f6636a6467106c1c9550f8f503b1d5",
+            "id": "<ID:51>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "editors"
+            },
+            "role": "WRITER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-viewers-123456789",
+            "entity_alt": "",
+            "entity_id": "1af53c4385287cb946b49d191d2520c1",
+            "etag": "b251b29ae33075d18ed4f18ec96cc301",
+            "id": "<ID:52>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "bucket_id": "../../etc/passwd",
+        "cors": [],
+        "create_time": "<TIME:22>",
+        "default_event_based_hold": false,
+        "default_object_acl": [
+          {
+            "domain": "",
+            "email": "object.owners@example.com",
+            "entity": "user-object.owners@example.com",
+            "entity_alt": "",
+            "entity_id": "eae1b38342abd983cbc68ce650bc410c",
+            "etag": "edc9c331cec6ba3544bac46b50ca7666",
+            "id": "<ID:53>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": ""
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-owners-123456789",
+            "entity_alt": "",
+            "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc",
+            "etag": "b4815e2fa66ebca16800c6bf0696ad4a",
+            "id": "<ID:50>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "owners"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-editors-123456789",
+            "entity_alt": "",
+            "entity_id": "32b6a918db9f75d2ff648c02b754520f",
+            "etag": "fef2f17b4425221f39306563f46061d7",
+            "id": "<ID:54>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "editors"
+            },
+            "role": "OWNER"
+          },
+          {
+            "domain": "",
+            "email": "",
+            "entity": "project-viewers-123456789",
+            "entity_alt": "",
+            "entity_id": "1af53c4385287cb946b49d191d2520c1",
+            "etag": "b251b29ae33075d18ed4f18ec96cc301",
+            "id": "<ID:52>",
+            "project_team": {
+              "project_number": "123456789",
+              "team": "viewers"
+            },
+            "role": "READER"
+          }
+        ],
+        "etag": "c4ca4238a0b923820dcc509a6f75849b",
+        "labels": {},
+        "location": "",
+        "location_type": "",
+        "metageneration": "1",
+        "name": "projects/_/buckets/../../etc/passwd",
+        "owner": {
+          "entity": "project-owners-123456789",
+          "entity_id": "22a875f6ac2cbd060a2e594fe5aa6fcc"
+        },
+        "project": "projects/123456789",
+        "rpo": "DEFAULT",
+        "satisfies_pzs": false,
+        "storage_class": "STANDARD",
+        "update_time": "<TIME:22>"
+      },
+      "kind": "grpc",
+      "label": "create-bucket-traversal",
+      "type": "google.storage.v2.Bucket"
+    }
+  ],
+  "name": "grpc"
+}

@@ -1,0 +1,240 @@
+#!/usr/bin/env python3
+#
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Unit tests for the conformance recorder."""
+
+import unittest
+
+import grpc
+import requests
+from requests.structures import CaseInsensitiveDict
+
+from google.storage.v2 import storage_pb2
+from tests.conformance.recorder import Recorder
+
+
+class FakeResponse:
+    def __init__(self, status_code, headers, content):
+        self.status_code = status_code
+        self.headers = headers
+        self.content = content
+
+    def json(self):
+        import json
+
+        return json.loads(self.content)
+
+
+class TestRecorder(unittest.TestCase):
+    def test_records_status_headers_and_json_body(self):
+        rec = Recorder("demo")
+        rec.record_http(
+            "create-bucket",
+            FakeResponse(
+                200, {"Content-Type": "application/json"}, b'{"generation":"7"}'
+            ),
+        )
+        out = rec.finish()
+        entry = out["interactions"][0]
+        self.assertEqual("create-bucket", entry["label"])
+        self.assertEqual(200, entry["status"])
+        self.assertEqual({"generation": "<GEN:1>"}, entry["body"])
+
+    def test_records_binary_body_as_digest_and_length(self):
+        # Media payloads must be compared without committing megabytes of
+        # bytes to git, but a digest still catches any corruption.
+        rec = Recorder("demo")
+        rec.record_http(
+            "download",
+            FakeResponse(200, {"Content-Type": "application/octet-stream"}, b"abc"),
+        )
+        entry = rec.finish()["interactions"][0]
+        self.assertEqual(3, entry["body"]["length"])
+        self.assertEqual(
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            entry["body"]["sha256"],
+        )
+
+    def test_framing_records_content_length_mode_and_consistency(self):
+        # The framing axis (Content-Length vs chunked, and whether the
+        # advertised length matches the body) must be observable to the gate:
+        # Plan 2's Media seam refactors exactly this, and DROPPED_HEADERS hides
+        # the raw framing headers. `content_length_matches_body` is True when
+        # the advertised length equals the wire body the trace recorded.
+        rec = Recorder("demo")
+        body = b'{"generation":"7"}'
+        rec.record_http(
+            "get",
+            FakeResponse(
+                200,
+                CaseInsensitiveDict(
+                    {
+                        "Content-Type": "application/json",
+                        "Content-Length": str(len(body)),
+                    }
+                ),
+                body,
+            ),
+        )
+        framing = rec.finish()["interactions"][0]["framing"]
+        self.assertEqual("content-length", framing["mode"])
+        self.assertTrue(framing["content_length_matches_body"])
+
+    def test_framing_flags_a_content_length_that_lies_about_the_body(self):
+        # A Content-Length inconsistent with the bytes served is a real
+        # regression the Media seam could introduce; it must move a golden.
+        rec = Recorder("demo")
+        rec.record_http(
+            "get",
+            FakeResponse(
+                200,
+                CaseInsensitiveDict(
+                    {
+                        "Content-Type": "application/octet-stream",
+                        "Content-Length": "999",
+                    }
+                ),
+                b"abc",
+            ),
+        )
+        framing = rec.finish()["interactions"][0]["framing"]
+        self.assertEqual("content-length", framing["mode"])
+        self.assertFalse(framing["content_length_matches_body"])
+
+    def test_framing_detects_chunked_case_insensitively(self):
+        # A switch to chunked framing is the headline change the Media seam
+        # could make. Header casing must not matter -- real responses use a
+        # CaseInsensitiveDict, and chunked responses carry no Content-Length,
+        # so the consistency flag is absent rather than a misleading value.
+        rec = Recorder("demo")
+        rec.record_http(
+            "stream",
+            FakeResponse(
+                200,
+                CaseInsensitiveDict(
+                    {
+                        "Content-Type": "application/octet-stream",
+                        "TRANSFER-ENCODING": "chunked",
+                    }
+                ),
+                b"abc",
+            ),
+        )
+        framing = rec.finish()["interactions"][0]["framing"]
+        self.assertEqual("chunked", framing["mode"])
+        self.assertNotIn("content_length_matches_body", framing)
+
+    def test_framing_is_none_when_neither_length_nor_encoding_is_present(self):
+        rec = Recorder("demo")
+        rec.record_http(
+            "get",
+            FakeResponse(200, CaseInsensitiveDict({"Content-Type": "text/plain"}), b""),
+        )
+        framing = rec.finish()["interactions"][0]["framing"]
+        self.assertEqual("none", framing["mode"])
+        self.assertNotIn("content_length_matches_body", framing)
+
+    def test_labels_must_be_unique(self):
+        rec = Recorder("demo")
+        rec.record_http("x", FakeResponse(200, {}, b"{}"))
+        with self.assertRaises(AssertionError):
+            rec.record_http("x", FakeResponse(200, {}, b"{}"))
+
+    def test_records_grpc_message_type_and_canonicalized_body(self):
+        # A real protobuf message, not a stub: this is the interface Tasks
+        # 5-7 will call for every gRPC interaction, and it was previously
+        # untested -- record_grpc's MessageToDict call used a keyword
+        # argument (`including_default_value_fields`) that the pinned
+        # protobuf==5.29.3 does not accept at all, raising TypeError on any
+        # invocation, which only a real call like this one would catch.
+        message = storage_pb2.Object(
+            name="obj-1", bucket="projects/_/buckets/probe-bucket", generation=7
+        )
+        rec = Recorder("demo")
+        rec.record_grpc("get-object", message)
+        entry = rec.finish()["interactions"][0]
+        self.assertEqual("get-object", entry["label"])
+        self.assertEqual("google.storage.v2.Object", entry["type"])
+        self.assertEqual("obj-1", entry["body"]["name"])
+        self.assertEqual("<GEN:1>", entry["body"]["generation"])
+
+    def test_records_stream_boundaries_and_digest(self):
+        rec = Recorder("demo")
+        rec.record_stream("read", [b"ab", b"cde", b"f"])
+        entry = rec.finish()["interactions"][0]
+        self.assertEqual([0, 2, 5], entry["offsets"])
+        self.assertEqual(6, entry["length"])
+
+    def test_finish_runs_canonicalizer_invariants(self):
+        rec = Recorder("demo")
+        rec.record_http(
+            "a",
+            FakeResponse(
+                200, {"Content-Type": "application/json"}, b'{"generation":"9"}'
+            ),
+        )
+        rec.record_http(
+            "b",
+            FakeResponse(
+                200, {"Content-Type": "application/json"}, b'{"generation":"8"}'
+            ),
+        )
+        with self.assertRaises(AssertionError):
+            rec.finish()
+
+    def test_transport_errors_normalize_to_one_token(self):
+        # A broken stream surfaces as ReadTimeout on macOS and ConnectionError
+        # on Linux for the same injected fault. Recording the subclass would
+        # make goldens machine-specific and break the CI conformance job, so
+        # every transport-level requests failure records identically.
+        rec = Recorder("demo")
+        rec.record_error("reset", requests.exceptions.ConnectionError("reset"))
+        rec.record_error("slow", requests.exceptions.ReadTimeout("timed out"))
+        entries = rec.finish()["interactions"]
+        self.assertEqual("<TRANSPORT_ERROR>", entries[0]["type"])
+        self.assertEqual("<TRANSPORT_ERROR>", entries[1]["type"])
+
+    def test_grpc_errors_normalize_type_but_keep_grpc_code(self):
+        # grpcio's concrete error classes (`_InactiveRpcError`,
+        # `_MultiThreadedRendezvous`) are underscore-prefixed internals that
+        # a grpcio version bump can rename for reasons having nothing to do
+        # with the emulator; `_FakeRpcError` below stands in for either. The
+        # emulator-owned signal -- the status code -- must still come
+        # through verbatim in `grpc_code`.
+        class _FakeRpcError(grpc.RpcError):
+            def code(self):
+                return grpc.StatusCode.ABORTED
+
+            def details(self):
+                return "redirected"
+
+        rec = Recorder("demo")
+        rec.record_error("redirect", _FakeRpcError())
+        entry = rec.finish()["interactions"][0]
+        self.assertEqual("<GRPC_ERROR>", entry["type"])
+        self.assertEqual("ABORTED", entry["grpc_code"])
+        self.assertTrue(entry["has_details"])
+
+    def test_non_transport_errors_keep_their_type(self):
+        # gRPC status codes are chosen by the emulator, so they are
+        # deterministic and must stay visible to the diff.
+        rec = Recorder("demo")
+        rec.record_error("boom", ValueError("nope"))
+        self.assertEqual("ValueError", rec.finish()["interactions"][0]["type"])
+
+
+if __name__ == "__main__":
+    unittest.main()

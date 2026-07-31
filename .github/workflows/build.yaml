@@ -35,14 +35,61 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install flake8 pytest pytest-cov
+          pip install flake8 pytest pytest-cov "hypothesis<6.113"
           pip install -e .
           pip list
       - name: Run Unit Tests with Coverage
         env:
           PYTHONPATH: "."
         run: |
-          pytest --cov=./ --cov-report=xml
+          pytest --cov=./ --cov-report=xml --ignore=tests/test_media_call_sites.py
+      # The durability (test_durability_restart.py, test_sigkill_upload.py) and
+      # concurrency (test_grpc_concurrency.py) suites (Mechanisms 6 and 7) build
+      # their own FileStore/Emulator, so they run automatically under both this
+      # file-backend leg and the memory-backed coverage leg above. Mechanism 8
+      # (real-GCS divergence, tests/conformance/real_gcs_divergence.py) is
+      # DELIBERATELY not a CI job -- it is a manual/operator-run job needing a
+      # real project + credentials; here it is only a credential-less no-op skip.
+      - name: Run Unit Tests (file backend, Mechanism 1)
+        env:
+          PYTHONPATH: "."
+          TESTBENCH_TEST_STORE: file
+        run: |
+          pytest -q --ignore=tests/test_media_call_sites.py
+      # The media call-site coverage gate launches emulator subprocesses under
+      # coverage.py and combines their data files. Run it ISOLATED (its own step,
+      # no pytest-cov over the whole suite, no other tests contending) so the
+      # subprocess-coverage combine is deterministic -- inside the full --cov run
+      # it intermittently reported "No data was collected" and a spurious missing
+      # site. Standalone it is reliable (verified). Not weakened, just isolated.
+      - name: Media call-site coverage gate (isolated)
+        env:
+          PYTHONPATH: "."
+        run: |
+          pytest tests/test_media_call_sites.py -q
+  conformance:
+    runs-on: ubuntu-22.04
+    name: Conformance baseline
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+          pip install -e .
+      - name: Verify external behavior against the committed baseline
+        env:
+          PYTHONPATH: "."
+        run: python -m tests.conformance.harness
+      - name: Verify file backend is byte-identical to memory (B == C, Mechanism 2)
+        env:
+          PYTHONPATH: "."
+        run: python -m tests.conformance.harness --store file
   windows-tests:
     runs-on: windows-2022
     strategy:

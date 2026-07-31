@@ -1,9 +1,18 @@
 .vscode/
 __pycache__/
-.coverage*
+# Coverage data files, but NOT .coveragerc (the committed subprocess-coverage
+# config the media call-site gate depends on -- see .coveragerc).
+.coverage
+.coverage.*
 cov.xml
 googleapis_storage_testbench.egg-info/
 coverage.xml
 .venv/
 .googleapis/
 env/
+.direnv/
+result
+result-*
+
+# hypothesis example database (dev-only)
+.hypothesis/

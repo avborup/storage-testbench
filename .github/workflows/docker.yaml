@@ -19,14 +19,39 @@ on:
     branches: [ main ]
   pull_request:
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
-  psf-black:
-    name: Verify we can create Docker images
+  docker:
+    # PRs verify the image builds; pushes to main also publish it to
+    # ghcr.io/<repo>, tagged with the branch name and the commit sha.
+    name: Build Docker image (publish on branch push)
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=sha
       - uses: docker/build-push-action@v6
         with:
           context: .
-          push: false
-          tags: testbench:test-only
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

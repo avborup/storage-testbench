@@ -1,0 +1,3 @@
+{
+  "create-bucket-traversal": "Deliberate B!=C. The file backend rejects the dotted/traversal bucket name '../../etc/passwd' with a clean 400 (REST) / INVALID_ARGUMENT (gRPC), because FileStore.validate_bucket_name is the file backend's SOLE bucket-name check (spec Security rule 4). gcs/bucket.py's validator is deliberately left unchanged (its dotted-name branch skips the char-class regex), so the memory backend still accepts this name -- keeping the memory golden digest stable and A==B intact. The memory acceptance is pinned as create-bucket-traversal in the REST+gRPC traces (Task 2). This is the single reviewed divergence for phase 4; reviewed as part of the FileStore work (PR #1)."
+}

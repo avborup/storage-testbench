@@ -16,7 +16,9 @@ import argparse
 import datetime
 import json
 import logging
+import os
 import time
+import uuid
 
 import flask
 from google.protobuf import json_format
@@ -28,12 +30,56 @@ import testbench
 from google.storage.v2 import storage_pb2
 from testbench.servers import echo, iam_rest_server, projects_rest_server
 
-db = testbench.database.Database.init()
+
+def _init_db_from_env():
+    # Select the storage backend from the environment. The traversal-capable,
+    # disk-writing FileStore is opt-in via TESTBENCH_STORE=file and requires an
+    # explicit on-disk root; the default remains the in-memory NullStore-backed
+    # Database. Imported lazily so the memory backend never pulls in the
+    # file-backend module.
+    if os.environ.get("TESTBENCH_STORE", "memory") == "file":
+        root = os.environ.get("TESTBENCH_ROOT")
+        if not root:
+            raise RuntimeError("TESTBENCH_STORE=file requires TESTBENCH_ROOT")
+        from testbench import containment
+        from testbench.filestore import FileStore
+
+        containment.claim_worker_lock(root)  # loud on a 2nd worker; earliest anchor
+        return testbench.database.Database.init(store=FileStore(root))
+    return testbench.database.Database.init()
+
+
+def _start_grpc(port, echo_metadata=False):
+    # Shared by the /start_grpc route and TESTBENCH_GRPC_PORT boot-start. Sets the
+    # MODULE globals so a later /start_grpc sees grpc_port != 0 and is a no-op --
+    # if this set locals instead, a second server would start on a random port.
+    global grpc_port, grpc_service
+    if grpc_port == 0:
+        grpc_port, grpc_service = testbench.grpc_server.run(
+            int(port), db, echo_metadata=echo_metadata
+        )
+
+
+def _bootstrap_from_env():
+    # Runs once per gunicorn worker, at import, AFTER db is built and (for the file
+    # backend) its index is hydrated and the single-worker lock is held. Every step
+    # is env-gated so that with all new vars UNSET this is a complete no-op and the
+    # import path is byte-identical to today.
+    buckets = os.environ.get("TESTBENCH_BUCKETS")
+    if buckets:  # "" and unset both -> no seeding
+        db.seed_buckets([n for n in buckets.split(",") if n])
+    port = os.environ.get("TESTBENCH_GRPC_PORT")
+    if port:
+        _start_grpc(port)
+
+
+db = _init_db_from_env()
 # retry_test decorates a routing function to handle the Retry Test API, with
 # method names based on the JSON API
 retry_test = testbench.common.gen_retry_test_decorator(db)
 grpc_port = 0
 grpc_service = None
+_bootstrap_from_env()  # LAST -- db, grpc_port, grpc_service now all bound
 
 
 # === DEFAULT ENTRY FOR REST SERVER === #
@@ -161,22 +207,14 @@ def delete_retry_test(test_id):
 
 @root.route("/start_grpc")
 def start_grpc():
-    # We need to do this because `gunicorn` will spawn a new subprocess ( a worker )
-    # when running `Flask` server. If we start `gRPC` server before the spawn of
-    # the subprocess, it's nearly impossible to share the `database` with the new
-    # subprocess because Python will copy everything in the memory from the parent
-    # process to the subprocess ( So we have 2 separate instance of `database` ).
-    # The endpoint will start the `gRPC` server in the same subprocess so there is
-    # only one instance of `database`.
-    global grpc_port
-    global grpc_service
-    global db
-    if grpc_port == 0:
-        port = flask.request.args.get("port", "0")
-        echo_metadata = flask.request.args.get("echo-metadata", False)
-        grpc_port, grpc_service = testbench.grpc_server.run(
-            int(port), db, echo_metadata=echo_metadata
-        )
+    # gRPC must start inside the gunicorn worker so it shares this process's single
+    # Database (a pre-fork server would get a copied, divergent index). Delegates to
+    # the shared _start_grpc helper (also used by TESTBENCH_GRPC_PORT boot-start), so
+    # a boot-started server makes this route a no-op.
+    _start_grpc(
+        flask.request.args.get("port", "0"),
+        echo_metadata=flask.request.args.get("echo-metadata", False),
+    )
     return str(grpc_port)
 
 
@@ -250,12 +288,13 @@ def bucket_get(bucket_name):
 @retry_test(method="storage.buckets.update")
 def bucket_update(bucket_name):
     db.insert_test_bucket()
-    bucket = db.get_bucket(
+    request = flask.request
+    bucket = db.do_update_bucket(
         bucket_name,
-        None,
-        preconditions=testbench.common.make_json_bucket_preconditions(flask.request),
+        update_fn=lambda b: b.update(request, None),
+        context=None,
+        preconditions=testbench.common.make_json_bucket_preconditions(request),
     )
-    bucket.update(flask.request, None)
     projection = testbench.common.extract_projection(flask.request, "full", None)
     fields = flask.request.args.get("fields", None)
     return testbench.common.filter_response_rest(bucket.rest(), projection, fields)
@@ -265,12 +304,13 @@ def bucket_update(bucket_name):
 @retry_test(method="storage.buckets.patch")
 def bucket_patch(bucket_name):
     testbench.common.enforce_patch_override(flask.request)
-    bucket = db.get_bucket(
+    request = flask.request
+    bucket = db.do_update_bucket(
         bucket_name,
-        None,
-        preconditions=testbench.common.make_json_bucket_preconditions(flask.request),
+        update_fn=lambda b: b.patch(request, None),
+        context=None,
+        preconditions=testbench.common.make_json_bucket_preconditions(request),
     )
-    bucket.patch(flask.request, None)
     projection = testbench.common.extract_projection(flask.request, "full", None)
     fields = flask.request.args.get("fields", None)
     return testbench.common.filter_response_rest(bucket.rest(), projection, fields)
@@ -308,9 +348,16 @@ def bucket_acl_list(bucket_name):
 @gcs.route("/b/<bucket_name>/acl", methods=["POST"])
 @retry_test(method="storage.bucket_acl.insert")
 def bucket_acl_insert(bucket_name):
-    bucket = db.get_bucket(bucket_name, None)
-    acl = bucket.insert_acl(flask.request, None)
-    response = testbench.proto2rest.bucket_access_control_as_rest(bucket_name, acl)
+    request = flask.request
+    holder = {}
+    db.do_update_bucket(
+        bucket_name,
+        update_fn=lambda b: holder.__setitem__("acl", b.insert_acl(request, None)),
+        context=None,
+    )
+    response = testbench.proto2rest.bucket_access_control_as_rest(
+        bucket_name, holder["acl"]
+    )
     fields = flask.request.args.get("fields", None)
     return testbench.common.filter_response_rest(response, None, fields)
 
@@ -328,9 +375,18 @@ def bucket_acl_get(bucket_name, entity):
 @gcs.route("/b/<bucket_name>/acl/<entity>", methods=["PUT"])
 @retry_test(method="storage.bucket_acl.update")
 def bucket_acl_update(bucket_name, entity):
-    bucket = db.get_bucket(bucket_name, None)
-    acl = bucket.update_acl(flask.request, entity, None)
-    response = testbench.proto2rest.bucket_access_control_as_rest(bucket_name, acl)
+    request = flask.request
+    holder = {}
+    db.do_update_bucket(
+        bucket_name,
+        update_fn=lambda b: holder.__setitem__(
+            "acl", b.update_acl(request, entity, None)
+        ),
+        context=None,
+    )
+    response = testbench.proto2rest.bucket_access_control_as_rest(
+        bucket_name, holder["acl"]
+    )
     fields = flask.request.args.get("fields", None)
     return testbench.common.filter_response_rest(response, None, fields)
 
@@ -339,9 +395,18 @@ def bucket_acl_update(bucket_name, entity):
 @retry_test(method="storage.bucket_acl.patch")
 def bucket_acl_patch(bucket_name, entity):
     testbench.common.enforce_patch_override(flask.request)
-    bucket = db.get_bucket(bucket_name, None)
-    acl = bucket.patch_acl(flask.request, entity, None)
-    response = testbench.proto2rest.bucket_access_control_as_rest(bucket_name, acl)
+    request = flask.request
+    holder = {}
+    db.do_update_bucket(
+        bucket_name,
+        update_fn=lambda b: holder.__setitem__(
+            "acl", b.patch_acl(request, entity, None)
+        ),
+        context=None,
+    )
+    response = testbench.proto2rest.bucket_access_control_as_rest(
+        bucket_name, holder["acl"]
+    )
     fields = flask.request.args.get("fields", None)
     return testbench.common.filter_response_rest(response, None, fields)
 
@@ -349,8 +414,11 @@ def bucket_acl_patch(bucket_name, entity):
 @gcs.route("/b/<bucket_name>/acl/<entity>", methods=["DELETE"])
 @retry_test(method="storage.bucket_acl.delete")
 def bucket_acl_delete(bucket_name, entity):
-    bucket = db.get_bucket(bucket_name, None)
-    bucket.delete_acl(entity, None)
+    db.do_update_bucket(
+        bucket_name,
+        update_fn=lambda b: b.delete_acl(entity, None),
+        context=None,
+    )
     return flask.make_response("")
 
 
@@ -372,10 +440,17 @@ def bucket_default_object_acl_list(bucket_name):
 @gcs.route("/b/<bucket_name>/defaultObjectAcl", methods=["POST"])
 @retry_test(method="storage.default_object_acl.insert")
 def bucket_default_object_acl_insert(bucket_name):
-    bucket = db.get_bucket(bucket_name, None)
-    acl = bucket.insert_default_object_acl(flask.request, None)
+    request = flask.request
+    holder = {}
+    db.do_update_bucket(
+        bucket_name,
+        update_fn=lambda b: holder.__setitem__(
+            "acl", b.insert_default_object_acl(request, None)
+        ),
+        context=None,
+    )
     response = testbench.proto2rest.default_object_access_control_as_rest(
-        bucket_name, acl
+        bucket_name, holder["acl"]
     )
     fields = flask.request.args.get("fields", None)
     return testbench.common.filter_response_rest(response, None, fields)
@@ -396,10 +471,17 @@ def bucket_default_object_acl_get(bucket_name, entity):
 @gcs.route("/b/<bucket_name>/defaultObjectAcl/<entity>", methods=["PUT"])
 @retry_test(method="storage.default_object_acl.update")
 def bucket_default_object_acl_update(bucket_name, entity):
-    bucket = db.get_bucket(bucket_name, None)
-    acl = bucket.update_default_object_acl(flask.request, entity, None)
+    request = flask.request
+    holder = {}
+    db.do_update_bucket(
+        bucket_name,
+        update_fn=lambda b: holder.__setitem__(
+            "acl", b.update_default_object_acl(request, entity, None)
+        ),
+        context=None,
+    )
     response = testbench.proto2rest.default_object_access_control_as_rest(
-        bucket_name, acl
+        bucket_name, holder["acl"]
     )
     fields = flask.request.args.get("fields", None)
     return testbench.common.filter_response_rest(response, None, fields)
@@ -409,10 +491,17 @@ def bucket_default_object_acl_update(bucket_name, entity):
 @retry_test(method="storage.default_object_acl.patch")
 def bucket_default_object_acl_patch(bucket_name, entity):
     testbench.common.enforce_patch_override(flask.request)
-    bucket = db.get_bucket(bucket_name, None)
-    acl = bucket.patch_default_object_acl(flask.request, entity, None)
+    request = flask.request
+    holder = {}
+    db.do_update_bucket(
+        bucket_name,
+        update_fn=lambda b: holder.__setitem__(
+            "acl", b.patch_default_object_acl(request, entity, None)
+        ),
+        context=None,
+    )
     response = testbench.proto2rest.default_object_access_control_as_rest(
-        bucket_name, acl
+        bucket_name, holder["acl"]
     )
     fields = flask.request.args.get("fields", None)
     return testbench.common.filter_response_rest(response, None, fields)
@@ -421,8 +510,11 @@ def bucket_default_object_acl_patch(bucket_name, entity):
 @gcs.route("/b/<bucket_name>/defaultObjectAcl/<entity>", methods=["DELETE"])
 @retry_test(method="storage.default_object_acl.delete")
 def bucket_default_object_acl_delete(bucket_name, entity):
-    bucket = db.get_bucket(bucket_name, None)
-    bucket.delete_default_object_acl(entity, None)
+    db.do_update_bucket(
+        bucket_name,
+        update_fn=lambda b: b.delete_default_object_acl(entity, None),
+        context=None,
+    )
     return flask.make_response("")
 
 
@@ -469,8 +561,12 @@ def bucket_get_iam_policy(bucket_name):
 @retry_test(method="storage.buckets.setIamPolicy")
 def bucket_set_iam_policy(bucket_name):
     db.insert_test_bucket()
-    bucket = db.get_bucket(bucket_name, None)
-    bucket.set_iam_policy(flask.request, None)
+    request = flask.request
+    bucket = db.do_update_bucket(
+        bucket_name,
+        update_fn=lambda b: b.set_iam_policy(request, None),
+        context=None,
+    )
     response = json_format.MessageToDict(bucket.iam_policy)
     response["kind"] = "storage#policy"
     return response
@@ -488,14 +584,17 @@ def bucket_test_iam_permissions(bucket_name):
 @gcs.route("/b/<bucket_name>/lockRetentionPolicy", methods=["POST"])
 @retry_test(method="storage.buckets.lockRetentionPolicy")
 def bucket_lock_retention_policy(bucket_name):
-    bucket = db.get_bucket(
+    def _lock(bucket):
+        bucket.metadata.retention_policy.is_locked = True
+        bucket.metadata.retention_policy.effective_time.FromDatetime(
+            datetime.datetime.now()
+        )
+
+    bucket = db.do_update_bucket(
         bucket_name,
+        update_fn=_lock,
         context=None,
         preconditions=testbench.common.make_json_bucket_preconditions(flask.request),
-    )
-    bucket.metadata.retention_policy.is_locked = True
-    bucket.metadata.retention_policy.effective_time.FromDatetime(
-        datetime.datetime.now()
     )
     return bucket.rest()
 
@@ -624,7 +723,11 @@ def objects_compose(bucket_name, object_name):
             "The number of source components provided (%d > 32)" % len(source_objects),
             None,
         )
-    composed_media = b""
+    # Stream each source into a store-provided staging Media (FileMedia
+    # O_APPEND on the file backend, BytesMedia on memory) rather than the old
+    # `b"" += source.media` idiom, which materialised every source into one
+    # in-memory buffer; the token names the staging file under containment.
+    composed_media = db.store.new_staging_media(bucket_name, uuid.uuid4().hex)
     for source_object in source_objects:
         source_object_name = source_object.get("name")
         if source_object_name is None:
@@ -652,7 +755,9 @@ def objects_compose(bucket_name, object_name):
             preconditions=[precondition],
             context=None,
         )
-        composed_media += source_object.media
+        size = storage_pb2.ServiceConstants.Values.MAX_READ_CHUNK_BYTES
+        for chunk in source_object.media.chunks(0, len(source_object.media), size):
+            composed_media.append(chunk)
 
         delete_source_objects = flask.request.args.get("deleteSourceObjects", None)
         if delete_source_objects == "true":
@@ -699,8 +804,15 @@ def objects_copy(src_bucket_name, src_object_name, dst_bucket_name, dst_object_n
     del dst_metadata.acl[:]
     dst_metadata.bucket = dst_bucket_name
     dst_metadata.name = dst_object_name
-    dst_media = b""
-    dst_media += src_object.media
+    # Stream the source into a store-provided staging Media (FileMedia O_APPEND
+    # on the file backend, BytesMedia on memory) one read chunk at a time rather
+    # than folding the whole source into one buffer via `b"" += src.media`; the
+    # chunked copy is the default copy/move (a store-internal hardlink fast-path
+    # is a deferred optimization, see the gRPC MoveObject note).
+    dst_media = db.store.new_staging_media(dst_bucket_name, uuid.uuid4().hex)
+    size = storage_pb2.ServiceConstants.Values.MAX_READ_CHUNK_BYTES
+    for chunk in src_object.media.chunks(0, len(src_object.media), size):
+        dst_media.append(chunk)
     dst_object, _ = gcs_type.object.Object.init(
         flask.request, dst_metadata, dst_media, dst_bucket, True, None
     )
@@ -751,6 +863,10 @@ def objects_rewrite(src_bucket_name, src_object_name, dst_bucket_name, dst_objec
             dst_bucket_name,
             dst_object_name,
         )
+        # The staging destination accumulates the rewritten windows across calls;
+        # the store factory keeps this store-agnostic (FileMedia O_APPEND on the
+        # file backend, BytesMedia on memory).
+        rewrite.media = db.store.new_staging_media(dst_bucket_name, rewrite.token)
         db.insert_rewrite(rewrite)
     else:
         rewrite = db.get_rewrite(token, None)
@@ -769,11 +885,18 @@ def objects_rewrite(src_bucket_name, src_object_name, dst_bucket_name, dst_objec
         True,
         None,
     )
-    total_bytes_rewritten = len(rewrite.media)
-    total_bytes_rewritten += min(
-        rewrite.max_bytes_rewritten_per_call, len(src_object.media) - len(rewrite.media)
+    offset = len(rewrite.media)
+    total_bytes_rewritten = offset + min(
+        rewrite.max_bytes_rewritten_per_call, len(src_object.media) - offset
     )
-    rewrite.media += src_object.media[len(rewrite.media) : total_bytes_rewritten]
+    # Stream this call's [offset, total_bytes_rewritten) window from the source
+    # into the staging Media one read chunk at a time (FileMedia O_APPEND on the
+    # file backend, BytesMedia on memory) rather than slicing
+    # `src_object.media[offset:total]` into one buffer -- so a window larger than
+    # the bounded-memory budget is never materialised.
+    size = storage_pb2.ServiceConstants.Values.MAX_READ_CHUNK_BYTES
+    for chunk in src_object.media.chunks(offset, total_bytes_rewritten, size):
+        rewrite.media.append(chunk)
     done, dst_object = total_bytes_rewritten == len(src_object.media), None
     response = {
         "kind": "storage#rewriteResponse",
@@ -1000,6 +1123,10 @@ def object_insert(bucket_name):
         testbench.error.invalid("uploadType %s" % upload_type, None)
     if upload_type == "resumable":
         upload = gcs_type.upload.Upload.init_resumable_rest(flask.request, bucket)
+        # Stream this resumable upload into a store-provided staging Media
+        # (FileMedia O_APPEND on FILE, BytesMedia on memory). Subsequent
+        # `upload.media += data` chunks route through the staging file.
+        upload.media = db.store.new_upload_media(upload.bucket.name, upload.upload_id)
         db.insert_upload(upload)
         response = flask.make_response("")
         response.headers["Location"] = upload.location
@@ -1210,7 +1337,12 @@ def resumable_upload_chunk(bucket_name):
     if upload.complete:
         upload.apply_final_checksums(x_goog_hash)
         blob, _ = gcs_type.object.Object.init(
-            upload.request, upload.metadata, upload.media, upload.bucket, False, None
+            upload.request,
+            upload.metadata,
+            upload.media,
+            upload.bucket,
+            False,
+            None,
         )
         blob.metadata.metadata["x_emulator_transfer_encoding"] = ":".join(
             upload.transfer

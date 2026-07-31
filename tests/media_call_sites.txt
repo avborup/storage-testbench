@@ -1,0 +1,223 @@
+# Media call-site audit -- coverage gate input for tests/test_media_call_sites.py.
+#
+# Every uncommented `path:line` below is a genuine `.media` access on an
+# Object/Upload/Rewrite domain object that the conformance trace
+# (trace_rest + trace_grpc + trace_faults) executes today. The gate fails if
+# any listed line is NOT executed by the trace, turning the ~71-site `.media`
+# audit from a claim into a check. Later tasks migrate these sites onto the
+# Media interface and add their new lines here.
+#
+# Lines were captured from real subprocess coverage of the gunicorn worker
+# (see .coveragerc / testbench/__init__.py) and reviewed by hand:
+# `media_link` matches and docstring/comment mentions of `.media` were dropped.
+#
+# `# UNCOVERED path:line -- reason` records a genuine media site the trace does
+# NOT exercise today, so the gap stays visible rather than silently dropped.
+# These are comments: the gate skips them, so they do not turn it red.
+#
+# Task 5 re-pin: routing REST resumable + gRPC WriteObject/BidiWrite (non-
+# appendable) uploads onto a store-provided staging Media inserted new
+# `upload.media = db.store.new_upload_media(...)` factory sites (gcs/upload.py:192
+# and :409, grpc_server.py:1244, rest_server.py:1095) and shifted subsequent line
+# numbers; every entry below is content-verified against the working tree.
+#
+# Task 10 re-pin: routing the appendable (F2) path onto a single O_APPEND
+# staging FileMedia added a staging-factory site in BidiWrite's appendable
+# write_object_spec branch (gcs/upload.py:413), dropped the empty-insert
+# `.to_bytes()` in favour of a media pass-through (:319), widened the two
+# appendable alias-guard ternaries to isinstance(Media) (:642-647, :694-702),
+# and added the object_updated seal call site (testbench/filestore.py:260) --
+# all trace-UNCOVERED (no appendable upload in the trace / FileStore never built
+# under the memory-config coverage gate). The shifts moved the non-appendable
+# BidiWrite factory :409 -> :425 and every gcs/upload.py site below it (+16);
+# every entry is content-verified against the working tree.
+#
+# Phase 6 (bootstrap) re-pin: the deployment wiring shifted both server modules
+# without touching any media call site. testbench/grpc_server.py gained
+# `_grpc_thread_count()` (TESTBENCH_GRPC_THREADS) near the module head, moving
+# every grpc site below it by +5; testbench/rest_server.py gained the
+# `_start_grpc`/`_bootstrap_from_env` helpers plus the file-branch worker-lock
+# claim, and a slimmer delegating `/start_grpc` route, moving :106 by +27 and
+# every rest site at/below the route by +19. No `.media` statement changed;
+# every grpc_server.py / rest_server.py entry below is content-verified against
+# the working tree.
+
+# --- gcs/object.py ---
+gcs/object.py:67
+gcs/object.py:78
+gcs/object.py:107
+gcs/object.py:145
+gcs/object.py:151
+gcs/object.py:152
+gcs/object.py:153
+gcs/object.py:519
+gcs/object.py:549
+gcs/object.py:550
+gcs/object.py:556
+gcs/object.py:576
+gcs/object.py:580
+gcs/object.py:587
+gcs/object.py:591
+# gcs/object.py:67 is `media.chunks(...)` in the module-level `_stream_media`
+# helper and :78 is `media.reader()` in the module-level `_stream_transcode`
+# helper (Task 7). :591 is the `instructions is None` REST download streamer
+# passing `self.media` into `_stream_media` (the ONLY non-fault normal AND ranged
+# path -- Task 6 dropped the old unranged `to_bytes()` hot path); :587 is the same
+# streamer's decompressive-transcode branch passing `self.media` into
+# `_stream_transcode`. Task 7 streams the transcode with a bounded two-pass
+# counted Content-Length -- :550 is the counting pass
+# (`sum(len(buf) for buf in _stream_transcode(self.media))`), so neither the
+# normal nor the transcode download ever materialises the whole object.
+# gcs/object.py:519 is `_download_range`'s `len(self.media)`, computed
+# arithmetically (no payload slicing) so a FileMedia is never materialised to
+# clamp a range; :556 is `response_payload = self.media` (the non-transcode
+# payload stays the Media) and :549 the transcode branch's `response_payload =
+# self.media`.
+# gcs/object.py:145 is `Object.init`'s own media-wrap (`media if isinstance(...)
+# else BytesMedia(media)`) and :151/:152/:153 the size/md5/crc32c reads that
+# follow it -- the classmethod every insert/compose/rewrite/finalize path uses to
+# construct a new Object; :107 is the matching wrap in `Object.__init__`.
+# gcs/object.py:576/:580 are the widened fault-injection escape hatch:
+# `isinstance(response_payload, Media)` (was BytesMedia) taking its `.to_bytes()`
+# branch. Task 6 narrowed this to the fault/instruction path only (`instructions
+# is not None`), so it now fires solely on the faults trace's small, unranged
+# instruction downloads (begin=0), never on the normal or ranged path.
+# UNCOVERED gcs/object.py:144 -- corrupt_media() call gated on the `inject-upload-data-error` instruction; the trace never sends that instruction into Object.init
+# UNCOVERED gcs/object.py:578 -- the transcode fault path materialising the gunzipped bytes (b"".join(_stream_transcode(self.media))); the trace injects no fault on a decompressive-transcode download
+# UNCOVERED gcs/object.py:692 -- the default `else` REST download streamer's transcode branch (_stream_transcode(self.media)); the trace issues no download whose testbench instructions fall through to this branch
+# UNCOVERED gcs/object.py:694 -- the default `else` REST download streamer's non-transcode branch (_stream_media(self.media)); the trace issues no download whose testbench instructions fall through to this branch
+
+# --- gcs/upload.py ---
+gcs/upload.py:192
+gcs/upload.py:244
+gcs/upload.py:249
+gcs/upload.py:267
+gcs/upload.py:279
+gcs/upload.py:425
+gcs/upload.py:580
+gcs/upload.py:585
+gcs/upload.py:603
+gcs/upload.py:618
+gcs/upload.py:620
+gcs/upload.py:671
+gcs/upload.py:718
+gcs/upload.py:736
+gcs/upload.py:737
+# gcs/upload.py:192 and :425 are the Task-5 staging factory sites:
+# `upload.media = db.store.new_upload_media(...)` for WriteObject
+# (init_write_object_grpc's write_object_spec branch) and BidiWrite's
+# non-appendable write_object_spec branch respectively. :279/:618 are the
+# `upload.media += content` gRPC accumulate statements (O_APPEND on FileMedia);
+# :718 is the BidiWrite non-appendable finalize `Object.init(..., upload.media, ...)`
+# -- the `.to_bytes()` escape hatch dropped in Task 5.
+# UNCOVERED gcs/upload.py:245 -- partial-media resend branch (write_offset < persisted size); the gRPC write trace never re-sends already-persisted bytes
+# UNCOVERED gcs/upload.py:255 -- OUT_OF_RANGE abort (write_offset > persisted size); the trace never sends a gap-ahead offset
+# UNCOVERED gcs/upload.py:319 -- _insert_empty_appendable_object passes the empty staging Media THROUGH (Task 10: was `.to_bytes()`), so blob.media aliases the O_APPEND FileMedia object_inserted link_into's; the trace performs no appendable-object upload
+# UNCOVERED gcs/upload.py:413 -- BidiWrite appendable write_object_spec staging factory `upload.media = db.store.new_upload_media(...)` (Task 10); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:565 -- partial-media resend branch, BidiWrite variant of :245
+# UNCOVERED gcs/upload.py:575 -- OUT_OF_RANGE abort, BidiWrite variant of :255
+# UNCOVERED gcs/upload.py:642 -- update_appendable_blob closure `blob.media = (` (checksummed_data flush); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:643 -- same update_appendable_blob ternary as :642 (the Media-passthrough value `upload.media`); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:644 -- same update_appendable_blob ternary as :642 (the isinstance(upload.media, Media) condition, widened in Task 10 so a FileMedia aliases through); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:645 -- same update_appendable_blob ternary as :642 (the BytesMedia-wrap else branch, memory-only); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:647 -- update_appendable_blob closure size assignment; no appendable upload in the trace
+# UNCOVERED gcs/upload.py:694 -- finalize_blob closure `blob.media = (` (appendable finalize); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:695 -- same finalize_blob ternary as :694 (the Media-passthrough value `upload.media`); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:696 -- same finalize_blob ternary as :694 (the isinstance(upload.media, Media) condition, widened in Task 10); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:697 -- same finalize_blob ternary as :694 (the BytesMedia-wrap else branch, memory-only); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:702 -- finalize_blob closure size assignment; no appendable upload in the trace
+
+# --- testbench/grpc_server.py ---
+# Line numbers re-pinned in Task 9: the now-dead `from testbench.media import
+# BytesMedia` import was dropped (-1 to every site below) once MoveObject stopped
+# materialising the source via `.to_bytes()`; MoveObject grew a staging-factory +
+# chunked copy loop, and RewriteObject grew a `rewrite.media = new_staging_media`
+# assignment plus a windowed `chunks()` streaming loop, shifting the sites below
+# each. The sites are content-verified against the working tree.
+testbench/grpc_server.py:561
+testbench/grpc_server.py:627
+testbench/grpc_server.py:628
+testbench/grpc_server.py:636
+testbench/grpc_server.py:658
+testbench/grpc_server.py:796
+testbench/grpc_server.py:815
+testbench/grpc_server.py:1114
+testbench/grpc_server.py:1148
+testbench/grpc_server.py:1193
+testbench/grpc_server.py:1214
+testbench/grpc_server.py:1217
+testbench/grpc_server.py:1225
+testbench/grpc_server.py:1226
+testbench/grpc_server.py:1227
+testbench/grpc_server.py:1230
+testbench/grpc_server.py:1249
+testbench/grpc_server.py:1274
+testbench/grpc_server.py:1284
+# grpc_server.py:561 (ComposeObject) and :1114 (MoveObject) are the streaming
+# copy sites `for chunk in <src>.media.chunks(0, len(<src>.media), size):` --
+# MoveObject's `.to_bytes()` accumulate is gone (Task 9), the source now streams
+# one read chunk at a time into the staging Media (coverage attributes the loop to
+# its `for` line). :1193 is RewriteObject's `rewrite.media =
+# self.db.store.new_staging_media(...)` staging factory; :1225 is the windowed
+# rewrite `for chunk in src_object.media.chunks(offset, total, size):` and :1226
+# its `rewrite.media.append(chunk)` -- the `src.media[slice]` materialiser is
+# gone. :1148 is WriteObject's finalize `Object.init(..., upload.media, ...)`;
+# :1274 is `upload.media = self.db.store.new_upload_media(...)` in
+# StartResumableWrite (the resumable-gRPC staging factory).
+# UNCOVERED testbench/grpc_server.py:662 -- broken-stream fault chunk in ReadObject's chunks() loop; the trace injects no broken-stream fault on a gRPC read
+# UNCOVERED testbench/grpc_server.py:700 -- broken-stream fault chunk on ReadObject's trailing empty response; needs a 0-byte or exact-size-multiple read combined with a broken-stream fault, which the trace never does
+# UNCOVERED testbench/grpc_server.py:795 -- negative read_offset in BidiReadObject; the trace uses no negative offset on a bidi read
+# UNCOVERED testbench/grpc_server.py:1144 -- resumable-but-unfinished WriteObject early return; the trace's WriteObject always sets finish_write
+
+# --- testbench/rest_server.py ---
+# Line numbers re-pinned in Task 9: objects_copy's `b"" += src.media`
+# materialiser became a staging-factory + chunked copy loop, and objects_rewrite
+# grew a `rewrite.media = db.store.new_staging_media(...)` staging assignment plus
+# a windowed `chunks()` streaming loop, shifting the sites below. The sites are
+# content-verified against the working tree.
+testbench/rest_server.py:133
+testbench/rest_server.py:759
+testbench/rest_server.py:814
+testbench/rest_server.py:869
+testbench/rest_server.py:888
+testbench/rest_server.py:890
+testbench/rest_server.py:898
+testbench/rest_server.py:899
+testbench/rest_server.py:903
+testbench/rest_server.py:904
+testbench/rest_server.py:913
+testbench/rest_server.py:1129
+testbench/rest_server.py:1148
+testbench/rest_server.py:1165
+testbench/rest_server.py:1195
+testbench/rest_server.py:1217
+testbench/rest_server.py:1330
+testbench/rest_server.py:1331
+testbench/rest_server.py:1342
+# rest_server.py:759 (objects_compose) and :814 (objects_copy) are the streaming
+# copy sites `for chunk in <src>.media.chunks(0, len(<src>.media), size):`;
+# objects_copy's `b"" += src.media` is gone (Task 9). :869 is objects_rewrite's
+# `rewrite.media = db.store.new_staging_media(...)` staging factory, :898 the
+# windowed `for chunk in src_object.media.chunks(offset, total, size):` and :899
+# its `rewrite.media.append(chunk)` -- the `src.media[slice]` materialiser is
+# gone. :1129 is the Task-5 staging factory `upload.media =
+# db.store.new_upload_media(...)` right after init_resumable_rest; :1330 is the
+# resumable-chunk `upload.media += data` (O_APPEND on FileMedia) and :1342 the
+# finalize `Object.init(..., upload.media, ...)`.
+# UNCOVERED testbench/rest_server.py:1223 -- finalize a chunked resumable upload via a `bytes */N` PUT matching persisted size; the trace does not finalize on this branch
+# UNCOVERED testbench/rest_server.py:1335 -- non-Content-Range simple-upload completion; the trace's resumable uploads always send a Content-Range
+
+# --- testbench/filestore.py ---
+# UNCOVERED testbench/filestore.py:203 -- object_inserted link_into's a still-growing appendable FileMedia into its destination; only under TESTBENCH_STORE=file, and the coverage gate runs the memory-config conformance trace (NullStore), which never constructs a FileStore
+# UNCOVERED testbench/filestore.py:207 -- object_inserted finalize's a one-shot FileMedia (O(1) promote) into its destination; only under TESTBENCH_STORE=file, and the coverage gate runs the memory-config conformance trace (NullStore), which never constructs a FileStore
+# UNCOVERED testbench/filestore.py:210 -- object_inserted persists a BytesMedia via to_bytes()+write_bytes_atomic (fallback); only under TESTBENCH_STORE=file, and the coverage gate runs the memory-config conformance trace (NullStore), which never constructs a FileStore
+# UNCOVERED testbench/filestore.py:260 -- object_updated seals a still-unfinalized appendable FileMedia on the finalize checkpoint (blob.upload cleared) via blob.media.seal() (Task 10); only under TESTBENCH_STORE=file and only for appendable uploads, neither of which the memory-config conformance trace exercises
+
+# --- testbench/common.py (fault-injection append helpers) ---
+# UNCOVERED testbench/common.py:994 -- handle_stall_uploads_after_bytes; the trace injects no stall-after-bytes fault
+# UNCOVERED testbench/common.py:1027 -- handle_retry_uploads_error_after_bytes partial commit; the trace's REST fault paths miss this after-bytes window
+# UNCOVERED testbench/common.py:1029 -- handle_retry_uploads_error_after_bytes error trigger; same helper as :1027
+# UNCOVERED testbench/common.py:1053 -- handle_grpc_retry_uploads_error_after_bytes guard; the trace injects no gRPC error-after-bytes fault
+# UNCOVERED testbench/common.py:1055 -- handle_grpc_retry_uploads_error_after_bytes range_end; same helper as :1053
+# UNCOVERED testbench/common.py:1057 -- handle_grpc_retry_uploads_error_after_bytes partial commit; same helper as :1053
+# (testbench/common.py:1051 is a docstring mention of `upload.media`, not a call site -- dropped)

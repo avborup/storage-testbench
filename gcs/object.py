@@ -25,17 +25,24 @@ import struct
 import threading
 import time
 
-import crc32c
 import flask
 from google.protobuf import field_mask_pb2, json_format
 
 import testbench
 import testbench.common
 from google.storage.v2 import storage_pb2
+from testbench.media import BytesMedia, Media
 
 # Lock to prevent race condition while generating metadata versions:
 _GENERATION_LOCK = threading.Lock()
 _GENERATION = int(datetime.datetime.now(datetime.timezone.utc).timestamp() * 1000)
+
+# Chunk size for streaming normal REST downloads through the Media seam. Not
+# golden-pinned: the REST recorder captures the assembled body plus a framing
+# summary (mode + content_length_matches_body), never per-chunk boundaries, so
+# this value can change freely without moving a golden. gRPC has its own,
+# separately pinned read chunking.
+DOWNLOAD_CHUNK_SIZE = 128 * 1024
 
 
 def make_generation():
@@ -44,6 +51,36 @@ def make_generation():
     with _GENERATION_LOCK:
         _GENERATION += 1
         return _GENERATION
+
+
+def _stream_media(media, begin, end, size=DOWNLOAD_CHUNK_SIZE):
+    """Yield ``media[begin:end]`` in bounded chunks via the Media seam.
+
+    Routing normal downloads through ``Media.chunks`` (rather than a single
+    ``yield`` of a fully materialized buffer) lets a future ``FileMedia``
+    (Plan 5) stream from mmap without loading the whole object into memory.
+    For ``BytesMedia`` this yields exactly the bytes the previous single-shot
+    ``yield response_payload`` produced; the number of yields is free because
+    an explicit ``Content-Length`` header keeps the response content-length
+    framed regardless of how the body is chunked.
+    """
+    yield from media.chunks(begin, end, size)
+
+
+def _stream_transcode(media, size=DOWNLOAD_CHUNK_SIZE):
+    """Yield the gunzipped body of a gzip-encoded ``media`` in bounded chunks.
+
+    Decompressive transcoding streams through a fresh ``gzip.GzipFile`` over
+    ``media.reader()`` so a multi-GB object is never decompressed into a single
+    buffer. The transcoded ``Content-Length`` is not known a priori; ``rest_media``
+    supplies it with a separate bounded counting pass over this same generator.
+    """
+    with gzip.GzipFile(fileobj=media.reader(), mode="rb") as gz:
+        while True:
+            buf = gz.read(size)
+            if not buf:
+                break
+            yield buf
 
 
 class Object:
@@ -67,7 +104,7 @@ class Object:
 
     def __init__(self, metadata, media, bucket, *, upload=None, upload_gen=0):
         self.metadata = metadata
-        self.media = media
+        self.media = media if isinstance(media, Media) else BytesMedia(media)
         self.bucket = bucket
         self.upload = upload
         self.upload_gen = upload_gen
@@ -105,14 +142,15 @@ class Object:
         instruction = testbench.common.extract_instruction(request, context)
         if instruction == "inject-upload-data-error":
             media = testbench.common.corrupt_media(media)
+        media = media if isinstance(media, Media) else BytesMedia(media)
         timestamp = datetime.datetime.now(datetime.timezone.utc)
         metadata.bucket = bucket.name
         metadata.generation = make_generation()
         metadata.metageneration = 1
         metadata.etag = cls._metadata_etag(metadata)
         metadata.size = len(media)
-        actual_md5Hash = hashlib.md5(media).digest()
-        actual_crc32c = crc32c.crc32c(media)
+        actual_md5Hash = media.md5()
+        actual_crc32c = media.crc32c()
         if metadata.HasField("checksums"):
             cs = metadata.checksums
             if len(cs.md5_hash) != 0 and actual_md5Hash != cs.md5_hash:
@@ -467,41 +505,57 @@ class Object:
         # decompressive transcoding
         return not ("gzip" in request.headers.get("accept-encoding", ""))
 
-    def _download_range(self, request, response_payload):
+    def _download_range(self, request):
+        # Arithmetic range clamp: returns ``(begin, end, length)`` WITHOUT
+        # slicing the payload, so a ``FileMedia`` is never materialised just to
+        # compute a range. The clamps reproduce the pre-refactor slicing code
+        # byte-for-byte:
+        #   forward ``bytes=B-E`` -> begin=B, end=min(E+1, length)
+        #   open    ``bytes=B-``  -> begin=B, end=length
+        #   suffix  ``bytes=-N``  -> begin=length-N (may be negative), end=length
+        # The negative ``begin`` a suffix overflow (N>length) produces is
+        # preserved so ``Content-Range`` renders identically; the caller uses
+        # ``max(0, begin)`` when it needs a real offset.
+        length = len(self.media)
         range_header = request.headers.get("range")
-        length = len(response_payload)
-        if range_header is None or self._decompress_on_download(request):
-            return 0, length, length, response_payload
+        if range_header is None:
+            return 0, length, length
         begin = 0
         end = length
-        if range_header is not None:
-            m = re.match("bytes=([0-9]+)-([0-9]+)", range_header)
-            if m:
-                begin = int(m.group(1))
-                end = int(m.group(2)) + 1
-                response_payload = response_payload[begin:end]
-                # Ensure end is correct if the specified byte range was truncated.
-                end = begin + len(response_payload)
-            m = re.match("bytes=([0-9]+)-$", range_header)
-            if m:
-                begin = int(m.group(1))
-                response_payload = response_payload[begin:]
-            m = re.match("bytes=-([0-9]+)$", range_header)
-            if m:
-                last = int(m.group(1))
-                begin = end - last
-                response_payload = response_payload[-last:]
-        return begin, end, length, response_payload
+        m = re.match("bytes=([0-9]+)-([0-9]+)", range_header)
+        if m:
+            begin = int(m.group(1))
+            end = min(int(m.group(2)) + 1, length)
+        m = re.match("bytes=([0-9]+)-$", range_header)
+        if m:
+            begin = int(m.group(1))
+            end = length
+        m = re.match("bytes=-([0-9]+)$", range_header)
+        if m:
+            last = int(m.group(1))
+            begin = length - last
+            end = length
+        return begin, end, length
 
     def rest_media(self, request, delay=time.sleep):
         is_decompressive_transcode = self._decompress_on_download(request)
-        response_payload = (
-            gzip.decompress(self.media) if is_decompressive_transcode else self.media
-        )
+        if is_decompressive_transcode:
+            # Two-pass counted Content-Length: a bounded counting pass over a
+            # fresh GzipFile yields the transcoded length without ever holding
+            # the whole decompressed object; the body streams from a SECOND
+            # fresh GzipFile below. `response_payload` stays the Media so the
+            # normal path never materialises (the fault path materialises the
+            # decompressed bytes on demand).
+            response_payload = self.media
+            transcoded_len = sum(len(buf) for buf in _stream_transcode(self.media))
+            begin, end, length = 0, transcoded_len, transcoded_len
+        else:
+            # The normal/ranged path never materialises: `response_payload` stays
+            # the object's Media, and the streamer below yields bounded chunks
+            # through `_stream_media`. `_download_range` clamps arithmetically.
+            response_payload = self.media
+            begin, end, length = self._download_range(request)
         range_header = request.headers.get("range")
-        begin, end, length, response_payload = self._download_range(
-            request, response_payload
-        )
         # Return 416 if the requested range cannot be satisfied.
         if range_header is not None and begin >= length:
             testbench.error.range_not_satisfiable()
@@ -510,10 +564,31 @@ class Object:
         content_range = "bytes %d-%d/%d" % (begin, end - 1, length)
 
         instructions = testbench.common.extract_instruction(request, None)
+        # The fault-injection / instruction streamers below index and slice
+        # `response_payload` as a concrete buffer, so materialise ANY Media
+        # (widened from the old BytesMedia-only guard so a FileMedia works too).
+        # These are small, trace-only objects and -- per trace_faults.py -- fire
+        # only on UNRANGED GETs (begin=0/end=length), so absolute indexing into
+        # the whole buffer stays correct. The normal/ranged path never reaches
+        # this branch and streams via `_stream_media`/`_stream_transcode` without
+        # materialising. For a transcode fault we materialise the DECOMPRESSED
+        # bytes (what the pre-Task-7 code served), otherwise the raw object bytes.
+        if instructions is not None and isinstance(response_payload, Media):
+            if is_decompressive_transcode:
+                response_payload = b"".join(_stream_transcode(self.media))  # fault
+            else:
+                response_payload = response_payload.to_bytes()  # fault-only
         if instructions is None:
 
             def streamer():
-                yield response_payload
+                if is_decompressive_transcode:
+                    # Stream the gunzipped body from a fresh GzipFile; the
+                    # counting pass above already supplied Content-Length.
+                    yield from _stream_transcode(self.media)
+                else:
+                    # `max(0, begin)` guards an over-long suffix range
+                    # (bytes=-N, N>length), preserving the whole-buffer result.
+                    yield from _stream_media(self.media, max(0, begin), end)
 
         elif instructions == "return-broken-stream":
             request_socket = request.environ.get("gunicorn.socket", None)
@@ -610,7 +685,13 @@ class Object:
         else:
 
             def streamer():
-                yield response_payload
+                if is_decompressive_transcode:
+                    # See the `instructions is None` streamer above: the
+                    # transcode body streams from a fresh GzipFile so FileMedia
+                    # (Plan 5) never decompresses the whole object into memory.
+                    yield from _stream_transcode(self.media)
+                else:
+                    yield from _stream_media(self.media, max(0, begin), end)
 
         headers["Content-Range"] = content_range
         if is_decompressive_transcode:
@@ -628,7 +709,19 @@ class Object:
             headers["Content-Type"] = "application/octet-stream"
 
         headers["x-goog-stored-content-length"] = self.metadata.size
-        headers["Content-Length"] = len(response_payload)
+        if is_decompressive_transcode:
+            # Counted transcoded length from the bounded counting pass above --
+            # the decompressed size, supplied WITHOUT materialising the object.
+            # Must be set before the streamer is returned or Werkzeug falls back
+            # to chunked transfer-encoding and flips `framing.mode`.
+            headers["Content-Length"] = transcoded_len
+        else:
+            # Arithmetic Content-Length -- MUST be set before the streamer is
+            # returned or Werkzeug falls back to chunked transfer-encoding and
+            # flips `framing.mode`. `max(0, begin)` reproduces the whole-buffer
+            # length the pre-refactor suffix-overflow slice produced (a negative
+            # `begin` from `bytes=-N, N>length`).
+            headers["Content-Length"] = end - max(0, begin)
 
         if self.metadata.content_encoding:
             headers["x-goog-stored-content-encoding"] = self.metadata.content_encoding

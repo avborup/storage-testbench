@@ -26,3 +26,4 @@ branchProtectionRules:
     - cla/google
     - Format with psf-black
     - Unit Tests with Python 3.9
+    - Conformance baseline

@@ -38,6 +38,8 @@ is expected to be used by Storage library maintainers.
   - [Storage Control API Stall Support](#storage-control-api-stall-support)
   - [Developing for the testbench](#developing-for-the-testbench)
     - [Writing and running tests](#writing-and-running-tests)
+    - [Reproducible development environment](#reproducible-development-environment)
+    - [Conformance harness](#conformance-harness)
   - [Releasing the testbench](#releasing-the-testbench)
 
 ## Issue Policy
@@ -321,6 +323,112 @@ python -m unittest [test_module.py] # runs all the tests in test_module.py
 python -m unittest [test_module.TestClass.test_method] # runs a single test
 python -m unittest discover -s tests/ # runs all the tests
 ```
+
+### Reproducible development environment
+
+With [Nix](https://nixos.org/download) installed:
+
+```bash
+nix develop
+```
+
+This provisions `.venv` from `setup.py`'s pinned versions, activates it, sets
+`PYTHONPATH`, and adds the Docker client and Compose.
+
+### Conformance harness
+
+`tests/conformance/` records the emulator's external behavior over HTTP and
+gRPC and diffs it against committed goldens in
+`tests/conformance/golden/`. It is black-box by construction: it must not
+import `testbench` or `gcs` internals, so it stays valid across refactors.
+
+```bash
+python -m tests.conformance.harness              # verify against goldens
+python -m tests.conformance.harness --regenerate # rewrite goldens
+```
+
+A golden diff means external behavior changed. If the change is intended,
+regenerate and explain it in the commit message. An unexplained diff is a
+bug.
+
+#### Reading a golden diff
+
+A failing hunk names the interaction it belongs to (`interaction: 'label'`,
+appended to the `@@` header) and canonicalizes volatile values into stable
+placeholders before comparing, so the diff shows only what actually changed:
+
+- `<GEN:n>` -- an object generation, in the order it was first seen.
+- `<TIME:n>` -- an RFC 3339 timestamp.
+- `<ORIGIN:n>` -- a link's `scheme://host:port`, which is only ever the
+  ephemeral port the emulator happened to bind that run.
+- `<UPLOAD:n>` -- a resumable upload id.
+- `<TRANSPORT_ERROR>` -- any `requests` transport-level failure (a broken
+  connection, a timeout); the concrete exception subclass is a property of
+  the client OS and socket timing, not of the emulator, so it collapses to
+  one token rather than being recorded verbatim.
+- `<GRPC_ERROR>` -- any gRPC failure's `type`; `grpc_code` next to it still
+  carries the emulator-chosen status code verbatim.
+
+**`--regenerate` is never the way to turn a red build green.** It exists to
+update the baseline after a reviewed, intentional behavior change, with that
+change explained in the commit message -- not to make an unexplained
+failure disappear. If the *first* CI run on a fresh clone is red with no
+local changes to explain it, suspect the goldens themselves before the
+code: they may have been captured on a different platform than the one CI
+runs on (see the gzip-OS-byte story behind `GZIPPED_PAYLOAD` in
+`trace_rest.py` for a concrete example of exactly this).
+
+#### Checking the goldens on Linux before you push
+
+The gate runs on Linux, so a golden captured on macOS or Windows can pass
+locally and fail in CI. That has already happened once: `gzip.compress`
+writes the zlib build's OS byte into the gzip header -- `0x13` on Darwin,
+`0x03` on Linux, `0xff` on Python <= 3.10 -- which changed a stored
+object's `crc32c` and `md5Hash`. To reproduce the Linux run locally:
+
+```bash
+make verify-linux
+```
+
+It runs the same gate inside a `python:3.12-slim` container. Run it after
+regenerating goldens and before pushing. The first run downloads an image
+and a set of Linux wheels (about 11 MiB, cached under
+`~/.cache/storage-testbench-linux-wheels/`); later runs reuse both.
+`make clean-linux-cache` drops the wheel cache.
+
+It needs `skopeo` and the Docker CLI, both provided by the Nix devShell, plus
+a running Docker daemon, which is not -- supply that yourself with colima,
+Docker Desktop, OrbStack, or equivalent. Two details it handles that are easy to trip over on macOS: a
+`colima` VM often has no network egress even when the host shell does, so
+the image is fetched host-side with `skopeo` and loaded over the daemon
+socket rather than pulled by the daemon; and `colima` mounts only `$HOME`,
+so the wheel cache cannot live in `/tmp`.
+
+Note it runs the host's Docker architecture, which on Apple Silicon is
+`arm64` while CI is `x86_64`. Content hashes and JSON serialization are
+architecture-independent, so this catches the OS- and interpreter-dependent
+class of difference, but it is not literally CI's environment.
+
+## Verification: manual/external jobs
+
+Two verification mechanisms from the design are intentionally NOT run in CI:
+
+- **Mechanism 8 — real-GCS divergence (manual).** `tests/conformance/real_gcs_divergence.py`
+  is the opt-in harness for running the conformance trace against a real GCS
+  bucket and reporting divergences. It needs a project, credentials, and money,
+  so it is operator-run, not per-commit; the trace-driving body is left
+  unimplemented on purpose and the module is a no-op skip in CI. Known
+  divergences (the testbench performs no ACL/IAM enforcement and no signed-URL
+  verification) are recorded as KNOWN gaps, not failures.
+  Run: `TESTBENCH_REAL_GCS_PROJECT=<proj> GOOGLE_APPLICATION_CREDENTIALS=<key> \
+        PYTHONPATH=. python -m tests.conformance.real_gcs_divergence`.
+  With the env var unset it skips and exits 0.
+
+- **Mechanism 9 — downstream client (external).** The final acceptance check is
+  the downstream application's own Rust-client smoke suite run against the
+  emulator in both memory and file configurations. That suite lives in the
+  application repository, not here; it is the last gate before adopting the file
+  backend for local development.
 
 ## Releasing the testbench
 

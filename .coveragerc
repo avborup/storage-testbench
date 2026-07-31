@@ -1,0 +1,18 @@
+# Subprocess-coverage config for the media call-site gate
+# (tests/test_media_call_sites.py). The conformance emulator runs the app in
+# a gunicorn worker that is a grandchild of the test process, so in-process
+# Coverage cannot see gcs/ and testbench/ lines. The gate points
+# COVERAGE_PROCESS_START at this file; testbench/__init__.py then calls
+# coverage.process_startup() in that worker.
+[run]
+# Each process writes its own .coverage.<host>.<pid>.<rand> data file, which
+# the gate combines. Required because several processes (test + worker) and
+# gunicorn's threads all measure at once.
+parallel = true
+concurrency = multiprocessing,thread
+# The emulator tears the worker down with os.killpg(SIGTERM) (see
+# tests/conformance/emulator.py:_terminate). Without a SIGTERM handler that
+# flushes, coverage's atexit save never runs and the worker writes no data
+# file -- a silently vacuous gate. This installs that handler (coverage 7.x).
+sigterm = true
+source = gcs,testbench

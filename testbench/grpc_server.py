@@ -18,6 +18,7 @@ import datetime
 import functools
 import itertools
 import json
+import os
 import re
 import sys
 import types
@@ -42,7 +43,12 @@ from google.iam.v1 import iam_policy_pb2
 from google.storage.control.v2 import storage_control_pb2, storage_control_pb2_grpc
 from google.storage.v2 import storage_pb2, storage_pb2_grpc
 
-_GRPC_SERVER_THREAD_COUNT = 2
+
+def _grpc_thread_count():
+    # Two long-lived streaming RPCs (ReadObject/BidiRead/BidiWrite) each hold a
+    # thread for a whole transfer; a shared container + parallel suite starves
+    # every other gRPC call at 2 threads. Default 32 (spec gRPC-concurrency).
+    return int(os.environ.get("TESTBENCH_GRPC_THREADS", "32"))
 
 
 def _trimmed_content(content):
@@ -370,12 +376,17 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
                 context=ctx,
             )
 
-        bucket = self.db.get_bucket(
-            request.bucket, context, preconditions=[precondition]
-        )
-        bucket.metadata.retention_policy.is_locked = True
-        bucket.metadata.retention_policy.effective_time.FromDatetime(
-            datetime.datetime.now()
+        def _lock(bucket):
+            bucket.metadata.retention_policy.is_locked = True
+            bucket.metadata.retention_policy.effective_time.FromDatetime(
+                datetime.datetime.now()
+            )
+
+        bucket = self.db.do_update_bucket(
+            request.bucket,
+            update_fn=_lock,
+            context=context,
+            preconditions=[precondition],
         )
         return bucket.metadata
 
@@ -386,8 +397,11 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
 
     @retry_test(method="storage.buckets.setIamPolicy")
     def SetIamPolicy(self, request, context):
-        bucket = self.db.get_bucket(request.resource, context)
-        bucket.set_iam_policy(request, context)
+        bucket = self.db.do_update_bucket(
+            request.resource,
+            update_fn=lambda b: b.set_iam_policy(request, context),
+            context=context,
+        )
         return bucket.iam_policy
 
     @retry_test(method="storage.buckets.testIamPermissions")
@@ -448,33 +462,44 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
                 "UpdateBucket() invalid field for Bucket [%s]" % ",".join(mask.paths),
                 context,
             )
-        bucket = self.db.get_bucket(
+        # mask, updated_labels, removed_label_keys, replace_labels are all
+        # precomputed above (before the lock) so an invalid mask errors early.
+        # The mutation body moves verbatim into _apply so every bucket mutator
+        # funnels through Database.do_update_bucket -> bucket_updated. `now` is
+        # bound inside _apply so the update timestamp is taken at mutation time,
+        # under the lock.
+        def _apply(bucket):
+            now = datetime.datetime.now()
+            mask.MergeMessage(request.bucket, bucket.metadata)
+            if "acl" in request.update_mask.paths:
+                del bucket.metadata.acl[:]
+                bucket.metadata.acl.extend(request.bucket.acl)
+            if "autoclass" in request.update_mask.paths:
+                bucket.metadata.autoclass.toggle_time.FromDatetime(now)
+            if "default_object_acl" in request.update_mask.paths:
+                del bucket.metadata.default_object_acl[:]
+                bucket.metadata.default_object_acl.extend(
+                    request.bucket.default_object_acl
+                )
+            if replace_labels:
+                bucket.metadata.labels.clear()
+                bucket.metadata.labels.update(request.bucket.labels)
+            else:
+                bucket.metadata.labels.update(updated_labels)
+                for k in removed_label_keys:
+                    bucket.metadata.labels.pop(k, None)
+            if "soft_delete_policy" in request.update_mask.paths:
+                gcs.bucket.Bucket.validate_soft_delete_policy(bucket.metadata, context)
+                bucket.metadata.soft_delete_policy.effective_time.FromDatetime(now)
+            bucket.metadata.metageneration += 1
+            bucket.metadata.update_time.FromDatetime(now)
+
+        bucket = self.db.do_update_bucket(
             request.bucket.name,
-            context,
+            update_fn=_apply,
+            context=context,
             preconditions=testbench.common.make_grpc_bucket_preconditions(request),
         )
-        mask.MergeMessage(request.bucket, bucket.metadata)
-        if "acl" in request.update_mask.paths:
-            del bucket.metadata.acl[:]
-            bucket.metadata.acl.extend(request.bucket.acl)
-        now = datetime.datetime.now()
-        if "autoclass" in request.update_mask.paths:
-            bucket.metadata.autoclass.toggle_time.FromDatetime(now)
-        if "default_object_acl" in request.update_mask.paths:
-            del bucket.metadata.default_object_acl[:]
-            bucket.metadata.default_object_acl.extend(request.bucket.default_object_acl)
-        if replace_labels:
-            bucket.metadata.labels.clear()
-            bucket.metadata.labels.update(request.bucket.labels)
-        else:
-            bucket.metadata.labels.update(updated_labels)
-            for k in removed_label_keys:
-                bucket.metadata.labels.pop(k, None)
-        if "soft_delete_policy" in request.update_mask.paths:
-            gcs.bucket.Bucket.validate_soft_delete_policy(bucket.metadata, context)
-            bucket.metadata.soft_delete_policy.effective_time.FromDatetime(now)
-        bucket.metadata.metageneration += 1
-        bucket.metadata.update_time.FromDatetime(now)
         return bucket.metadata
 
     @retry_test(method="storage.objects.compose")
@@ -497,7 +522,9 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
                 % len(request.source_objects),
                 context,
             )
-        composed_media = b""
+        composed_media = self.db.store.new_staging_media(
+            request.destination.bucket, uuid.uuid4().hex
+        )
         for source in request.source_objects:
             if len(source.name) == 0:
                 return testbench.error.missing("Name of source compose object", context)
@@ -527,7 +554,12 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
             )
             if source_blob is None:
                 return None
-            composed_media += source_blob.media
+            # Stream the source into the staging Media one read chunk at a time
+            # (FileMedia O_APPEND on the file backend, BytesMedia on memory) so
+            # a multi-GB source is never materialised into one buffer.
+            size = storage_pb2.ServiceConstants.Values.MAX_READ_CHUNK_BYTES
+            for chunk in source_blob.media.chunks(0, len(source_blob.media), size):
+                composed_media.append(chunk)
 
             if request.delete_source_objects:
                 self.db.delete_object(
@@ -616,11 +648,18 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
                 next_instruction
             )
 
-        while start <= read_end:
-            end = min(start + size, read_end)
+        # Stream the range through BytesMedia.chunks(...) so a FileMedia backend
+        # can read from disk instead of materialising the whole object. The
+        # chunk size (MAX_READ_CHUNK_BYTES) is unchanged, so the response
+        # boundaries recorded by the conformance harness do not move. `pos`
+        # mirrors the `start` the previous `while start <= read_end` loop used to
+        # slice with, so the broken-stream truncation point is identical.
+        pos = start
+        for chunk in blob.media.chunks(start, read_end, size):
+            end = pos + len(chunk)
             # Handle retry test broken-stream failures if applicable.
             if broken_stream_after_bytes and end >= broken_stream_after_bytes:
-                chunk = blob.media[start:broken_stream_after_bytes]
+                chunk = blob.media[pos:broken_stream_after_bytes]  # fault-only
                 yield storage_pb2.ReadObjectResponse(
                     checksummed_data={
                         "content": chunk,
@@ -635,7 +674,6 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
                     grpc.StatusCode.UNAVAILABLE,
                     "Injected 'broken stream' fault",
                 )
-            chunk = blob.media[start:end]
             yield storage_pb2.ReadObjectResponse(
                 checksummed_data={
                     "content": chunk,
@@ -646,7 +684,41 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
             )
             meta = None
             content_range = None
-            start = start + size
+            pos = end
+        # The previous loop advanced `start` by `size` under a `<=` guard, so it
+        # ran one extra pass emitting an empty chunk whenever the range length
+        # was an exact multiple of `size` -- including a 0-byte range, whose
+        # single (metadata-bearing) response is the ONLY response a client
+        # reading a 0-byte object receives. chunks() yields nothing for an empty
+        # [pos, read_end) slice, so replay that trailing empty response here to
+        # keep the emitted sequence byte-identical. The broken-stream guard is
+        # repeated because in the original that extra pass also ran the check
+        # (it can only fire for a 0-byte range; for a non-empty exact-multiple
+        # range the loop above already aborted before reaching this point).
+        if (read_end - start) % size == 0:
+            if broken_stream_after_bytes and read_end >= broken_stream_after_bytes:
+                chunk = blob.media[read_end:broken_stream_after_bytes]  # fault-only
+                yield storage_pb2.ReadObjectResponse(
+                    checksummed_data={
+                        "content": chunk,
+                        "crc32c": crc32c.crc32c(chunk),
+                    },
+                    metadata=meta,
+                    content_range=content_range,
+                )
+                self.db.dequeue_next_instruction(test_id, method)
+                context.abort(
+                    grpc.StatusCode.UNAVAILABLE,
+                    "Injected 'broken stream' fault",
+                )
+            yield storage_pb2.ReadObjectResponse(
+                checksummed_data={
+                    "content": b"",
+                    "crc32c": crc32c.crc32c(b""),
+                },
+                metadata=meta,
+                content_range=content_range,
+            )
 
     @retry_test(method="storage.objects.get")
     def BidiReadObject(self, request_iterator, context):
@@ -735,20 +807,33 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
             if range.read_length > 0:
                 read_end = min(read_end, start + range.read_length)
 
-            while True:
-                end = min(start + size, read_end)
+            # Stream through BytesMedia.chunks(...) so a FileMedia backend reads
+            # from disk instead of materialising the range; the chunk size
+            # (MAX_READ_CHUNK_BYTES) is unchanged, so recorded boundaries hold.
+            # `pos` mirrors the `start` the previous loop sliced with.
+            pos = start
+            for chunk in blob.media.chunks(start, read_end, size):
+                end = pos + len(chunk)
                 # Verify if there are no more bytes to read for the given ReadRange.
                 range_end = end == read_end
-                chunk = blob.media[start:end]
                 read_range = {
-                    "read_offset": start,
-                    "read_length": end - start,
+                    "read_offset": pos,
+                    "read_length": end - pos,
                     "read_id": read_id,
                 }
                 yield (chunk, range_end, read_range)
-                if start >= read_end:
-                    break
-                start = end
+                pos = end
+            # The previous `while True:` loop tested its `start >= read_end` break
+            # only AFTER advancing `start = end`, so it always ran one final pass
+            # with `start == read_end` that emitted an empty, range_end=True chunk
+            # (the sole response for a 0-byte range). chunks() yields nothing for
+            # an empty slice, so emit that trailing empty tuple unconditionally to
+            # keep the (chunk, range_end, read_range) sequence byte-identical.
+            yield (
+                b"",
+                True,
+                {"read_offset": read_end, "read_length": 0, "read_id": read_id},
+            )
 
         # We force all BidiReadObject streams to cancel on the server side after
         # 10 seconds. This is to bound the effect of thread exhaustion on the
@@ -1018,8 +1103,16 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
         dst_metadata.CopyFrom(src_object.metadata)
         dst_metadata.bucket = request.bucket
         dst_metadata.name = request.destination_object
-        dst_media = b""
-        dst_media += src_object.media
+        # Stream the source into a store-provided staging Media (FileMedia
+        # O_APPEND on the file backend, BytesMedia on memory) one read chunk at a
+        # time rather than materialising the whole source via `.to_bytes()`; the
+        # chunked copy is the default move (a store-internal hardlink/rename
+        # fast-path is a deferred optimization -- a shared inode would collide
+        # with the startup inode-collision detector).
+        dst_media = self.db.store.new_staging_media(request.bucket, uuid.uuid4().hex)
+        size = storage_pb2.ServiceConstants.Values.MAX_READ_CHUNK_BYTES
+        for chunk in src_object.media.chunks(0, len(src_object.media), size):
+            dst_media.append(chunk)
         dst_object, _ = gcs.object.Object.init(
             request, dst_metadata, dst_media, bucket, False, context, csek=False
         )
@@ -1050,7 +1143,12 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
                 return testbench.error.missing("finish_write in request", context)
             return storage_pb2.WriteObjectResponse(persisted_size=len(upload.media))
         blob, _ = gcs.object.Object.init(
-            upload.request, upload.metadata, upload.media, upload.bucket, False, context
+            upload.request,
+            upload.metadata,
+            upload.media,
+            upload.bucket,
+            False,
+            context,
         )
         upload.blob = blob
         self.db.insert_object(
@@ -1089,6 +1187,12 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
         token = request.rewrite_token
         if token == "":
             rewrite = gcs.rewrite.Rewrite.init_grpc(request, context)
+            # The staging destination accumulates the rewritten windows across
+            # calls; the store factory keeps this store-agnostic (FileMedia
+            # O_APPEND on the file backend, BytesMedia on memory).
+            rewrite.media = self.db.store.new_staging_media(
+                rewrite.request.destination_bucket, rewrite.token
+            )
             self.db.insert_rewrite(rewrite)
         else:
             rewrite = self.db.get_rewrite(token, context)
@@ -1107,12 +1211,19 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
             is_source=True,
             context=context,
         )
-        total_bytes_rewritten = len(rewrite.media)
-        total_bytes_rewritten += min(
+        offset = len(rewrite.media)
+        total_bytes_rewritten = offset + min(
             rewrite.max_bytes_rewritten_per_call,
-            len(src_object.media) - len(rewrite.media),
+            len(src_object.media) - offset,
         )
-        rewrite.media += src_object.media[len(rewrite.media) : total_bytes_rewritten]
+        # Stream this call's [offset, total_bytes_rewritten) window from the
+        # source into the staging Media one read chunk at a time (FileMedia
+        # O_APPEND on the file backend, BytesMedia on memory) rather than slicing
+        # `src_object.media[offset:total]` into one buffer -- so a window larger
+        # than the bounded-memory budget is never materialised.
+        size = storage_pb2.ServiceConstants.Values.MAX_READ_CHUNK_BYTES
+        for chunk in src_object.media.chunks(offset, total_bytes_rewritten, size):
+            rewrite.media.append(chunk)
         done, dst_object = total_bytes_rewritten == len(src_object.media), None
         response = storage_pb2.RewriteResponse(
             total_bytes_rewritten=total_bytes_rewritten,
@@ -1158,6 +1269,11 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
     def StartResumableWrite(self, request, context):
         bucket = self.__get_bucket(request.write_object_spec.resource.bucket, context)
         upload = gcs.upload.Upload.init_resumable_grpc(request, bucket, context)
+        # Stream this resumable upload into a store-provided staging Media
+        # (FileMedia O_APPEND on FILE, BytesMedia on memory).
+        upload.media = self.db.store.new_upload_media(
+            upload.bucket.name, upload.upload_id
+        )
         self.db.insert_upload(upload)
         return storage_pb2.StartResumableWriteResponse(upload_id=upload.upload_id)
 
@@ -1274,16 +1390,24 @@ class StorageControlServicer(storage_control_pb2_grpc.StorageControlServicer):
         return layout
 
 
+def _bind_host():
+    # The traversal-capable file backend binds loopback so it is never network
+    # exposed -- UNLESS TESTBENCH_ALLOW_NONLOOPBACK=1 (the container case, where
+    # published ports require binding 0.0.0.0 in the container netns; compose then
+    # publishes to host loopback so it stays off external interfaces).
+    if os.environ.get("TESTBENCH_ALLOW_NONLOOPBACK") == "1":
+        return "0.0.0.0"
+    return "127.0.0.1" if os.environ.get("TESTBENCH_STORE") == "file" else "0.0.0.0"
+
+
 def run(port, database, echo_metadata=False):
-    server = grpc.server(
-        futures.ThreadPoolExecutor(max_workers=_GRPC_SERVER_THREAD_COUNT)
-    )
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=_grpc_thread_count()))
     storage_pb2_grpc.add_StorageServicer_to_server(
         StorageServicer(database, echo_metadata), server
     )
     storage_control_pb2_grpc.add_StorageControlServicer_to_server(
         StorageControlServicer(database, echo_metadata), server
     )
-    port = server.add_insecure_port("0.0.0.0:%d" % port)
+    port = server.add_insecure_port("%s:%d" % (_bind_host(), port))
     server.start()
     return port, server

@@ -32,6 +32,21 @@ from werkzeug.wrappers import Request
 import gcs
 import testbench
 from google.storage.v2 import storage_pb2
+from testbench.media import BytesMedia
+
+
+def _mock_db():
+    # A mock Database whose media factory returns a fresh, empty BytesMedia --
+    # exactly what Upload.init used to seed directly. Since Plan 3 Task 5,
+    # producers build the staging media via db.store.new_upload_media(...), so a
+    # mock db driving init_write_object_grpc / process_bidi_write_object_grpc must
+    # supply a real Media for accumulation (`+=`/len/crc32c) to work. This does
+    # not weaken any assertion: behaviour is identical to the pre-migration seed.
+    db = unittest.mock.Mock()
+    db.store.new_upload_media = unittest.mock.MagicMock(
+        side_effect=lambda *a, **k: BytesMedia(b"")
+    )
+    return db
 
 
 class TestHolder(unittest.TestCase):
@@ -302,7 +317,7 @@ class TestHolder(unittest.TestCase):
             finish_write=True,
         )
         context = self.mock_context()
-        db = unittest.mock.Mock()
+        db = _mock_db()
         db.get_bucket = unittest.mock.MagicMock(return_value=bucket)
         upload, is_resumable = gcs.upload.Upload.init_write_object_grpc(
             db, [r1, r2, r3], context
@@ -368,7 +383,7 @@ class TestHolder(unittest.TestCase):
             )
 
             context = self.mock_context()
-            db = unittest.mock.Mock()
+            db = _mock_db()
             db.get_bucket = unittest.mock.MagicMock(return_value=bucket)
             upload, is_resumable = gcs.upload.Upload.init_write_object_grpc(
                 db, [request], context
@@ -455,7 +470,7 @@ class TestHolder(unittest.TestCase):
             finish_write=False,
         )
         context = self.mock_context()
-        db = unittest.mock.Mock()
+        db = _mock_db()
         db.get_bucket = unittest.mock.MagicMock(return_value=bucket)
         db.get_upload = unittest.mock.MagicMock(return_value=upload)
         upload, is_resumable = gcs.upload.Upload.init_write_object_grpc(
@@ -510,7 +525,7 @@ class TestHolder(unittest.TestCase):
             ),
             finish_write=True,
         )
-        db = unittest.mock.Mock()
+        db = _mock_db()
         db.get_bucket = unittest.mock.MagicMock(return_value=bucket)
         db.get_upload = unittest.mock.MagicMock(return_value=upload)
 
@@ -536,7 +551,7 @@ class TestHolder(unittest.TestCase):
             ),
             finish_write=True,
         )
-        db = unittest.mock.Mock()
+        db = _mock_db()
         context = self.mock_context()
         upload, _ = gcs.upload.Upload.init_write_object_grpc(db, [r1], context)
         self.assertIsNone(upload)
@@ -573,7 +588,7 @@ class TestHolder(unittest.TestCase):
             ),
             finish_write=True,
         )
-        db = unittest.mock.Mock()
+        db = _mock_db()
         context = self.mock_context()
         upload, _ = gcs.upload.Upload.init_write_object_grpc(db, [r1, r2, r3], context)
         self.assertIsNone(upload)
@@ -613,7 +628,7 @@ class TestHolder(unittest.TestCase):
             ),
             finish_write=True,
         )
-        db = unittest.mock.Mock()
+        db = _mock_db()
         context = self.mock_context()
         upload, _ = gcs.upload.Upload.init_write_object_grpc(db, [r1, r2, r3], context)
         self.assertIsNone(upload)
@@ -636,7 +651,7 @@ class TestHolder(unittest.TestCase):
             ),
             finish_write=True,
         )
-        db = unittest.mock.Mock()
+        db = _mock_db()
         context = self.mock_context()
         upload, _ = gcs.upload.Upload.init_write_object_grpc(db, [r1], context)
         self.assertIsNone(upload)
@@ -645,7 +660,7 @@ class TestHolder(unittest.TestCase):
         )
 
     def test_init_object_write_grpc_empty(self):
-        db = unittest.mock.Mock()
+        db = _mock_db()
         context = self.mock_context()
         upload, _ = gcs.upload.Upload.init_write_object_grpc(db, [], context)
         self.assertIsNone(upload)
@@ -682,7 +697,7 @@ class TestHolder(unittest.TestCase):
             finish_write=True,
         )
         context = self.mock_context()
-        db = unittest.mock.Mock()
+        db = _mock_db()
         db.get_bucket = unittest.mock.MagicMock(return_value=bucket)
         db.get_upload = unittest.mock.MagicMock(return_value=upload)
         upload, is_resumable = gcs.upload.Upload.init_write_object_grpc(
@@ -717,7 +732,7 @@ class TestHolder(unittest.TestCase):
         )
 
         context = self.mock_context()
-        db = unittest.mock.Mock()
+        db = _mock_db()
         db.get_bucket = unittest.mock.MagicMock(return_value=bucket)
         db.get_upload = unittest.mock.MagicMock(return_value=upload)
         upload, _ = gcs.upload.Upload.init_write_object_grpc(db, [r1], context)
@@ -751,7 +766,7 @@ class TestHolder(unittest.TestCase):
             finish_write=True,
         )
         r2 = copy.deepcopy(r1)
-        db = unittest.mock.Mock()
+        db = _mock_db()
         db.get_bucket = unittest.mock.MagicMock(return_value=bucket)
         db.get_upload = unittest.mock.MagicMock(return_value=upload)
 
@@ -780,7 +795,7 @@ class TestHolder(unittest.TestCase):
             ),
             finish_write=True,
         )
-        db = unittest.mock.Mock()
+        db = _mock_db()
         # The code depends on `context.abort()` raising an exception.
         context = self.mock_context()
         context.abort.side_effect = grpc.RpcError()
@@ -802,7 +817,7 @@ class TestHolder(unittest.TestCase):
             ),
             finish_write=False,
         )
-        db = unittest.mock.Mock()
+        db = _mock_db()
         # The code depends on `context.abort()` raising an exception.
         context = self.mock_context()
         context.abort.side_effect = grpc.RpcError()
@@ -841,7 +856,7 @@ class TestHolder(unittest.TestCase):
             ),
             finish_write=True,
         )
-        db = unittest.mock.Mock()
+        db = _mock_db()
         # The code depends on `context.abort()` raising an exception.
         context = self.mock_context()
         context.abort.side_effect = grpc.RpcError()
@@ -887,7 +902,7 @@ class TestHolder(unittest.TestCase):
             ),
             finish_write=True,
         )
-        db = unittest.mock.Mock()
+        db = _mock_db()
         # The code depends on `context.abort()` raising an exception.
         context = self.mock_context()
         context.abort.side_effect = grpc.RpcError()
@@ -916,7 +931,7 @@ class TestHolder(unittest.TestCase):
             ),
             finish_write=True,
         )
-        db = unittest.mock.Mock()
+        db = _mock_db()
         # The code depends on `context.abort()` raising an exception.
         context = self.mock_context()
         context.abort.side_effect = grpc.RpcError()
@@ -980,7 +995,7 @@ class TestHolder(unittest.TestCase):
             )
 
             context = self.mock_context()
-            db = unittest.mock.Mock()
+            db = _mock_db()
             db.get_bucket = unittest.mock.MagicMock(return_value=bucket)
             responses = list(
                 gcs.upload.Upload.process_bidi_write_object_grpc(db, [request], context)
@@ -996,7 +1011,7 @@ class TestHolder(unittest.TestCase):
             )
 
     def test_process_bidi_write_grpc_empty(self):
-        db = unittest.mock.Mock()
+        db = _mock_db()
         # The code depends on `context.abort()` raising an exception.
         context = self.mock_context()
         context.abort.side_effect = grpc.RpcError()
@@ -1035,7 +1050,7 @@ class TestHolder(unittest.TestCase):
             finish_write=True,
         )
         context = self.mock_context()
-        db = unittest.mock.Mock()
+        db = _mock_db()
         db.get_bucket = unittest.mock.MagicMock(return_value=bucket)
         db.get_upload = unittest.mock.MagicMock(return_value=upload)
         responses = list(

@@ -20,6 +20,10 @@ COPY . /opt/storage-testbench/
 
 RUN python3 -m pip install -e .
 
+# The 0.0.0.0 bind is honored under the file backend ONLY when the compose service
+# sets TESTBENCH_ALLOW_NONLOOPBACK=1 (see docker-compose.yml); testbench_run.py adds
+# --workers=1 so one process owns one TESTBENCH_ROOT index. gRPC boots at import via
+# TESTBENCH_GRPC_PORT -- no post-start /start_grpc curl needed.
 CMD ["python3", \
       "testbench_run.py", \
       "0.0.0.0", \

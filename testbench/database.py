@@ -24,6 +24,7 @@ from typing import Any, Callable, TypeVar
 
 import gcs
 import testbench
+import testbench.store
 
 T = TypeVar("T")
 
@@ -40,7 +41,9 @@ class Database:
         supported_methods,
         soft_deleted_objects,
         folders=None,
+        store=None,
     ):
+        self._store = store if store is not None else testbench.store.NullStore()
         self._resources_lock = threading.RLock()
         self._buckets = buckets
         self._objects = objects
@@ -64,24 +67,43 @@ class Database:
         self._folders = folders if folders is not None else {}
 
     @classmethod
-    def init(cls):
-        return cls({}, {}, {}, {}, {}, {}, [], {}, {})
+    def init(cls, store=None):
+        db = cls({}, {}, {}, {}, {}, {}, [], {}, {}, store=store)
+        # A FileStore hydrates the fresh in-memory index from its on-disk tree
+        # before the Database is handed out. Imported lazily so the memory
+        # backend never pulls in the file-backend module (and to keep the
+        # module import graph acyclic).
+        from testbench.filestore import FileStore
+
+        if isinstance(store, FileStore):
+            store.rebuild_index(db)
+        return db
+
+    @property
+    def store(self):
+        return self._store
 
     def clear(self):
         """Clear all data except for the supported method list."""
-        with self._resources_lock:
+        # `_resources_lock` and `_folders_lock` are held together, continuously,
+        # from the wipe through to `cleared()`: those are the only two locks
+        # any Store notification is tied to (bucket_*/object_* vs folder_*), so
+        # releasing either between the wipe and the notification would let a
+        # concurrent insert/delete complete and notify in between, leaving the
+        # store's view out of order with what `Database` actually holds.
+        with self._resources_lock, self._folders_lock:
             self._buckets = {}
             self._objects = {}
             self._live_generations = {}
             self._soft_deleted_objects = {}
+            self._folders = {}
+            self._store.cleared()
         with self._uploads_lock:
             self._uploads = {}
         with self._rewrites_lock:
             self._rewrites = {}
         with self._retry_tests_lock:
             self._retry_tests = {}
-        with self._folders_lock:
-            self._folders = {}
         # The list of supported methods for `retry_test` is defined via flask
         # decorators, it should remain unchanged after the test or application
         # is initialized. Arguably this means it should be in a global variable.
@@ -106,12 +128,14 @@ class Database:
 
     def insert_bucket(self, bucket, context):
         with self._resources_lock:
+            self._store.validate_bucket_name(bucket.metadata.name, context)
             if bucket.metadata.name in self._buckets:
                 return testbench.error.already_exists(context)
             self._buckets[bucket.metadata.name] = bucket
             self._objects[bucket.metadata.name] = {}
             self._live_generations[bucket.metadata.name] = {}
             self._soft_deleted_objects[bucket.metadata.name] = {}
+            self._store.bucket_inserted(bucket)
 
     def list_bucket(self, project_id, prefix, request, context):
         """Lists buckets, with optional support for partial success.
@@ -204,6 +228,7 @@ class Database:
             del self._objects[bucket.metadata.name]
             del self._live_generations[bucket.metadata.name]
             del self._soft_deleted_objects[bucket.metadata.name]
+            self._store.bucket_deleted(bucket.metadata.name)
 
     def insert_test_bucket(self):
         """Automatically create a bucket if needed.
@@ -222,9 +247,32 @@ class Database:
                     args={}, data=json.dumps({"name": bucket_name})
                 )
                 bucket_test, _ = gcs.bucket.Bucket.init(request, None)
-                self.insert_bucket(bucket_test, None)
+                # Set before `insert_bucket()` so a store observing
+                # `bucket_inserted` sees the final metadata, not the
+                # defaults `Bucket.init()` produced.
                 bucket_test.metadata.metageneration = 4
                 bucket_test.metadata.versioning.enabled = True
+                self.insert_bucket(bucket_test, None)
+
+    def seed_buckets(self, names):
+        """Create each development bucket idempotently at startup (TESTBENCH_BUCKETS).
+        Supersedes the single GOOGLE_CLOUD_CPP_STORAGE_TEST_BUCKET_NAME auto-create
+        (insert_test_bucket, kept intact) as the multi-bucket mechanism. Idempotent:
+        a name already present (e.g. rehydrated from a persistent named volume by
+        FileStore.rebuild_index on restart) is skipped, so re-seeding never hits the
+        already_exists error. Plain Bucket.init defaults (no metageneration/versioning
+        override -- that override is specific to the cpp well-known bucket). On the
+        FILE backend, insert_bucket -> FileStore.validate_bucket_name rejects an
+        illegal name, so a bad TESTBENCH_BUCKETS entry fails LOUDLY at boot."""
+        for name in names:
+            with self._resources_lock:
+                if self._buckets.get(self.__bucket_key(name, None)) is not None:
+                    continue
+                request = testbench.common.FakeRequest(
+                    args={}, data=json.dumps({"name": name})
+                )
+                bucket, _ = gcs.bucket.Bucket.init(request, None)
+                self.insert_bucket(bucket, None)
 
     # === OBJECT === #
 
@@ -293,6 +341,9 @@ class Database:
         blob.metadata.soft_delete_time.FromDatetime(soft_delete_time)
         blob.metadata.hard_delete_time.FromDatetime(hard_delete_time)
         self._soft_deleted_objects[bucket_key][object_name].append(blob)
+        self._store.object_soft_deleted(
+            bucket_key, blob, blob.metadata.hard_delete_time
+        )
 
     def __remove_expired_objects_from_soft_delete(
         self, bucket_name, object_name, context
@@ -301,12 +352,17 @@ class Database:
         now = datetime.datetime.now()
 
         if self._soft_deleted_objects[bucket_key].get(object_name) is not None:
-            self._soft_deleted_objects[bucket_key][object_name] = list(
-                filter(
-                    lambda blob: now < blob.metadata.hard_delete_time.ToDatetime(),
-                    self._soft_deleted_objects[bucket_key][object_name],
+            live, expired = [], []
+            for blob in self._soft_deleted_objects[bucket_key][object_name]:
+                if now < blob.metadata.hard_delete_time.ToDatetime():
+                    live.append(blob)
+                else:
+                    expired.append(blob)
+            self._soft_deleted_objects[bucket_key][object_name] = live
+            for blob in expired:
+                self._store.object_purged(
+                    bucket_key, object_name, blob.metadata.generation
                 )
-            )
 
     def __remove_restored_soft_deleted_object(
         self, bucket_name, object_name, generation, context
@@ -487,6 +543,7 @@ class Database:
             generation = blob.metadata.generation
             bucket["%s#%d" % (object_name, generation)] = blob
             self.__set_live_generation(bucket_name, object_name, generation, context)
+            self._store.object_inserted(self.__bucket_key(bucket_name, context), blob)
 
     def delete_object(
         self,
@@ -515,6 +572,17 @@ class Database:
                     context,
                 )
             bucket.pop("%s#%d" % (blob.metadata.name, blob.metadata.generation), None)
+            # A soft delete already notified `object_soft_deleted` from inside
+            # `__soft_delete_object`, above; a hard delete (no soft delete
+            # policy on the bucket) notifies `object_deleted` here instead.
+            # The two must stay distinct: a store that reacted identically to
+            # both would discard a copy the client can still restore.
+            if not bucket_with_metadata.metadata.HasField("soft_delete_policy"):
+                self._store.object_deleted(
+                    self.__bucket_key(bucket_name, context),
+                    blob.metadata.name,
+                    blob.metadata.generation,
+                )
 
     def do_update_object(
         self,
@@ -527,6 +595,22 @@ class Database:
         preconditions=[],
         require_live_current_generation=True,
     ) -> T:
+        # Notifies unconditionally after `update_fn` runs, because
+        # `Database` cannot inspect an arbitrary callback to learn whether it
+        # changed anything. Most call sites do mutate: object PUT/PATCH, ACL
+        # insert/update/patch/delete, gRPC UpdateObject, and the
+        # appendable-upload paths that assign `blob.media` itself.
+        #
+        # Two callers can reach here without mutating the blob they were
+        # handed -- `gcs/upload.py`'s `bump_upload_gen` returns early when
+        # the generation does not match, and `_insert_empty_appendable_object`
+        # inserts a *different*, new blob rather than touching this one -- so
+        # a redundant notification is possible and a `Store` must treat
+        # `object_updated` as "this generation may have changed", not as
+        # proof that it did. That costs one idempotent rewrite. The
+        # alternative, staying silent by default, is what let object
+        # PATCH/PUT and appendable media writes go unobserved by a `Store`
+        # entirely, which is a data-loss bug rather than a cosmetic one.
         with self._resources_lock:
             blob, live_generation = self.__get_object(
                 bucket_name,
@@ -536,7 +620,29 @@ class Database:
                 preconditions,
                 require_live_current_generation=require_live_current_generation,
             )
-            return update_fn(blob, live_generation)
+            result = update_fn(blob, live_generation)
+            if blob is not None:
+                self._store.object_updated(
+                    self.__bucket_key(bucket_name, context), blob
+                )
+            return result
+
+    def do_update_bucket(
+        self, bucket_name, *, update_fn, context=None, preconditions=[]
+    ):
+        # Mirrors do_update_object: notify unconditionally after update_fn.
+        # Every bucket-metadata mutator (REST bucket PUT/PATCH, bucket ACL,
+        # defaultObjectAcl, setIamPolicy, lockRetentionPolicy; gRPC
+        # UpdateBucket/LockBucketRetentionPolicy/SetIamPolicy) funnels here so
+        # a Store observes bucket changes -- previously they bypassed Database
+        # entirely (spec carried-forward defect).
+        with self._resources_lock:
+            bucket = self.get_bucket(bucket_name, context, preconditions)
+            if bucket is None:
+                return None
+            update_fn(bucket)
+            self._store.bucket_updated(bucket)
+            return bucket
 
     def restore_object(
         self,
@@ -572,7 +678,21 @@ class Database:
                 blob.metadata.generation = blob.metadata.generation + 1
                 if bucket_with_metadata.metadata.autoclass.enabled is True:
                     blob.metadata.storage_class = "STANDARD"
+                # `insert_object()` above already notifies `object_inserted`:
+                # a restore is an insert of the same blob at a new generation
+                # from a persistence standpoint, so no separate notification
+                # is fired here (see `Store.object_inserted`'s docstring).
                 self.insert_object(bucket_name, blob, context, preconditions)
+                # The restored generation left a stale copy in the
+                # soft-deleted set on disk; Database drops it in memory, and now
+                # also signals object_purged for the ORIGINAL generation so a
+                # FileStore removes .gcs/soft_deleted/<generation>. This is the
+                # SINGLE reconciliation mechanism for restore (see Task 7: no
+                # duplicate cleanup in object_inserted). No-op on NullStore ->
+                # zero memory diff.
+                self._store.object_purged(
+                    self.__bucket_key(bucket_name, context), object_name, generation
+                )
                 self.__remove_restored_soft_deleted_object(
                     bucket_name, object_name, generation, context
                 )
@@ -597,6 +717,11 @@ class Database:
             upload = self.get_upload(upload_id, context)
             if upload is not None:
                 del self._uploads[upload_id]
+        # Reclaim the upload's staging bytes (FileStore unlinks
+        # .gcs/uploads/<upload_id>; no-op on the memory backend). Outside the
+        # lock -- the store touches disk, not the _uploads index.
+        if upload is not None:
+            self._store.delete_upload(upload.bucket.name, upload_id)
 
     # === REWRITE === #
 
@@ -612,9 +737,26 @@ class Database:
             self._rewrites[rewrite.token] = rewrite
 
     def delete_rewrite(self, token, context):
+        # Drop a multi-call rewrite's in-memory state and reclaim its staging
+        # bytes (FileStore unlinks .gcs/uploads/<token>; no-op on memory).
+        #
+        # KNOWN LIMITATION / reachability: this has NO server-invoked caller
+        # today. GCS exposes no CancelRewrite RPC, and the testbench has no
+        # rewrite-expiry sweep, so an abandoned multi-call rewrite already leaks
+        # its `_rewrites` entry forever on BOTH backends (pre-existing); the file
+        # backend additionally leaves the `.gcs/uploads/<token>` staging file +
+        # an open O_APPEND fd. The completed-rewrite happy path does NOT leak
+        # (the terminal `done` finalizes, consuming the staging name). This
+        # method is the correct cleanup primitive (symmetric with the wired
+        # `delete_upload`) kept + unit-tested for the day a rewrite-lifecycle
+        # sweep is added (a phase-6/7 follow-up); wiring one now would add
+        # cleanup the memory backend lacks and break B == C parity. External
+        # behaviour is identical with or without this call.
         with self._rewrites_lock:
-            self.get_rewrite(token, context)
+            rewrite = self.get_rewrite(token, context)
             del self._rewrites[token]
+        if rewrite is not None:
+            self._store.delete_rewrite(rewrite.dst_bucket_name, token)
 
     # ==== PROJECTS ==== #
 
@@ -808,6 +950,7 @@ class Database:
                     "Folder %s already exists" % folder_name, context
                 )
             self._folders[folder_name] = folder
+            self._store.folder_inserted(folder_name, folder)
         return folder
 
     def get_folder(self, folder_name, context):
@@ -824,6 +967,7 @@ class Database:
             if folder_name not in self._folders:
                 testbench.error.notfound("Folder %s" % folder_name, context)
             del self._folders[folder_name]
+            self._store.folder_deleted(folder_name)
 
     def list_folders(self, bucket_name, prefix, context):
         """List folders in a bucket with optional prefix filter."""
@@ -851,4 +995,5 @@ class Database:
             folder = self._folders[src_folder_name]
             del self._folders[src_folder_name]
             self._folders[dst_folder_name] = folder
+            self._store.folder_renamed(src_folder_name, dst_folder_name, folder)
             return folder
