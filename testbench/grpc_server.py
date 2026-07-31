@@ -1391,7 +1391,12 @@ class StorageControlServicer(storage_control_pb2_grpc.StorageControlServicer):
 
 
 def _bind_host():
-    # The traversal-capable file backend must never listen off-loopback.
+    # The traversal-capable file backend binds loopback so it is never network
+    # exposed -- UNLESS TESTBENCH_ALLOW_NONLOOPBACK=1 (the container case, where
+    # published ports require binding 0.0.0.0 in the container netns; compose then
+    # publishes to host loopback so it stays off external interfaces).
+    if os.environ.get("TESTBENCH_ALLOW_NONLOOPBACK") == "1":
+        return "0.0.0.0"
     return "127.0.0.1" if os.environ.get("TESTBENCH_STORE") == "file" else "0.0.0.0"
 
 
