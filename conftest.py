@@ -55,12 +55,17 @@ _ACTIVE_ROOT = {"path": None}
 # (the memory backend must stay unaffected) and avoids adding hypothesis to the
 # Windows CI env for tests that would only be skipped anyway.
 if os.name == "nt":
-    collect_ignore = [
+    # Glob patterns (collect_ignore_glob) so new file-backend test modules are
+    # excluded on Windows without editing this list each time. test_media_base.py
+    # is deliberately NOT matched: it tests the Media base + Store factory on the
+    # memory path (NullStore -> BytesMedia) with no hypothesis/FileMedia/fd deps.
+    collect_ignore_glob = [
         "tests/test_pathing.py",
         "tests/test_containment.py",
         "tests/test_sidecar.py",
-        "tests/test_filestore.py",
-        "tests/test_filestore_scan.py",
+        "tests/test_filestore*.py",  # test_filestore.py, _scan.py, _filemedia.py
+        "tests/test_filemedia*.py",  # all FileMedia read/staging/upload/download/... suites
+        "tests/test_appendable_filemedia.py",
         "tests/test_file_backend_wiring.py",
     ]
 
