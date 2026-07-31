@@ -1,0 +1,32 @@
+# docker-compose.yml -- two services, one image, same code path, env-only difference.
+services:
+  gcs-dev:                              # requirement 3: persistent, file-backed
+    build: .
+    environment:
+      TESTBENCH_STORE: file
+      TESTBENCH_ROOT: /data
+      TESTBENCH_BUCKETS: audio,transcripts,models
+      TESTBENCH_GRPC_PORT: "9001"
+      TESTBENCH_ALLOW_NONLOOPBACK: "1"  # container must bind 0.0.0.0 for published ports
+    volumes:
+      - gcs-data:/data                  # named volume (case-sensitive, fast), NOT a bind mount
+    ports:
+      - "127.0.0.1:9000:9000"           # published to HOST LOOPBACK only (spec Security rule 6)
+      - "127.0.0.1:9001:9001"
+
+  gcs-test:                             # requirement 2: ephemeral
+    build: .
+    environment:
+      TESTBENCH_STORE: file
+      TESTBENCH_ROOT: /data
+      TESTBENCH_BUCKETS: ""             # tests create their own UUID buckets
+      TESTBENCH_GRPC_PORT: "9001"
+      TESTBENCH_ALLOW_NONLOOPBACK: "1"
+    tmpfs:
+      - /data                           # RAM-backed, container-lifetime backstop
+    ports:
+      - "127.0.0.1:9010:9000"           # distinct host ports so both can run at once
+      - "127.0.0.1:9011:9001"
+
+volumes:
+  gcs-data:
