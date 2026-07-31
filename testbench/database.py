@@ -254,6 +254,26 @@ class Database:
                 bucket_test.metadata.versioning.enabled = True
                 self.insert_bucket(bucket_test, None)
 
+    def seed_buckets(self, names):
+        """Create each development bucket idempotently at startup (TESTBENCH_BUCKETS).
+        Supersedes the single GOOGLE_CLOUD_CPP_STORAGE_TEST_BUCKET_NAME auto-create
+        (insert_test_bucket, kept intact) as the multi-bucket mechanism. Idempotent:
+        a name already present (e.g. rehydrated from a persistent named volume by
+        FileStore.rebuild_index on restart) is skipped, so re-seeding never hits the
+        already_exists error. Plain Bucket.init defaults (no metageneration/versioning
+        override -- that override is specific to the cpp well-known bucket). On the
+        FILE backend, insert_bucket -> FileStore.validate_bucket_name rejects an
+        illegal name, so a bad TESTBENCH_BUCKETS entry fails LOUDLY at boot."""
+        for name in names:
+            with self._resources_lock:
+                if self._buckets.get(self.__bucket_key(name, None)) is not None:
+                    continue
+                request = testbench.common.FakeRequest(
+                    args={}, data=json.dumps({"name": name})
+                )
+                bucket, _ = gcs.bucket.Bucket.init(request, None)
+                self.insert_bucket(bucket, None)
+
     # === OBJECT === #
 
     def __get_bucket_for_object(self, bucket_name, context):
