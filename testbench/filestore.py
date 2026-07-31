@@ -18,6 +18,7 @@ opened with O_NOFOLLOW so a planted/swapped symlink cannot escape the bucket
 root. All name/path/security logic lives in pathing/containment/sidecar."""
 
 import contextlib
+import hashlib
 import json
 import os
 
@@ -29,6 +30,9 @@ from testbench import containment, pathing, sidecar
 from testbench.store import Store
 
 _SUBDIRS = ("generations", "soft_deleted", "uploads", "folders", "overflow")
+
+# The md5 of empty content, stamped on an appendable object at its empty insert.
+_MD5_OF_EMPTY = hashlib.md5(b"").digest()
 
 
 def _unlink_quiet(dir_fd, name):
@@ -410,11 +414,44 @@ class FileStore(Store):
                         database, proto_name, bucket_proto, full, media, seen
                     )
 
-    def _read_media(self, media_path):
+    def _hydrate_media(self, media_path, obj_proto):
+        """Point a read-only FileMedia at the on-disk media WITHOUT reading it:
+        trust the sidecar's persisted size/crc32c/md5 (recorded when the object
+        was inserted) so a multi-GB tree hydrates in BOUNDED memory -- a
+        whole-file read would make every object resident at startup. The media
+        file is opened via containment.safe_open (O_NOFOLLOW on the final
+        component), a strictly stronger posture than the old plain open(). A
+        missing media file (an orphaned sidecar) degrades to an empty buffer,
+        matching the pre-FileMedia b"" fallback."""
+        from testbench.filemedia import FileMedia
+
         if not os.path.isfile(media_path):
             return b""
-        with open(media_path, "rb") as handle:
-            return handle.read()
+        dir_fd = os.open(os.path.dirname(media_path), os.O_RDONLY)
+        try:
+            name = os.path.basename(media_path)
+            md5_value = obj_proto.checksums.md5_hash
+            if obj_proto.size > 0 and md5_value == _MD5_OF_EMPTY:
+                # An appendable object is inserted EMPTY (checksums.md5_hash ==
+                # md5(b"")) and grown through checkpoints that update
+                # checksums.crc32c but never md5 (upload.py's
+                # update_appendable_blob), so a non-empty object still carrying
+                # the empty-content md5 is that un-updated sentinel. Recompute the
+                # real crc32c/md5 from disk in a single BOUNDED streaming pass so
+                # the hydrated media matches the live pre-restart FileMedia. A
+                # genuine object can never collide with md5(b""), so this fires
+                # only for the appendable case; every other object trusts its
+                # persisted whole-content checksums with NO read.
+                return FileMedia.from_path(dir_fd, name)
+            return FileMedia.from_existing(
+                dir_fd,
+                name,
+                size=obj_proto.size,
+                crc32c_value=obj_proto.checksums.crc32c,
+                md5_value=md5_value,
+            )
+        finally:
+            os.close(dir_fd)
 
     def _hydrate_live(
         self, database, proto_name, bucket_proto, sidecar_path, media_path, seen
@@ -430,7 +467,9 @@ class FileStore(Store):
                     "collision: %r and %r resolve to the same inode" % (previous, name)
                 )
             seen[ident] = name
-        blob = gcs.object.Object(obj_proto, self._read_media(media_path), bucket_proto)
+        blob = gcs.object.Object(
+            obj_proto, self._hydrate_media(media_path, obj_proto), bucket_proto
+        )
         gen = obj_proto.generation
         database._objects[proto_name]["%s#%d" % (name, gen)] = blob
         database._live_generations[proto_name][name] = gen
@@ -440,7 +479,9 @@ class FileStore(Store):
     ):
         _, _true_name, obj_proto = sidecar.read(sidecar_path)
         media = os.path.join(dirpath, "media")
-        blob = gcs.object.Object(obj_proto, self._read_media(media), bucket_proto)
+        blob = gcs.object.Object(
+            obj_proto, self._hydrate_media(media, obj_proto), bucket_proto
+        )
         database._soft_deleted_objects[proto_name].setdefault(
             obj_proto.name, []
         ).append(blob)
