@@ -17,11 +17,15 @@ backend and byte-identical B≡C behavior for the file backend.
 - ✅ **Phase 5 FileMedia** — DONE, **CI-green at commit `aea1cc5`** (Lint ✓,
   Docker ✓, Unit Tests ✓ on Python 3.8–3.12 + Windows 3.11, Conformance ✓ on
   BOTH the memory and `--store file` B≡C legs). See "Phase 5 detail" below.
-- ⏳ **Phase 6 Bootstrap** — plan being synthesized
-  (`docs/superpowers/plans/2026-07-31-file-backend-bootstrap.md`). Env vars
-  (TESTBENCH_BUCKETS/GRPC_PORT/GRPC_THREADS/FSYNC), single-worker assert, compose files.
-- ⬜ **Phase 7 Verification** — durability/crash, concurrency, 4GB bounded-memory,
-  optional real-GCS divergence report.
+- ✅ **Phase 6 Bootstrap** — DONE, **CI-green at commit `2eae3d1`** (env vars
+  TESTBENCH_BUCKETS/GRPC_PORT/GRPC_THREADS(default 32)/FSYNC, single-worker
+  cross-worker lock, TESTBENCH_ALLOW_NONLOOPBACK opt-out, docker-compose). The
+  media call-site coverage gate now runs as an isolated CI step (was flaky
+  inside the full --cov suite). Plan: `docs/superpowers/plans/2026-07-31-file-backend-bootstrap.md`.
+- ⏳ **Phase 7 Verification** — plan being synthesized
+  (`docs/superpowers/plans/2026-07-31-file-backend-verification.md`): durability/crash
+  + concurrency suites; Mechanism 8 (real-GCS) / 9 (downstream client) documented
+  as manual/out-of-scope. 4GB bounded-memory already landed in phase 5.
 
 ## Phase 4 detail (what landed, commits `2a55caa..5924408`)
 New modules (stdlib-only + existing crc32c/protobuf; zero new runtime deps):
