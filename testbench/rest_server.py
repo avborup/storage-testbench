@@ -785,10 +785,15 @@ def objects_copy(src_bucket_name, src_object_name, dst_bucket_name, dst_object_n
     del dst_metadata.acl[:]
     dst_metadata.bucket = dst_bucket_name
     dst_metadata.name = dst_object_name
-    # Same BytesMedia bytes-compat operator surface as objects_compose above
-    # (__radd__/__iadd__); see the comment there re: Plan 3/FileMedia.
-    dst_media = b""
-    dst_media += src_object.media
+    # Stream the source into a store-provided staging Media (FileMedia O_APPEND
+    # on the file backend, BytesMedia on memory) one read chunk at a time rather
+    # than folding the whole source into one buffer via `b"" += src.media`; the
+    # chunked copy is the default copy/move (a store-internal hardlink fast-path
+    # is a deferred optimization, see the gRPC MoveObject note).
+    dst_media = db.store.new_staging_media(dst_bucket_name, uuid.uuid4().hex)
+    size = storage_pb2.ServiceConstants.Values.MAX_READ_CHUNK_BYTES
+    for chunk in src_object.media.chunks(0, len(src_object.media), size):
+        dst_media.append(chunk)
     dst_object, _ = gcs_type.object.Object.init(
         flask.request, dst_metadata, dst_media, dst_bucket, True, None
     )
@@ -839,6 +844,10 @@ def objects_rewrite(src_bucket_name, src_object_name, dst_bucket_name, dst_objec
             dst_bucket_name,
             dst_object_name,
         )
+        # The staging destination accumulates the rewritten windows across calls;
+        # the store factory keeps this store-agnostic (FileMedia O_APPEND on the
+        # file backend, BytesMedia on memory).
+        rewrite.media = db.store.new_staging_media(dst_bucket_name, rewrite.token)
         db.insert_rewrite(rewrite)
     else:
         rewrite = db.get_rewrite(token, None)
@@ -857,14 +866,18 @@ def objects_rewrite(src_bucket_name, src_object_name, dst_bucket_name, dst_objec
         True,
         None,
     )
-    total_bytes_rewritten = len(rewrite.media)
-    total_bytes_rewritten += min(
-        rewrite.max_bytes_rewritten_per_call, len(src_object.media) - len(rewrite.media)
+    offset = len(rewrite.media)
+    total_bytes_rewritten = offset + min(
+        rewrite.max_bytes_rewritten_per_call, len(src_object.media) - offset
     )
-    # Incremental accumulation via BytesMedia.__iadd__ (bytes-compat operator
-    # surface), not the explicit .append(...to_bytes()) idiom used on the gRPC
-    # path; see the comment in objects_compose re: Plan 3/FileMedia streaming.
-    rewrite.media += src_object.media[len(rewrite.media) : total_bytes_rewritten]
+    # Stream this call's [offset, total_bytes_rewritten) window from the source
+    # into the staging Media one read chunk at a time (FileMedia O_APPEND on the
+    # file backend, BytesMedia on memory) rather than slicing
+    # `src_object.media[offset:total]` into one buffer -- so a window larger than
+    # the bounded-memory budget is never materialised.
+    size = storage_pb2.ServiceConstants.Values.MAX_READ_CHUNK_BYTES
+    for chunk in src_object.media.chunks(offset, total_bytes_rewritten, size):
+        rewrite.media.append(chunk)
     done, dst_object = total_bytes_rewritten == len(src_object.media), None
     response = {
         "kind": "storage#rewriteResponse",

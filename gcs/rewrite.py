@@ -68,6 +68,10 @@ class Rewrite(types.SimpleNamespace):
             dst_bucket_name=dst_bucket_name,
             dst_object_name=dst_object_name,
             token=cls._token(),
+            # Store-agnostic placeholder: the REST/gRPC caller overwrites
+            # `rewrite.media` with `db.store.new_staging_media(dst_bucket, token)`
+            # right after init so the rewritten windows accumulate into a
+            # backend-appropriate staging Media (FileMedia O_APPEND on file).
             media=BytesMedia(b""),
             max_bytes_rewritten_per_call=cls._normalize_max_bytes(
                 fake_request.args.get("maxBytesRewrittenPerCall")
@@ -121,6 +125,10 @@ class Rewrite(types.SimpleNamespace):
             dst_bucket_name=dst_bucket_name,
             dst_object_name=dst_object_name,
             token=cls._token(),
+            # Store-agnostic placeholder: the gRPC caller overwrites
+            # `rewrite.media` with `db.store.new_staging_media(dst_bucket, token)`
+            # right after init so the rewritten windows accumulate into a
+            # backend-appropriate staging Media (FileMedia O_APPEND on file).
             media=BytesMedia(b""),
             max_bytes_rewritten_per_call=cls._normalize_max_bytes(
                 request.max_bytes_rewritten_per_call

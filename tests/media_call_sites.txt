@@ -106,85 +106,84 @@ gcs/upload.py:715
 # UNCOVERED gcs/upload.py:680 -- finalize_blob closure size assignment; no appendable upload in the trace
 
 # --- testbench/grpc_server.py ---
-# Line numbers re-pinned in Task 8: ComposeObject's `composed_media = BytesMedia()`
-# (1 line) grew to a staging-factory call (3 lines) and its
-# `composed_media.append(src.media.to_bytes())` (1 line) grew to a chunked
-# streaming loop (6 lines incl. comment), shifting every site below by +7. The
-# sites themselves are content-verified against the working tree. (Task 9 re-pin
-# after `import os` and Task 5's StartResumableWrite factory :1251 predate this.)
-testbench/grpc_server.py:557
+# Line numbers re-pinned in Task 9: the now-dead `from testbench.media import
+# BytesMedia` import was dropped (-1 to every site below) once MoveObject stopped
+# materialising the source via `.to_bytes()`; MoveObject grew a staging-factory +
+# chunked copy loop, and RewriteObject grew a `rewrite.media = new_staging_media`
+# assignment plus a windowed `chunks()` streaming loop, shifting the sites below
+# each. The sites are content-verified against the working tree.
+testbench/grpc_server.py:556
+testbench/grpc_server.py:622
 testbench/grpc_server.py:623
-testbench/grpc_server.py:624
-testbench/grpc_server.py:632
-testbench/grpc_server.py:654
-testbench/grpc_server.py:792
-testbench/grpc_server.py:811
-testbench/grpc_server.py:1103
-testbench/grpc_server.py:1136
-testbench/grpc_server.py:1196
-testbench/grpc_server.py:1199
-testbench/grpc_server.py:1201
-testbench/grpc_server.py:1204
-testbench/grpc_server.py:1207
-testbench/grpc_server.py:1226
-testbench/grpc_server.py:1251
-testbench/grpc_server.py:1261
-# grpc_server.py:557 (ComposeObject) is the Task-8 streaming site
-# `for chunk in source_blob.media.chunks(0, len(source_blob.media), size):` --
-# the `.to_bytes()` accumulate is gone, each source now streams a read chunk at
-# a time into the staging Media (coverage attributes the loop to its `for` line).
-# :1103 (single-shot Rewrite) still accumulates via
-# `BytesMedia().append(src.media.to_bytes())`; the `.to_bytes()` is the explicit
-# escape hatch Task 9 removes. grpc_server.py:1201 is the incremental-rewrite
-# `rewrite.media.append(...)` statement, which black wraps across :1201-:1203 --
-# coverage attributes the whole statement to its opening line :1201, so the
-# appended `src_object.media[...]` slice is covered there and not listed
-# separately. grpc_server.py:1136 is WriteObject's finalize
-# `Object.init(..., upload.media, ...)` -- the `.to_bytes()` dropped in Task 5;
-# :1251 is `upload.media = self.db.store.new_upload_media(...)` in
+testbench/grpc_server.py:631
+testbench/grpc_server.py:653
+testbench/grpc_server.py:791
+testbench/grpc_server.py:810
+testbench/grpc_server.py:1109
+testbench/grpc_server.py:1143
+testbench/grpc_server.py:1188
+testbench/grpc_server.py:1209
+testbench/grpc_server.py:1212
+testbench/grpc_server.py:1220
+testbench/grpc_server.py:1221
+testbench/grpc_server.py:1222
+testbench/grpc_server.py:1225
+testbench/grpc_server.py:1244
+testbench/grpc_server.py:1269
+testbench/grpc_server.py:1279
+# grpc_server.py:556 (ComposeObject) and :1109 (MoveObject) are the streaming
+# copy sites `for chunk in <src>.media.chunks(0, len(<src>.media), size):` --
+# MoveObject's `.to_bytes()` accumulate is gone (Task 9), the source now streams
+# one read chunk at a time into the staging Media (coverage attributes the loop to
+# its `for` line). :1188 is RewriteObject's `rewrite.media =
+# self.db.store.new_staging_media(...)` staging factory; :1220 is the windowed
+# rewrite `for chunk in src_object.media.chunks(offset, total, size):` and :1221
+# its `rewrite.media.append(chunk)` -- the `src.media[slice]` materialiser is
+# gone. :1143 is WriteObject's finalize `Object.init(..., upload.media, ...)`;
+# :1269 is `upload.media = self.db.store.new_upload_media(...)` in
 # StartResumableWrite (the resumable-gRPC staging factory).
-# UNCOVERED testbench/grpc_server.py:658 -- broken-stream fault chunk in ReadObject's chunks() loop; the trace injects no broken-stream fault on a gRPC read
-# UNCOVERED testbench/grpc_server.py:696 -- broken-stream fault chunk on ReadObject's trailing empty response; needs a 0-byte or exact-size-multiple read combined with a broken-stream fault, which the trace never does
-# UNCOVERED testbench/grpc_server.py:791 -- negative read_offset in BidiReadObject; the trace uses no negative offset on a bidi read
-# UNCOVERED testbench/grpc_server.py:1132 -- resumable-but-unfinished WriteObject early return; the trace's WriteObject always sets finish_write
+# UNCOVERED testbench/grpc_server.py:657 -- broken-stream fault chunk in ReadObject's chunks() loop; the trace injects no broken-stream fault on a gRPC read
+# UNCOVERED testbench/grpc_server.py:695 -- broken-stream fault chunk on ReadObject's trailing empty response; needs a 0-byte or exact-size-multiple read combined with a broken-stream fault, which the trace never does
+# UNCOVERED testbench/grpc_server.py:790 -- negative read_offset in BidiReadObject; the trace uses no negative offset on a bidi read
+# UNCOVERED testbench/grpc_server.py:1139 -- resumable-but-unfinished WriteObject early return; the trace's WriteObject always sets finish_write
 
 # --- testbench/rest_server.py ---
-# Line numbers re-pinned in Task 8: `import uuid` was added to the import block
-# (+1 to every site below), and objects_compose's `composed_media = b""` +
-# `composed_media += source_object.media` (materialising idiom) became a
-# staging-factory call plus a chunked streaming loop -- net +1 across the
-# compose block, so sites below it shift by +2 total. The sites are
-# content-verified against the working tree. (Task 9's env-driven store selection
-# and Task 5's resumable staging factory :1097 predate this.)
+# Line numbers re-pinned in Task 9: objects_copy's `b"" += src.media`
+# materialiser became a staging-factory + chunked copy loop, and objects_rewrite
+# grew a `rewrite.media = db.store.new_staging_media(...)` staging assignment plus
+# a windowed `chunks()` streaming loop, shifting the sites below. The sites are
+# content-verified against the working tree.
 testbench/rest_server.py:106
 testbench/rest_server.py:740
-testbench/rest_server.py:791
-testbench/rest_server.py:860
-testbench/rest_server.py:862
-testbench/rest_server.py:867
-testbench/rest_server.py:868
+testbench/rest_server.py:795
+testbench/rest_server.py:850
+testbench/rest_server.py:869
 testbench/rest_server.py:871
-testbench/rest_server.py:872
-testbench/rest_server.py:881
-testbench/rest_server.py:1097
-testbench/rest_server.py:1116
-testbench/rest_server.py:1133
-testbench/rest_server.py:1163
-testbench/rest_server.py:1185
-testbench/rest_server.py:1298
-testbench/rest_server.py:1299
-testbench/rest_server.py:1310
-# rest_server.py:740 (objects_compose) is the Task-8 streaming site
-# `for chunk in source_object.media.chunks(0, len(source_object.media), size):`
-# -- the `b"" += source.media` materialising idiom is gone, each source streams
-# a read chunk at a time into the staging Media (coverage attributes the loop to
-# its `for` line). :1097 is the Task-5 staging factory
-# `upload.media = db.store.new_upload_media(...)` right after init_resumable_rest;
-# :1298 is the resumable-chunk `upload.media += data` (O_APPEND on FileMedia) and
-# :1310 the finalize `Object.init(..., upload.media, ...)` -- the `.to_bytes()`
-# dropped in Task 5.
-# UNCOVERED testbench/rest_server.py:1191 -- finalize a chunked resumable upload via a `bytes */N` PUT matching persisted size; the trace does not finalize on this branch
-# UNCOVERED testbench/rest_server.py:1303 -- non-Content-Range simple-upload completion; the trace's resumable uploads always send a Content-Range
+testbench/rest_server.py:879
+testbench/rest_server.py:880
+testbench/rest_server.py:884
+testbench/rest_server.py:885
+testbench/rest_server.py:894
+testbench/rest_server.py:1110
+testbench/rest_server.py:1129
+testbench/rest_server.py:1146
+testbench/rest_server.py:1176
+testbench/rest_server.py:1198
+testbench/rest_server.py:1311
+testbench/rest_server.py:1312
+testbench/rest_server.py:1323
+# rest_server.py:740 (objects_compose) and :795 (objects_copy) are the streaming
+# copy sites `for chunk in <src>.media.chunks(0, len(<src>.media), size):`;
+# objects_copy's `b"" += src.media` is gone (Task 9). :850 is objects_rewrite's
+# `rewrite.media = db.store.new_staging_media(...)` staging factory, :879 the
+# windowed `for chunk in src_object.media.chunks(offset, total, size):` and :880
+# its `rewrite.media.append(chunk)` -- the `src.media[slice]` materialiser is
+# gone. :1110 is the Task-5 staging factory `upload.media =
+# db.store.new_upload_media(...)` right after init_resumable_rest; :1311 is the
+# resumable-chunk `upload.media += data` (O_APPEND on FileMedia) and :1323 the
+# finalize `Object.init(..., upload.media, ...)`.
+# UNCOVERED testbench/rest_server.py:1204 -- finalize a chunked resumable upload via a `bytes */N` PUT matching persisted size; the trace does not finalize on this branch
+# UNCOVERED testbench/rest_server.py:1316 -- non-Content-Range simple-upload completion; the trace's resumable uploads always send a Content-Range
 
 # --- testbench/filestore.py ---
 # UNCOVERED testbench/filestore.py:179 -- object_inserted link_into's a still-growing appendable FileMedia into its destination; only under TESTBENCH_STORE=file, and the coverage gate runs the memory-config conformance trace (NullStore), which never constructs a FileStore

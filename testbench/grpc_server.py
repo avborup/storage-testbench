@@ -42,7 +42,6 @@ import testbench
 from google.iam.v1 import iam_policy_pb2
 from google.storage.control.v2 import storage_control_pb2, storage_control_pb2_grpc
 from google.storage.v2 import storage_pb2, storage_pb2_grpc
-from testbench.media import BytesMedia
 
 _GRPC_SERVER_THREAD_COUNT = 2
 
@@ -1099,8 +1098,16 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
         dst_metadata.CopyFrom(src_object.metadata)
         dst_metadata.bucket = request.bucket
         dst_metadata.name = request.destination_object
-        dst_media = BytesMedia()
-        dst_media.append(src_object.media.to_bytes())
+        # Stream the source into a store-provided staging Media (FileMedia
+        # O_APPEND on the file backend, BytesMedia on memory) one read chunk at a
+        # time rather than materialising the whole source via `.to_bytes()`; the
+        # chunked copy is the default move (a store-internal hardlink/rename
+        # fast-path is a deferred optimization -- a shared inode would collide
+        # with the startup inode-collision detector).
+        dst_media = self.db.store.new_staging_media(request.bucket, uuid.uuid4().hex)
+        size = storage_pb2.ServiceConstants.Values.MAX_READ_CHUNK_BYTES
+        for chunk in src_object.media.chunks(0, len(src_object.media), size):
+            dst_media.append(chunk)
         dst_object, _ = gcs.object.Object.init(
             request, dst_metadata, dst_media, bucket, False, context, csek=False
         )
@@ -1175,6 +1182,12 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
         token = request.rewrite_token
         if token == "":
             rewrite = gcs.rewrite.Rewrite.init_grpc(request, context)
+            # The staging destination accumulates the rewritten windows across
+            # calls; the store factory keeps this store-agnostic (FileMedia
+            # O_APPEND on the file backend, BytesMedia on memory).
+            rewrite.media = self.db.store.new_staging_media(
+                rewrite.request.destination_bucket, rewrite.token
+            )
             self.db.insert_rewrite(rewrite)
         else:
             rewrite = self.db.get_rewrite(token, context)
@@ -1193,14 +1206,19 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
             is_source=True,
             context=context,
         )
-        total_bytes_rewritten = len(rewrite.media)
-        total_bytes_rewritten += min(
+        offset = len(rewrite.media)
+        total_bytes_rewritten = offset + min(
             rewrite.max_bytes_rewritten_per_call,
-            len(src_object.media) - len(rewrite.media),
+            len(src_object.media) - offset,
         )
-        rewrite.media.append(
-            src_object.media[len(rewrite.media) : total_bytes_rewritten]
-        )
+        # Stream this call's [offset, total_bytes_rewritten) window from the
+        # source into the staging Media one read chunk at a time (FileMedia
+        # O_APPEND on the file backend, BytesMedia on memory) rather than slicing
+        # `src_object.media[offset:total]` into one buffer -- so a window larger
+        # than the bounded-memory budget is never materialised.
+        size = storage_pb2.ServiceConstants.Values.MAX_READ_CHUNK_BYTES
+        for chunk in src_object.media.chunks(offset, total_bytes_rewritten, size):
+            rewrite.media.append(chunk)
         done, dst_object = total_bytes_rewritten == len(src_object.media), None
         response = storage_pb2.RewriteResponse(
             total_bytes_rewritten=total_bytes_rewritten,
