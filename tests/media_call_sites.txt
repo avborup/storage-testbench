@@ -20,6 +20,17 @@
 # `upload.media = db.store.new_upload_media(...)` factory sites (gcs/upload.py:192
 # and :409, grpc_server.py:1244, rest_server.py:1095) and shifted subsequent line
 # numbers; every entry below is content-verified against the working tree.
+#
+# Task 10 re-pin: routing the appendable (F2) path onto a single O_APPEND
+# staging FileMedia added a staging-factory site in BidiWrite's appendable
+# write_object_spec branch (gcs/upload.py:413), dropped the empty-insert
+# `.to_bytes()` in favour of a media pass-through (:319), widened the two
+# appendable alias-guard ternaries to isinstance(Media) (:642-647, :694-702),
+# and added the object_updated seal call site (testbench/filestore.py:236) --
+# all trace-UNCOVERED (no appendable upload in the trace / FileStore never built
+# under the memory-config coverage gate). The shifts moved the non-appendable
+# BidiWrite factory :409 -> :425 and every gcs/upload.py site below it (+16);
+# every entry is content-verified against the working tree.
 
 # --- gcs/object.py ---
 gcs/object.py:67
@@ -72,38 +83,39 @@ gcs/upload.py:244
 gcs/upload.py:249
 gcs/upload.py:267
 gcs/upload.py:279
-gcs/upload.py:409
-gcs/upload.py:564
-gcs/upload.py:569
-gcs/upload.py:587
-gcs/upload.py:602
-gcs/upload.py:604
-gcs/upload.py:655
-gcs/upload.py:696
-gcs/upload.py:714
-gcs/upload.py:715
-# gcs/upload.py:192 and :409 are the Task-5 staging factory sites:
+gcs/upload.py:425
+gcs/upload.py:580
+gcs/upload.py:585
+gcs/upload.py:603
+gcs/upload.py:618
+gcs/upload.py:620
+gcs/upload.py:671
+gcs/upload.py:718
+gcs/upload.py:736
+gcs/upload.py:737
+# gcs/upload.py:192 and :425 are the Task-5 staging factory sites:
 # `upload.media = db.store.new_upload_media(...)` for WriteObject
 # (init_write_object_grpc's write_object_spec branch) and BidiWrite's
-# non-appendable write_object_spec branch respectively. :279/:602 are the
+# non-appendable write_object_spec branch respectively. :279/:618 are the
 # `upload.media += content` gRPC accumulate statements (O_APPEND on FileMedia);
-# :696 is the BidiWrite non-appendable finalize `Object.init(..., upload.media, ...)`
+# :718 is the BidiWrite non-appendable finalize `Object.init(..., upload.media, ...)`
 # -- the `.to_bytes()` escape hatch dropped in Task 5.
 # UNCOVERED gcs/upload.py:245 -- partial-media resend branch (write_offset < persisted size); the gRPC write trace never re-sends already-persisted bytes
 # UNCOVERED gcs/upload.py:255 -- OUT_OF_RANGE abort (write_offset > persisted size); the trace never sends a gap-ahead offset
-# UNCOVERED gcs/upload.py:311 -- _insert_empty_appendable_object; the trace performs no appendable-object upload
+# UNCOVERED gcs/upload.py:319 -- _insert_empty_appendable_object passes the empty staging Media THROUGH (Task 10: was `.to_bytes()`), so blob.media aliases the O_APPEND FileMedia object_inserted link_into's; the trace performs no appendable-object upload
+# UNCOVERED gcs/upload.py:413 -- BidiWrite appendable write_object_spec staging factory `upload.media = db.store.new_upload_media(...)` (Task 10); no appendable upload in the trace
 # UNCOVERED gcs/upload.py:565 -- partial-media resend branch, BidiWrite variant of :245
 # UNCOVERED gcs/upload.py:575 -- OUT_OF_RANGE abort, BidiWrite variant of :255
-# UNCOVERED gcs/upload.py:626 -- update_appendable_blob closure (checksummed_data flush); no appendable upload in the trace
-# UNCOVERED gcs/upload.py:627 -- same update_appendable_blob ternary as :626 (the BytesMedia-passthrough value); no appendable upload in the trace
-# UNCOVERED gcs/upload.py:628 -- same update_appendable_blob ternary as :626 (the isinstance condition); no appendable upload in the trace
-# UNCOVERED gcs/upload.py:629 -- same update_appendable_blob ternary as :626 (the BytesMedia-wrap else branch); no appendable upload in the trace
-# UNCOVERED gcs/upload.py:631 -- update_appendable_blob closure size assignment; no appendable upload in the trace
-# UNCOVERED gcs/upload.py:672 -- finalize_blob closure (appendable finalize); no appendable upload in the trace
-# UNCOVERED gcs/upload.py:673 -- same finalize_blob ternary as :672 (the BytesMedia-passthrough value); no appendable upload in the trace
-# UNCOVERED gcs/upload.py:674 -- same finalize_blob ternary as :672 (the isinstance condition); no appendable upload in the trace
-# UNCOVERED gcs/upload.py:675 -- same finalize_blob ternary as :672 (the BytesMedia-wrap else branch); no appendable upload in the trace
-# UNCOVERED gcs/upload.py:680 -- finalize_blob closure size assignment; no appendable upload in the trace
+# UNCOVERED gcs/upload.py:642 -- update_appendable_blob closure `blob.media = (` (checksummed_data flush); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:643 -- same update_appendable_blob ternary as :642 (the Media-passthrough value `upload.media`); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:644 -- same update_appendable_blob ternary as :642 (the isinstance(upload.media, Media) condition, widened in Task 10 so a FileMedia aliases through); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:645 -- same update_appendable_blob ternary as :642 (the BytesMedia-wrap else branch, memory-only); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:647 -- update_appendable_blob closure size assignment; no appendable upload in the trace
+# UNCOVERED gcs/upload.py:694 -- finalize_blob closure `blob.media = (` (appendable finalize); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:695 -- same finalize_blob ternary as :694 (the Media-passthrough value `upload.media`); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:696 -- same finalize_blob ternary as :694 (the isinstance(upload.media, Media) condition, widened in Task 10); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:697 -- same finalize_blob ternary as :694 (the BytesMedia-wrap else branch, memory-only); no appendable upload in the trace
+# UNCOVERED gcs/upload.py:702 -- finalize_blob closure size assignment; no appendable upload in the trace
 
 # --- testbench/grpc_server.py ---
 # Line numbers re-pinned in Task 9: the now-dead `from testbench.media import
@@ -189,6 +201,7 @@ testbench/rest_server.py:1323
 # UNCOVERED testbench/filestore.py:179 -- object_inserted link_into's a still-growing appendable FileMedia into its destination; only under TESTBENCH_STORE=file, and the coverage gate runs the memory-config conformance trace (NullStore), which never constructs a FileStore
 # UNCOVERED testbench/filestore.py:183 -- object_inserted finalize's a one-shot FileMedia (O(1) promote) into its destination; only under TESTBENCH_STORE=file, and the coverage gate runs the memory-config conformance trace (NullStore), which never constructs a FileStore
 # UNCOVERED testbench/filestore.py:186 -- object_inserted persists a BytesMedia via to_bytes()+write_bytes_atomic (fallback); only under TESTBENCH_STORE=file, and the coverage gate runs the memory-config conformance trace (NullStore), which never constructs a FileStore
+# UNCOVERED testbench/filestore.py:236 -- object_updated seals a still-unfinalized appendable FileMedia on the finalize checkpoint (blob.upload cleared) via blob.media.seal() (Task 10); only under TESTBENCH_STORE=file and only for appendable uploads, neither of which the memory-config conformance trace exercises
 
 # --- testbench/common.py (fault-injection append helpers) ---
 # UNCOVERED testbench/common.py:994 -- handle_stall_uploads_after_bytes; the trace injects no stall-after-bytes fault

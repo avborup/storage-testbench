@@ -308,7 +308,15 @@ class Upload(types.SimpleNamespace):
         blob, _ = gcs.object.Object.init(
             upload.request,
             upload.metadata,
-            upload.media.to_bytes(),
+            # Pass the empty staging Media THROUGH (no to_bytes()): Object.init's
+            # widened isinstance(media, Media) guard keeps it by identity, so
+            # blob.media aliases the one O_APPEND staging FileMedia. On the FILE
+            # backend object_inserted then link_into's this inode into the
+            # destination and leaves the append fd open for the growth path;
+            # to_bytes() here would have snapshotted an empty BytesMedia and
+            # stranded every later append.  # UNCOVERED (no appendable upload in
+            # the conformance trace)
+            upload.media,
             upload.bucket,
             False,
             context,
@@ -396,6 +404,15 @@ class Upload(types.SimpleNamespace):
             if first_msg.write_object_spec.appendable:
                 is_appendable = True
                 appendable_metadata_in_first_response = True
+                # Stream the appendable growth into a store-provided staging
+                # Media (a single O_APPEND FileMedia on the FILE backend,
+                # BytesMedia on memory). This ONE media is aliased into the empty
+                # insert below and across every checkpoint/finalize, so the
+                # object flows to a single inode -- object_inserted link_into's
+                # it, object_updated seals it (see filestore.object_updated).
+                upload.media = db.store.new_upload_media(
+                    upload.bucket.name, upload.upload_id
+                )
                 blob = cls._insert_empty_appendable_object(
                     db, upload, first_msg.write_object_spec, context
                 )
@@ -404,8 +421,7 @@ class Upload(types.SimpleNamespace):
                 handle = str(1).encode("utf-8")
             else:
                 # Non-appendable new object: stream into a store-provided
-                # staging Media (FileMedia on FILE, BytesMedia on memory). The
-                # appendable branch stays on BytesMedia until Task 10.
+                # staging Media (FileMedia on FILE, BytesMedia on memory).
                 upload.media = db.store.new_upload_media(
                     upload.bucket.name, upload.upload_id
                 )
@@ -612,20 +628,20 @@ class Upload(types.SimpleNamespace):
                     update_upload_checksums(upload.metadata, object_checksums)
 
                     def update_appendable_blob(blob, unused_generation):
-                        # Upload.init always seeds BytesMedia(b""), so the isinstance
-                        # branch below is always true and blob.media becomes an ALIAS
-                        # to the same mutable BytesMedia object as upload.media, not a
-                        # snapshot copy. Pre-seam, upload.media was immutable bytes and
-                        # `upload.media += content` rebound the name, so blob.media ended
-                        # up as a frozen snapshot; now both names refer to one mutable
-                        # buffer. This is intentional and currently benign here: the
-                        # appendable path always checkpoints/flushes (see TODO(#592)
-                        # above) and there is no mid-upload read of blob.media. A
-                        # FileMedia backend with real staging/finalize (Plan 3) must
-                        # revisit whether a defensive copy is needed instead of aliasing.
+                        # blob.media ALIASES the one staging Media as upload.media
+                        # (whether BytesMedia on memory or the single O_APPEND
+                        # FileMedia on the FILE backend) -- never a defensive copy,
+                        # which on a multi-GB appendable object would itself blow
+                        # the memory budget. The isinstance guard is Media (not
+                        # BytesMedia) so a FileMedia passes through by identity
+                        # instead of being materialised back into bytes. This is
+                        # an intermediate checkpoint (blob.upload is still set), so
+                        # the FILE-backend object_updated leaves the shared inode
+                        # open and only rewrites the sidecar; the media bytes are
+                        # already live at the destination via link_into.
                         blob.media = (
                             upload.media
-                            if isinstance(upload.media, BytesMedia)
+                            if isinstance(upload.media, Media)
                             else BytesMedia(upload.media)
                         )
                         blob.metadata.size = len(upload.media)
@@ -667,11 +683,17 @@ class Upload(types.SimpleNamespace):
             if is_appendable:
 
                 def finalize_blob(blob, unused_generation):
-                    # Same aliasing behavior as update_appendable_blob above (see the
-                    # comment there re: snapshot-vs-alias semantics and Plan 3/FileMedia).
+                    # Same aliasing (isinstance Media, not a copy) as
+                    # update_appendable_blob. This is the FINALIZE checkpoint: it
+                    # clears blob.upload, which is the single signal the FILE
+                    # backend's object_updated seals on -- blob.upload is None AND
+                    # the FileMedia is not yet finalized -> seal() closes the
+                    # append fd, unlinks the staging name, freezes md5. Every
+                    # intermediate checkpoint kept blob.upload set, so seal runs
+                    # exactly once, here.
                     blob.media = (
                         upload.media
-                        if isinstance(upload.media, BytesMedia)
+                        if isinstance(upload.media, Media)
                         else BytesMedia(upload.media)
                     )
                     blob.metadata.finalize_time.FromDatetime(

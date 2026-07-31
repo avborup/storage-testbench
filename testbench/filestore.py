@@ -210,10 +210,30 @@ class FileStore(Store):
             )
 
     def object_updated(self, bucket_name, blob):
+        from testbench.filemedia import FileMedia
+
         short = self._bucket_name(bucket_name)
         parts, base = self._dest_parts(blob.metadata.name)
         with self._bucket_dirfd(short) as bfd:
             with self._leaf_dirfd(bfd, parts, create=False) as dfd:
+                # Appendable finalize checkpoint: finalize_blob (upload.py)
+                # cleared blob.upload while blob.media is still an unsealed
+                # staging FileMedia. Seal it -- close the append fd, unlink the
+                # staging NAME (the destination hardlink established at
+                # object_inserted's link_into + its inode both survive), freeze
+                # md5. Intermediate checkpoints keep blob.upload set and the
+                # media bytes are ALREADY live at the destination via the shared
+                # inode, so they (and PATCH/ACL updates carrying a BytesMedia or
+                # an already-sealed FileMedia) fall through to the sidecar-only
+                # write below. Gating on `blob.upload is None` makes seal run
+                # exactly once. Trace-UNCOVERED: no appendable upload in the
+                # conformance trace, so the dedicated test is the safety net.
+                if (
+                    isinstance(blob.media, FileMedia)
+                    and not blob.media.is_finalized
+                    and getattr(blob, "upload", None) is None
+                ):
+                    blob.media.seal()  # MEDIA CALL SITE (appendable finalize)
                 sidecar.write_atomic(
                     dfd,
                     base + ".gcsmeta",
