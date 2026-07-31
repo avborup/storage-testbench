@@ -697,6 +697,11 @@ class Database:
             upload = self.get_upload(upload_id, context)
             if upload is not None:
                 del self._uploads[upload_id]
+        # Reclaim the upload's staging bytes (FileStore unlinks
+        # .gcs/uploads/<upload_id>; no-op on the memory backend). Outside the
+        # lock -- the store touches disk, not the _uploads index.
+        if upload is not None:
+            self._store.delete_upload(upload.bucket.name, upload_id)
 
     # === REWRITE === #
 
@@ -713,8 +718,12 @@ class Database:
 
     def delete_rewrite(self, token, context):
         with self._rewrites_lock:
-            self.get_rewrite(token, context)
+            rewrite = self.get_rewrite(token, context)
             del self._rewrites[token]
+        # Reclaim the rewrite's staging bytes (FileStore unlinks
+        # .gcs/uploads/<token>; no-op on the memory backend). Outside the lock.
+        if rewrite is not None:
+            self._store.delete_rewrite(rewrite.dst_bucket_name, token)
 
     # ==== PROJECTS ==== #
 

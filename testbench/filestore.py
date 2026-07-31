@@ -158,10 +158,21 @@ class FileStore(Store):
         return self.new_upload_media(bucket_name, token)
 
     def delete_upload(self, bucket_name, upload_id):
-        """Remove an abandoned/cancelled staging file (Task 12 wires this to
-        Database.delete_upload / CancelResumableWrite)."""
+        """Remove an abandoned/cancelled upload's staging file (wired to
+        Database.delete_upload / CancelResumableWrite / upload abort). The
+        FileMedia's own append fd is dropped when the Upload is GC'd; this just
+        reclaims the on-disk staging name so it does not leak."""
         with self._uploads_dfd(bucket_name) as ufd:
             _unlink_quiet(ufd, upload_id)
+
+    def delete_rewrite(self, bucket_name, token):
+        """Remove an abandoned multi-call rewrite's staging file. A rewrite
+        stages its accumulating windows under .gcs/uploads/<token> and only
+        finalizes (os.replace, which consumes the staging name) on the terminal
+        `done`; a dropped/expired rewrite otherwise leaves the staging file and
+        an open O_APPEND fd behind. Mirrors delete_upload."""
+        with self._uploads_dfd(bucket_name) as ufd:
+            _unlink_quiet(ufd, token)
 
     def object_inserted(self, bucket_name, blob):
         from testbench.filemedia import FileMedia
@@ -180,6 +191,15 @@ class FileStore(Store):
                     # subsequent appends flow to the shared inode; everything else
                     # is a one-shot O(1) promote. No to_bytes(), no double-write.
                     if getattr(blob, "upload", None) is not None:
+                        # A re-insert of the same natural name (e.g. a fresh
+                        # appendable BidiWrite of an object-name that is already
+                        # live) is a NEW generation replacing the prior one --
+                        # the memory backend just overwrites its index entry, and
+                        # the finalize branch below overwrites via os.replace.
+                        # os.link cannot overwrite, so drop any existing dest name
+                        # first (the prior generation's inode survives via its own
+                        # still-open staging hardlink); keeps FILE == MEMORY.
+                        _unlink_quiet(dfd, base)
                         blob.media.link_into(
                             (dfd, base)
                         )  # MEDIA CALL SITE (appendable)

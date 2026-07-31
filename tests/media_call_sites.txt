@@ -26,7 +26,7 @@
 # write_object_spec branch (gcs/upload.py:413), dropped the empty-insert
 # `.to_bytes()` in favour of a media pass-through (:319), widened the two
 # appendable alias-guard ternaries to isinstance(Media) (:642-647, :694-702),
-# and added the object_updated seal call site (testbench/filestore.py:236) --
+# and added the object_updated seal call site (testbench/filestore.py:260) --
 # all trace-UNCOVERED (no appendable upload in the trace / FileStore never built
 # under the memory-config coverage gate). The shifts moved the non-appendable
 # BidiWrite factory :409 -> :425 and every gcs/upload.py site below it (+16);
@@ -198,10 +198,10 @@ testbench/rest_server.py:1323
 # UNCOVERED testbench/rest_server.py:1316 -- non-Content-Range simple-upload completion; the trace's resumable uploads always send a Content-Range
 
 # --- testbench/filestore.py ---
-# UNCOVERED testbench/filestore.py:179 -- object_inserted link_into's a still-growing appendable FileMedia into its destination; only under TESTBENCH_STORE=file, and the coverage gate runs the memory-config conformance trace (NullStore), which never constructs a FileStore
-# UNCOVERED testbench/filestore.py:183 -- object_inserted finalize's a one-shot FileMedia (O(1) promote) into its destination; only under TESTBENCH_STORE=file, and the coverage gate runs the memory-config conformance trace (NullStore), which never constructs a FileStore
-# UNCOVERED testbench/filestore.py:186 -- object_inserted persists a BytesMedia via to_bytes()+write_bytes_atomic (fallback); only under TESTBENCH_STORE=file, and the coverage gate runs the memory-config conformance trace (NullStore), which never constructs a FileStore
-# UNCOVERED testbench/filestore.py:236 -- object_updated seals a still-unfinalized appendable FileMedia on the finalize checkpoint (blob.upload cleared) via blob.media.seal() (Task 10); only under TESTBENCH_STORE=file and only for appendable uploads, neither of which the memory-config conformance trace exercises
+# UNCOVERED testbench/filestore.py:203 -- object_inserted link_into's a still-growing appendable FileMedia into its destination; only under TESTBENCH_STORE=file, and the coverage gate runs the memory-config conformance trace (NullStore), which never constructs a FileStore
+# UNCOVERED testbench/filestore.py:207 -- object_inserted finalize's a one-shot FileMedia (O(1) promote) into its destination; only under TESTBENCH_STORE=file, and the coverage gate runs the memory-config conformance trace (NullStore), which never constructs a FileStore
+# UNCOVERED testbench/filestore.py:210 -- object_inserted persists a BytesMedia via to_bytes()+write_bytes_atomic (fallback); only under TESTBENCH_STORE=file, and the coverage gate runs the memory-config conformance trace (NullStore), which never constructs a FileStore
+# UNCOVERED testbench/filestore.py:260 -- object_updated seals a still-unfinalized appendable FileMedia on the finalize checkpoint (blob.upload cleared) via blob.media.seal() (Task 10); only under TESTBENCH_STORE=file and only for appendable uploads, neither of which the memory-config conformance trace exercises
 
 # --- testbench/common.py (fault-injection append helpers) ---
 # UNCOVERED testbench/common.py:994 -- handle_stall_uploads_after_bytes; the trace injects no stall-after-bytes fault

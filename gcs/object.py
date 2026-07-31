@@ -575,9 +575,9 @@ class Object:
         # bytes (what the pre-Task-7 code served), otherwise the raw object bytes.
         if instructions is not None and isinstance(response_payload, Media):
             if is_decompressive_transcode:
-                response_payload = b"".join(_stream_transcode(self.media))
+                response_payload = b"".join(_stream_transcode(self.media))  # fault
             else:
-                response_payload = response_payload.to_bytes()
+                response_payload = response_payload.to_bytes()  # fault-only
         if instructions is None:
 
             def streamer():

@@ -654,7 +654,7 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
             end = pos + len(chunk)
             # Handle retry test broken-stream failures if applicable.
             if broken_stream_after_bytes and end >= broken_stream_after_bytes:
-                chunk = blob.media[pos:broken_stream_after_bytes]
+                chunk = blob.media[pos:broken_stream_after_bytes]  # fault-only
                 yield storage_pb2.ReadObjectResponse(
                     checksummed_data={
                         "content": chunk,
@@ -692,7 +692,7 @@ class StorageServicer(storage_pb2_grpc.StorageServicer):
         # range the loop above already aborted before reaching this point).
         if (read_end - start) % size == 0:
             if broken_stream_after_bytes and read_end >= broken_stream_after_bytes:
-                chunk = blob.media[read_end:broken_stream_after_bytes]
+                chunk = blob.media[read_end:broken_stream_after_bytes]  # fault-only
                 yield storage_pb2.ReadObjectResponse(
                     checksummed_data={
                         "content": chunk,

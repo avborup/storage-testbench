@@ -181,6 +181,16 @@ class Store:
 
         return BytesMedia(b"")
 
+    def delete_upload(self, bucket_name, upload_id):
+        """Reclaim a cancelled/abandoned upload's staging bytes. No-op on the
+        memory backend (BytesMedia is GC'd with the Upload); FileStore unlinks
+        <bucket>/.gcs/uploads/<upload_id> so staging never leaks."""
+
+    def delete_rewrite(self, bucket_name, token):
+        """Reclaim an abandoned multi-call rewrite's staging bytes. No-op on the
+        memory backend; FileStore unlinks <bucket>/.gcs/uploads/<token> and drops
+        the append fd (an abandoned rewrite otherwise leaks staging + an fd)."""
+
     def cleared(self):
         """All resources were dropped, as in `Database.clear()`."""
 
