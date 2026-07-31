@@ -31,6 +31,16 @@
 # under the memory-config coverage gate). The shifts moved the non-appendable
 # BidiWrite factory :409 -> :425 and every gcs/upload.py site below it (+16);
 # every entry is content-verified against the working tree.
+#
+# Phase 6 (bootstrap) re-pin: the deployment wiring shifted both server modules
+# without touching any media call site. testbench/grpc_server.py gained
+# `_grpc_thread_count()` (TESTBENCH_GRPC_THREADS) near the module head, moving
+# every grpc site below it by +5; testbench/rest_server.py gained the
+# `_start_grpc`/`_bootstrap_from_env` helpers plus the file-branch worker-lock
+# claim, and a slimmer delegating `/start_grpc` route, moving :106 by +27 and
+# every rest site at/below the route by +19. No `.media` statement changed;
+# every grpc_server.py / rest_server.py entry below is content-verified against
+# the working tree.
 
 # --- gcs/object.py ---
 gcs/object.py:67
@@ -124,40 +134,40 @@ gcs/upload.py:737
 # chunked copy loop, and RewriteObject grew a `rewrite.media = new_staging_media`
 # assignment plus a windowed `chunks()` streaming loop, shifting the sites below
 # each. The sites are content-verified against the working tree.
-testbench/grpc_server.py:556
-testbench/grpc_server.py:622
-testbench/grpc_server.py:623
-testbench/grpc_server.py:631
-testbench/grpc_server.py:653
-testbench/grpc_server.py:791
-testbench/grpc_server.py:810
-testbench/grpc_server.py:1109
-testbench/grpc_server.py:1143
-testbench/grpc_server.py:1188
-testbench/grpc_server.py:1209
-testbench/grpc_server.py:1212
-testbench/grpc_server.py:1220
-testbench/grpc_server.py:1221
-testbench/grpc_server.py:1222
+testbench/grpc_server.py:561
+testbench/grpc_server.py:627
+testbench/grpc_server.py:628
+testbench/grpc_server.py:636
+testbench/grpc_server.py:658
+testbench/grpc_server.py:796
+testbench/grpc_server.py:815
+testbench/grpc_server.py:1114
+testbench/grpc_server.py:1148
+testbench/grpc_server.py:1193
+testbench/grpc_server.py:1214
+testbench/grpc_server.py:1217
 testbench/grpc_server.py:1225
-testbench/grpc_server.py:1244
-testbench/grpc_server.py:1269
-testbench/grpc_server.py:1279
-# grpc_server.py:556 (ComposeObject) and :1109 (MoveObject) are the streaming
+testbench/grpc_server.py:1226
+testbench/grpc_server.py:1227
+testbench/grpc_server.py:1230
+testbench/grpc_server.py:1249
+testbench/grpc_server.py:1274
+testbench/grpc_server.py:1284
+# grpc_server.py:561 (ComposeObject) and :1114 (MoveObject) are the streaming
 # copy sites `for chunk in <src>.media.chunks(0, len(<src>.media), size):` --
 # MoveObject's `.to_bytes()` accumulate is gone (Task 9), the source now streams
 # one read chunk at a time into the staging Media (coverage attributes the loop to
-# its `for` line). :1188 is RewriteObject's `rewrite.media =
-# self.db.store.new_staging_media(...)` staging factory; :1220 is the windowed
-# rewrite `for chunk in src_object.media.chunks(offset, total, size):` and :1221
+# its `for` line). :1193 is RewriteObject's `rewrite.media =
+# self.db.store.new_staging_media(...)` staging factory; :1225 is the windowed
+# rewrite `for chunk in src_object.media.chunks(offset, total, size):` and :1226
 # its `rewrite.media.append(chunk)` -- the `src.media[slice]` materialiser is
-# gone. :1143 is WriteObject's finalize `Object.init(..., upload.media, ...)`;
-# :1269 is `upload.media = self.db.store.new_upload_media(...)` in
+# gone. :1148 is WriteObject's finalize `Object.init(..., upload.media, ...)`;
+# :1274 is `upload.media = self.db.store.new_upload_media(...)` in
 # StartResumableWrite (the resumable-gRPC staging factory).
-# UNCOVERED testbench/grpc_server.py:657 -- broken-stream fault chunk in ReadObject's chunks() loop; the trace injects no broken-stream fault on a gRPC read
-# UNCOVERED testbench/grpc_server.py:695 -- broken-stream fault chunk on ReadObject's trailing empty response; needs a 0-byte or exact-size-multiple read combined with a broken-stream fault, which the trace never does
-# UNCOVERED testbench/grpc_server.py:790 -- negative read_offset in BidiReadObject; the trace uses no negative offset on a bidi read
-# UNCOVERED testbench/grpc_server.py:1139 -- resumable-but-unfinished WriteObject early return; the trace's WriteObject always sets finish_write
+# UNCOVERED testbench/grpc_server.py:662 -- broken-stream fault chunk in ReadObject's chunks() loop; the trace injects no broken-stream fault on a gRPC read
+# UNCOVERED testbench/grpc_server.py:700 -- broken-stream fault chunk on ReadObject's trailing empty response; needs a 0-byte or exact-size-multiple read combined with a broken-stream fault, which the trace never does
+# UNCOVERED testbench/grpc_server.py:795 -- negative read_offset in BidiReadObject; the trace uses no negative offset on a bidi read
+# UNCOVERED testbench/grpc_server.py:1144 -- resumable-but-unfinished WriteObject early return; the trace's WriteObject always sets finish_write
 
 # --- testbench/rest_server.py ---
 # Line numbers re-pinned in Task 9: objects_copy's `b"" += src.media`
@@ -165,37 +175,37 @@ testbench/grpc_server.py:1279
 # grew a `rewrite.media = db.store.new_staging_media(...)` staging assignment plus
 # a windowed `chunks()` streaming loop, shifting the sites below. The sites are
 # content-verified against the working tree.
-testbench/rest_server.py:106
-testbench/rest_server.py:740
-testbench/rest_server.py:795
-testbench/rest_server.py:850
+testbench/rest_server.py:133
+testbench/rest_server.py:759
+testbench/rest_server.py:814
 testbench/rest_server.py:869
-testbench/rest_server.py:871
-testbench/rest_server.py:879
-testbench/rest_server.py:880
-testbench/rest_server.py:884
-testbench/rest_server.py:885
-testbench/rest_server.py:894
-testbench/rest_server.py:1110
+testbench/rest_server.py:888
+testbench/rest_server.py:890
+testbench/rest_server.py:898
+testbench/rest_server.py:899
+testbench/rest_server.py:903
+testbench/rest_server.py:904
+testbench/rest_server.py:913
 testbench/rest_server.py:1129
-testbench/rest_server.py:1146
-testbench/rest_server.py:1176
-testbench/rest_server.py:1198
-testbench/rest_server.py:1311
-testbench/rest_server.py:1312
-testbench/rest_server.py:1323
-# rest_server.py:740 (objects_compose) and :795 (objects_copy) are the streaming
+testbench/rest_server.py:1148
+testbench/rest_server.py:1165
+testbench/rest_server.py:1195
+testbench/rest_server.py:1217
+testbench/rest_server.py:1330
+testbench/rest_server.py:1331
+testbench/rest_server.py:1342
+# rest_server.py:759 (objects_compose) and :814 (objects_copy) are the streaming
 # copy sites `for chunk in <src>.media.chunks(0, len(<src>.media), size):`;
-# objects_copy's `b"" += src.media` is gone (Task 9). :850 is objects_rewrite's
-# `rewrite.media = db.store.new_staging_media(...)` staging factory, :879 the
-# windowed `for chunk in src_object.media.chunks(offset, total, size):` and :880
+# objects_copy's `b"" += src.media` is gone (Task 9). :869 is objects_rewrite's
+# `rewrite.media = db.store.new_staging_media(...)` staging factory, :898 the
+# windowed `for chunk in src_object.media.chunks(offset, total, size):` and :899
 # its `rewrite.media.append(chunk)` -- the `src.media[slice]` materialiser is
-# gone. :1110 is the Task-5 staging factory `upload.media =
-# db.store.new_upload_media(...)` right after init_resumable_rest; :1311 is the
-# resumable-chunk `upload.media += data` (O_APPEND on FileMedia) and :1323 the
+# gone. :1129 is the Task-5 staging factory `upload.media =
+# db.store.new_upload_media(...)` right after init_resumable_rest; :1330 is the
+# resumable-chunk `upload.media += data` (O_APPEND on FileMedia) and :1342 the
 # finalize `Object.init(..., upload.media, ...)`.
-# UNCOVERED testbench/rest_server.py:1204 -- finalize a chunked resumable upload via a `bytes */N` PUT matching persisted size; the trace does not finalize on this branch
-# UNCOVERED testbench/rest_server.py:1316 -- non-Content-Range simple-upload completion; the trace's resumable uploads always send a Content-Range
+# UNCOVERED testbench/rest_server.py:1223 -- finalize a chunked resumable upload via a `bytes */N` PUT matching persisted size; the trace does not finalize on this branch
+# UNCOVERED testbench/rest_server.py:1335 -- non-Content-Range simple-upload completion; the trace's resumable uploads always send a Content-Range
 
 # --- testbench/filestore.py ---
 # UNCOVERED testbench/filestore.py:203 -- object_inserted link_into's a still-growing appendable FileMedia into its destination; only under TESTBENCH_STORE=file, and the coverage gate runs the memory-config conformance trace (NullStore), which never constructs a FileStore
